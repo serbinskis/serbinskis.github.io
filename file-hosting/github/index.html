@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>File Hosting – Serbinskis</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f8f9fb;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid #e0e0e0;
+      text-align: center;
+      padding: 2rem 1rem;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2.4rem;
+      color: #222;
+    }
+
+    header p {
+      margin: 0.5rem 0 1rem;
+      font-size: 1.05rem;
+      color: #555;
+    }
+
+    header a {
+      background: #2a9d8f;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+
+    header a:hover {
+      background: #21867a;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    .preview {
+      width: 100%;
+      margin: 0 auto 1rem;
+      display: block;
+      border-radius: 10px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    }
+
+    section {
+      background: white;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+    }
+
+    h2 {
+      color: #2a9d8f;
+      margin-top: 0;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+
+    .feature {
+      background: #f9f9fb;
+      padding: 1rem;
+      border-left: 5px solid #e63946;
+      border-radius: 6px;
+      transition: transform 0.2s;
+    }
+
+    .feature:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+
+    ul, ol {
+      padding-left: 1.25rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      background: #f0f0f4;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    footer a {
+      color: #2a9d8f;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>File Hosting</h1>
+    <p>Minimalist file sharing with smart folders and no login</p>
+    <p><a href="/home/">← Back to Homepage</a></p>
+  </header>
+
+  <main>
+    <img class="preview" src="https://i.imgur.com/2BJ4X9a.png" alt="Upload Interface Screenshot" />
+    <img class="preview" src="https://i.imgur.com/L6863Ab.png" alt="File List Screenshot" />
+
+    <section>
+      <h2>About</h2>
+      <p>This web-based file hosting interface lets you share files instantly, no account required. It creates a new folder on your first upload and gives you full control — rename, unlist, lock, or delete. Everything is built for privacy and simplicity.</p>
+    </section>
+
+    <section>
+      <h2>Key Features</h2>
+      <div class="features">
+        <div class="feature">
+          <strong>📂 Drag & Drop Upload</strong>
+          <p>Simply drop files anywhere and a folder is created automatically.</p>
+        </div>
+        <div class="feature">
+          <strong>🔐 Lock & Unlist</strong>
+          <p>Lock folders or make them unlisted for private sharing.</p>
+        </div>
+        <div class="feature">
+          <strong>⚡ Parallel Upload Option</strong>
+          <p>Upload files in parallel or in order, based on your needs.</p>
+        </div>
+        <div class="feature">
+          <strong>📋 Rename / Delete / Copy</strong>
+          <p>Each file or folder can be renamed, deleted, or copied via icons.</p>
+        </div>
+        <div class="feature">
+          <strong>📦 Download as ZIP</strong>
+          <p>Download the entire folder content in one click as a ZIP archive.</p>
+        </div>
+        <div class="feature">
+          <strong>📈 Live Progress</strong>
+          <p>See real-time upload progress and data usage for each file.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Technology Used</h2>
+      <ul>
+        <li><strong>Node.js/TypeScript</strong> – backend server</li>
+        <li><strong>JavaScript</strong> with jQuery – frontend interactivity</li>
+        <li><strong>HTML & CSS</strong> – layout and UI components</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p><em>This page is a showcase only. The app is not publicly live-hosted.</em></p>
+    <p>Made with ❤️ by <a href="/home/">Serbinskis</a></p>
+  </footer>
+
+</body>
+</html>

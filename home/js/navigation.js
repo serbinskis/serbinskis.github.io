@@ -8,19 +8,16 @@ var navigationItems = [
         name: "UNO Game",
         href: "/uno-game",
         icon: "fa-solid fa-dice-six",
-        onclick: () => alert("Sorry, this project is private!"),
     },
     {
         name: "File Hosting",
         href: "/file-hosting",
         icon: "fa-solid fa-cloud",
-        onclick: () => alert("Sorry, this project is private!"),
     },
     {
         name: "Steam Workshop Download",
         href: "/steam-workshop-download",
         icon: "fa-brands fa-steam-symbol",
-        onclick: () => alert("Sorry, this project is private!"),
     },
     {
         name: "Lofi Hip Hop",
@@ -36,7 +33,6 @@ var navigationItems = [
         name: "Kahoot Flooder",
         href: "/kahoot-flooder",
         icon: "fa-solid fa-k",
-        onclick: () => alert("Sorry, this project is private!"),
     },
     {
         name: "MSI Control",
@@ -190,6 +186,10 @@ async function loadScript(url) {
     var links = Array.from(document.querySelectorAll("link#serbinskis")).map(e => ["href", e]);
 
     iframes.concat(links).forEach(([key, elm]) => {
+        if (location.hostname.includes('github.io')) {
+            location.replace(`${location.href}/github`);
+        }
+
         if (location.href.includes("http://") && !elm[key].includes("http://")) {
             elm[key] = iframe.src.replace("https://", "http://");
         }

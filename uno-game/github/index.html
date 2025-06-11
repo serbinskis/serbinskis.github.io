@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UNO Game – Serbinskis</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f8f9fb;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid #e0e0e0;
+      text-align: center;
+      padding: 2rem 1rem;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2.4rem;
+      color: #222;
+    }
+
+    header p {
+      margin: 0.5rem 0 1rem;
+      font-size: 1.05rem;
+      color: #555;
+    }
+
+    header a {
+      background: #2a9d8f;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+
+    header a:hover {
+      background: #21867a;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    img.hero {
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+      margin-bottom: 2rem;
+    }
+
+    section {
+      background: white;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+    }
+
+    h2 {
+      color: #2a9d8f;
+      margin-top: 0;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+
+    .feature {
+      background: #f9f9fb;
+      padding: 1rem;
+      border-left: 5px solid #e63946;
+      border-radius: 6px;
+      transition: transform 0.2s;
+    }
+
+    .feature:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+    }
+
+    ul, ol {
+      padding-left: 1.25rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      background: #f0f0f4;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    footer a {
+      color: #2a9d8f;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>UNO Game</h1>
+    <p>Fast-paced multiplayer action, now on the web.</p>
+    <p><a href="/home/">GitHub Repository</a></p>
+  </header>
+
+  <main>
+    <img class="hero" src="https://i.imgur.com/1Upj1DZ.jpeg" alt="UNO Game Screenshot" />
+
+    <section>
+      <h2>About the Game</h2>
+      <p>This web-based UNO clone lets players match cards by color or number in a real-time multiplayer environment. With player avatars, configurable settings, and responsive animations, it’s a modern spin on a classic favorite.</p>
+    </section>
+
+    <section>
+      <h2>Features</h2>
+      <div class="features">
+        <div class="feature">
+          <strong>🎭 Custom Avatars</strong>
+          <p>Upload a profile picture and personalize your name in the game lobby.</p>
+        </div>
+        <div class="feature">
+          <strong>⚙️ Game Settings</strong>
+          <p>Adjust deck size, player time, and max participants before launching a match.</p>
+        </div>
+        <div class="feature">
+          <strong>🌐 Real-Time Play</strong>
+          <p>Built with Socket.io to ensure seamless interaction between players.</p>
+        </div>
+        <div class="feature">
+          <strong>🃏 Animated Cards</strong>
+          <p>Visual feedback makes gameplay feel responsive and dynamic.</p>
+        </div>
+        <div class="feature">
+          <strong>🏆 Winner & UNO Indicators</strong>
+          <p>Get notified when someone reaches one card—and when someone wins!</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Technology Stack</h2>
+      <ul>
+        <li><strong>Node.js</strong> – server-side game logic</li>
+        <li><strong>Socket.io</strong> – real-time multiplayer communication</li>
+        <li><strong>JavaScript</strong> + jQuery – frontend interactivity</li>
+        <li><strong>HTML & CSS</strong> – page structure and styling</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>How It Works</h2>
+      <ol>
+        <li>Choose a username and avatar.</li>
+        <li>Adjust settings to your liking (number of cards, time, etc.).</li>
+        <li>Click “Connect” to join a lobby and start the game.</li>
+        <li>Match cards by color or number in turns.</li>
+        <li>Win by playing your last card. The winner gets celebrated!</li>
+      </ol>
+    </section>
+  </main>
+
+  <footer>
+    <p><em>This page is a showcase only. The game is not publicly live-hosted.</em></p>
+    <p>Made with ❤️ by <a href="/home/">Serbinskis</a></p>
+  </footer>
+
+</body>
+</html>
