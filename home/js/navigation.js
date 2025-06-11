@@ -8,16 +8,19 @@ var navigationItems = [
         name: "UNO Game",
         href: "/uno-game",
         icon: "fa-solid fa-dice-six",
+        onclick: () => alert("Sorry, this project is private!"),
     },
     {
         name: "File Hosting",
         href: "/file-hosting",
         icon: "fa-solid fa-cloud",
+        onclick: () => alert("Sorry, this project is private!"),
     },
     {
         name: "Steam Workshop Download",
         href: "/steam-workshop-download",
         icon: "fa-brands fa-steam-symbol",
+        onclick: () => alert("Sorry, this project is private!"),
     },
     {
         name: "Lofi Hip Hop",
@@ -33,6 +36,7 @@ var navigationItems = [
         name: "Kahoot Flooder",
         href: "/kahoot-flooder",
         icon: "fa-solid fa-k",
+        onclick: () => alert("Sorry, this project is private!"),
     },
     {
         name: "MSI Control",
