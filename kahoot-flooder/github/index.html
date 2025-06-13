@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kahoot Flooder - Serbinskis</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f8f9fb;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid #e0e0e0;
+      text-align: center;
+      padding: 2rem 1rem;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2.4rem;
+      color: #222;
+    }
+
+    header p {
+      margin: 0.5rem 0 1rem;
+      font-size: 1.05rem;
+      color: #555;
+    }
+
+    header a {
+      background: #2a9d8f;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+
+    header a:hover {
+      background: #21867a;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    img.hero {
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+      margin-bottom: 2rem;
+    }
+
+    section {
+      background: white;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+    }
+
+    h2 {
+      color: #2a9d8f;
+      margin-top: 0;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+
+    .feature {
+      background: #f9f9fb;
+      padding: 1rem;
+      border-left: 5px solid #e63946;
+      border-radius: 6px;
+      transition: transform 0.2s;
+    }
+
+    .feature:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      background: #f0f0f4;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    footer a {
+      color: #2a9d8f;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Kahoot Flooder</h1>
+    <p>Simulate thousands of bots joining a Kahoot game for fun or testing.</p>
+    <p><a href="/home/">← Back to Homepage</a></p>
+  </header>
+
+  <main>
+    <img class="hero" src="https://i.imgur.com/EEwnQlH.png" alt="Kahoot Flooder Preview" />
+  
+    <section>
+      <h2>About</h2>
+      <p>Kahoot Flooder is a web-based tool to join automated bots into Kahoot quiz games using only a PIN, nickname prefix, and count. It operates via socket.io, runs on both HTTP and HTTPS, and uses the kahoot.js-latest library to mimic actual player behavior.</p>
+    </section>
+
+    <section>
+      <h2>Key Features</h2>
+      <div class="features">
+        <div class="feature">
+          <strong>🔢 PIN-Based Flooding</strong>
+          <p>Join bots to any valid Kahoot game using a simple PIN.</p>
+        </div>
+        <div class="feature">
+          <strong>🧠 Custom Prefix</strong>
+          <p>Each bot gets a unique nickname prefixed with your chosen name.</p>
+        </div>
+        <div class="feature">
+          <strong>🚀 Up to 1000 Bots</strong>
+          <p>Supports launching up to 1000 concurrent bots per session.</p>
+        </div>
+        <div class="feature">
+          <strong>🛑 Leave Control</strong>
+          <p>Remove all bots from a session instantly using the leave button.</p>
+        </div>
+        <div class="feature">
+          <strong>🌐 Socket.io Backend</strong>
+          <p>Real-time backend with safe input checks and async processing.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Technology Used</h2>
+      <ul>
+        <li><strong>Node.js/TypeScript</strong> - backend execution and task management</li>
+        <li><strong>Socket.io</strong> - live communication between UI and bots</li>
+        <li><strong>HTML/CSS + Bootstrap</strong> - user interface layout</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p><em>This page is a showcase only. The app is not publicly live-hosted.</em></p>
+    <p>Made with ❤️ by <a href="/home/">Serbinskis</a></p>
+  </footer>
+
+</body>
+</html>
