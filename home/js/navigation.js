@@ -90,8 +90,8 @@ var navigationItems = [
         icon: "fa-brands fa-windows",
     },
     {
-        name: "Office 2016 Activator",
-        href: "https://github.com/serbinskis/microsoft-office-2016/",
+        name: "Microsoft Office Activator",
+        href: "https://github.com/serbinskis/microsoft-office/",
         icon: "fa-solid fa-file-word",
     },
     {
