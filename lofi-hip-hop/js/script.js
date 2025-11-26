@@ -47,13 +47,16 @@ async function loadFile(url) {
         xhr.open('GET', url);
         xhr.responseType = 'blob';
         xhr.onload = () => resolve(xhr.response);
+        xhr.onerror = (e) => console.error("Proxy Error:", e);
         xhr.send();
     });
 }
 
 async function preload() {
     var rnum = Math.floor(Math.random() * Math.floor(playlist.length));
-    var buffer = await loadFile(playlist[rnum].browser_download_url);
+    var targetUrl = playlist[rnum].browser_download_url;
+    var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+    var buffer = await loadFile(proxyUrl);
     var name = playlist[rnum].name;
     var type = `audio/${name.split('.').pop()}`;
 
