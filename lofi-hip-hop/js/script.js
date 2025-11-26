@@ -1,4 +1,4 @@
-var splitted = 'https://github.com/aadrians1/playlist/tree/main/lofi%20hip%20hop'.split('/');
+var splitted = 'https://github.com/serbinskis/serbinskis.github.io/releases/tag/lofi-hip-hop'.split('/');
 var playlist;
 var preloaded = {};
 var audio = new Audio();
@@ -31,30 +31,33 @@ function base64ToBlob(base64, type) {
 }
 
 async function loadPlaylist() {
-    return await new Promise(resolve => {
+    var response = await new Promise(resolve => {
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', `https://api.github.com/repos/${splitted[3]}/${splitted[4]}/git/trees/${splitted[6]}:${splitted[7]}`);
+        xhr.open('GET', `https://api.github.com/repos/${splitted[3]}/${splitted[4]}/releases/tags/${splitted[7]}`);
         xhr.onload = () => resolve(xhr.response);
         xhr.send();
     });
+
+    return JSON.parse(response).assets.filter(a => /\.(mp3|wav|ogg|m4a|aac|flac|weba)$/i.test(a.name));
 }
 
-async function loadFile(sha) {
+async function loadFile(url) {
     return await new Promise(resolve => {
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', `https://api.github.com/repos/${splitted[3]}/${splitted[4]}/git/blobs/${sha}`);
+        xhr.open('GET', url);
+        xhr.responseType = 'blob';
         xhr.onload = () => resolve(xhr.response);
         xhr.send();
     });
 }
 
 async function preload() {
-    var rnum = Math.floor(Math.random() * Math.floor(playlist.tree.length));
-    var response = JSON.parse(await loadFile(playlist.tree[rnum].sha));
-    var name = playlist.tree[rnum].path;
+    var rnum = Math.floor(Math.random() * Math.floor(playlist.length));
+    var buffer = await loadFile(playlist[rnum].browser_download_url);
+    var name = playlist[rnum].name;
     var type = `audio/${name.split('.').pop()}`;
 
-    preloaded = { name: name, size: bytesToSize(response.size), type: type, base64: response.content }
+    preloaded = { name: name, size: bytesToSize(buffer.size), type: type, blob: buffer }
     console.log(`Preloaded '${preloaded.name}' | Size: ${preloaded.size}`);
 }
 
@@ -73,10 +76,10 @@ async function shuffleMusic() {
 
 async function playSound(sound) {
     console.log(`Playing '${sound.name}' | Size: ${sound.size}`);
-    await loadTags(base64ToBlob(preloaded.base64, sound.type));
+    await loadTags(sound.blob);
 
     audio.onended = shuffleMusic;
-    audio.src = `data:${sound.type};base64,${sound.base64}`;
+    audio.src = URL.createObjectURL(sound.blob);
     audio.pause();
     audio.currentTime = 0;
     audio.play();
@@ -150,7 +153,7 @@ async function loadTags(blob) {
 
 (async () => {
     $('#button')[0].onclick = shuffleMusic;
-    playlist = JSON.parse(await loadPlaylist());
+    playlist = await loadPlaylist();
     shuffleMusic();
 })();
 
