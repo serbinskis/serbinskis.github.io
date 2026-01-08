@@ -63,7 +63,7 @@
                     <div class="bg-gray-100 dark:bg-gray-900 p-2 rounded-md text-xs text-gray-600 dark:text-gray-400 mb-3 font-mono">
                         <p>Your code runs inside this function</p>
                         <p class="mt-1"><span class="text-blue-600 dark:text-blue-400">function</span> <span class="text-purple-600 dark:text-purple-400">processText</span>(<span class="text-orange-500">text</span>) {</p>
-                        <p class="ml-4">// <span class="text-green-700 dark:text-green-500">Your code goes here and must return a list of strings...</span></p>
+                        <p class="ml-4">// <span class="text-green-700 dark:text-green-500">Your code must return a string or a list of strings...</span></p>
                         <p>}</p>
                     </div>
                     <div id="editor" class="w-full h-56 border border-gray-300 dark:border-gray-600 rounded-md overflow-auto"></div>
@@ -202,7 +202,8 @@
 
             try {
                 const processText = new Function('text', userCode);
-                const result = processText(text);
+                let result = processText(text);
+                if (typeof result === 'string') { result = [result]; }
                 
                 if (Array.isArray(result)) {
                     const list = document.createElement('ol');
