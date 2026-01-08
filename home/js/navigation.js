@@ -20,6 +20,11 @@ var navigationItems = [
         icon: "fa-brands fa-steam-symbol",
     },
     {
+        name: "Text Playground",
+        href: "/text-playground",
+        icon: "fa-solid fa-flask",
+    },
+    {
         name: "Lofi Hip Hop",
         href: "/lofi-hip-hop",
         icon: "fas fa-music",

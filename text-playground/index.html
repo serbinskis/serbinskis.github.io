@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg transform='rotate(45 32 32) scale(0.8 0.8) translate(8 8)'%3E%3Cpath d='M22 2v12L6 56c-2 4 2 6 6 6h40c4 0 8-2 6-6L42 14V2z' fill='none' stroke='%2322c55e' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M12 46q20 4 40 0l3 8c1 3-1 6-5 6H14c-4 0-6-3-5-6z' fill='%2322c55e' opacity='.2'/%3E%3Cpath d='M12 46 q10 -8 20 0 t20 0 v10 h-40 z' fill='%2322c55e' opacity='0.6'/%3E%3C/g%3E%3C/svg%3E">
+    <title>Interactive JS Tester</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.9.6/ace.js"></script>
+    <script src="/home/js/navigation.js"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <style>
+        .dark ::-webkit-scrollbar {
+            width: 12px;
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: #1f2937; /* A dark background matching the theme */
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background-color: #4b5563; /* A medium gray for the handle */
+            border-radius: 6px;
+            border: 3px solid #1f2937; /* Creates padding around the handle */
+        }
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background-color: #6b7280; /* A lighter gray on hover */
+        }
+        .dark textarea::-webkit-resizer, .dark #editor::-webkit-resizer {
+            background-color: #1f2937; /* A dark color matching the card background */
+            background-image: linear-gradient(135deg, #4b5563 25%, transparent 25%, transparent 50%, #4b5563 50%, #4b5563 75%, transparent 75%, transparent); /* Subtle grip lines using a slightly lighter gray */
+            border: 1px solid #4b5563; /* A border that matches the grip lines */
+        }
+        .dark #editor::-webkit-resizer {
+            background-color: #1d1f21; !important; /* A dark color matching the card background */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+
+    <div class="container max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="relative text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 dark:text-gray-200">Interactive Code Tester</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">Test your JavaScript logic against custom text input.</p>
+            
+            <button id="theme-toggle" class="absolute top-0 right-0 p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-900 focus:ring-blue-500">
+                <svg id="theme-icon-light" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                <svg id="theme-icon-dark" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+            </button>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <!-- ====== LEFT COLUMN: INPUTS ====== -->
+            <div id="leftColumn" class="flex flex-col gap-6">
+                <!-- Text Input Card -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <label for="textInput" class="block text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Text Input</label>
+                    <textarea id="textInput" class="w-full h-48 p-3 font-mono text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+
+                <!-- Code Input Card -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <label for="codeInput" class="block text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Your Code Logic</label>
+                    <div class="bg-gray-100 dark:bg-gray-900 p-2 rounded-md text-xs text-gray-600 dark:text-gray-400 mb-3 font-mono">
+                        <p>Your code runs inside this function</p>
+                        <p class="mt-1"><span class="text-blue-600 dark:text-blue-400">function</span> <span class="text-purple-600 dark:text-purple-400">processText</span>(<span class="text-orange-500">text</span>) {</p>
+                        <p class="ml-4">// <span class="text-green-700 dark:text-green-500">Your code goes here and must return a list of strings...</span></p>
+                        <p>}</p>
+                    </div>
+                    <div id="editor" class="w-full h-56 border border-gray-300 dark:border-gray-600 rounded-md overflow-auto"></div>
+                </div>
+                
+                <div id="button-placeholder-left" class="mt-2"></div>
+            </div>
+
+            <!-- ====== RIGHT COLUMN: OUTPUT ====== -->
+            <div id="rightColumn" class="flex flex-col">
+                <div class="bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-6 rounded-lg shadow-md flex-grow">
+                     <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2 border-b border-gray-300 dark:border-gray-600 pb-2">Output</h2>
+                     <div id="output" class="w-full h-full text-sm"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="button-placeholder-bottom" class="mt-8">
+            <button id="runButton" class="w-full py-3 px-6 bg-blue-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200">
+                Run Code
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- Get DOM Elements ---
+        const textInput = document.getElementById('textInput');
+        const outputDiv = document.getElementById('output');
+        const leftColumn = document.getElementById('leftColumn');
+        const rightColumn = document.getElementById('rightColumn');
+        const buttonPlaceholderLeft = document.getElementById('button-placeholder-left');
+        const buttonPlaceholderBottom = document.getElementById('button-placeholder-bottom');
+        const runButton = document.getElementById('runButton');
+        
+        // --- Initialize Ace Editor ---
+        const editor = ace.edit("editor");
+        editor.session.setMode("ace/mode/javascript");
+        editor.setOptions({
+            fontSize: "14px",
+            fontFamily: "monospace",
+            showGutter: true,
+            highlightActiveLine: true,
+        });
+        editor.session.setUseWrapMode(true);
+
+        // --- Theme Management ---
+        const themeToggleButton = document.getElementById('theme-toggle');
+        const lightIcon = document.getElementById('theme-icon-light');
+        const darkIcon = document.getElementById('theme-icon-dark');
+
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+                lightIcon.classList.remove('hidden');
+                darkIcon.classList.add('hidden');
+                editor.setTheme("ace/theme/tomorrow_night");
+                localStorage.theme = 'dark';
+            } else {
+                document.documentElement.classList.remove('dark');
+                lightIcon.classList.add('hidden');
+                darkIcon.classList.remove('hidden');
+                editor.setTheme("ace/theme/tomorrow");
+                localStorage.theme = 'light';
+            }
+        }
+
+        themeToggleButton.addEventListener('click', () => {
+            const currentTheme = localStorage.theme === 'dark' ? 'light' : 'dark';
+            applyTheme(currentTheme);
+        });
+
+        const initialTheme = localStorage.theme || 'dark';
+        applyTheme(initialTheme);
+
+        // --- Set Initial Values for Demonstration ---
+        textInput.value = "First sentence! āotrais teikums? Third sentence.\n" +
+                          "And this one ends.With an exclamation mark!\n" +
+                          "Mums jāpērk piens, maize, olas utt. un tad jādodas mājās.\n" +
+                          "Vārdi, piem., uguns...\n\n" +
+                          "The price is $19.99. Please buy it now.\n" +
+                          "The model is version 2.5. We need to upgrade.\n" +
+                          "Please refer to section 3.1.4 for more details.\n" +
+                          "Look at 5.7.8. to find me.\n" +
+                          "The IP address for the test server is 192.168.1.1.\n" +
+                          "The item costs 1,234.56.\n\n" +
+                          "Dr. Smith went to Washington D.C. to meet with Mr. Jones.\n" +
+                          "The meeting is scheduled for 2 p.m. this Friday.\n" +
+                          "She studied languages, e.g., French and Spanish.\n" +
+                          "This is an example, i.e., a test case for our function.\n" +
+                          "The company, Acme Inc., is doing very well.\n\n" +
+                          "What is happening... I am not sure.\n" +
+                          "Are you serious?? That cannot be true!\n" +
+                          "This is absolutely fantastic!!!\n" +
+                          "What were you thinking?!\n\n" +
+                          "She said, \"This is a direct quote.\" Then she continued.\n" +
+                          "(This is a sentence in parentheses.) This one is not.\n" +
+                          "This sentence ends with an ellipsis... and the next one begins.\n" +
+                          "The project is due in May...ish. But it's better to be early.\n" +
+                          "Email me at test.user@example.com for more info.\n" +
+                          "Visit our website at www.example.com. It's live now.";
+
+        const initialCode = "// The regex handles sentence splitting with abbreviations and initials\n\n" +
+                            "const abbreviations = [\n" +
+                            "    'Dr', 'Prof', 'Mr', 'Mrs', 'Ms', 'Rev', 'Jr', 'Sr', 'St', // English Titles & Names\n" +
+                            "    'etc', 'vs', 'e.g', 'i.e', 'et al', 'ca', 'Corp', 'Inc', 'Ltd', // English Common Words\n" +
+                            "    'Jan', 'Feb', 'Mar', 'Apr', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', // Months (abbreviated)\n" +
+                            "    'utt', 'piem', 'gs', 'g', 'lpp', 'tālr', 'resp', 'u.c', 'plkst', // Latvian Common Words\n" +
+                            "];\n\n" +
+                            "const abbrevPattern = \"\\\\b(?:\" + abbreviations.join('|') + \")\\\\.\"; // Create the regex pattern for our custom list of abbreviations.\n" +
+                            "const initialismPattern = \"[A-Za-z]\\\\.[A-Za-z]\\\\.|(^|\\\\s)[A-Za-z]\\\\.\"; // This is our robust rule for handling initialisms like \"p.m.\" and \"A.\"\n\n" +
+                            "// The negative lookbehind (?<!...) contains BOTH rules joined by an OR |.\n" +
+                            "// The 'g' flag makes it global (find all matches).\n" +
+                            "// The 'i' flag makes the entire expression CASE-INSENSITIVE.\n\n" +
+                            "//const regex = new RegExp(`(?<!${abbrevPattern}|${initialismPattern})(?<=[.?!])\\\\s+`, 'gi'); // Allows to save urls: \"Email me at test.user@example.com for more info.\"\n\n" +
+                            "const regex = new RegExp(\"(?<!\" + abbrevPattern + \"|\" + initialismPattern + \")(?<=[.?!])(?=\\\\s+|[A-Z])\", 'gi'); // Allows to split without whitespaces: \"And this one ends.With an exclamation mark!\"\n\n" +
+                            "return text.split(regex).map(s => s?.trim()).filter(s => s?.length > 0); // undefined > 0 -> false";
+
+
+        editor.setValue(initialCode, 1);
+
+        // --- Function to check content heights and move the button ---
+        function updateButtonPosition() {
+            if (rightColumn.scrollHeight > leftColumn.scrollHeight) {
+                buttonPlaceholderLeft.appendChild(runButton);
+            } else {
+                buttonPlaceholderBottom.appendChild(runButton);
+            }
+        }
+
+        // --- Core Logic ---
+        function executeUserCode() {
+            const text = textInput.value;
+            const userCode = editor.getValue();
+            
+            outputDiv.innerHTML = '';
+
+            try {
+                const processText = new Function('text', userCode);
+                const result = processText(text);
+                
+                if (Array.isArray(result)) {
+                    const list = document.createElement('ol');
+                    list.className = 'space-y-2';
+
+                    if (result.length === 0) {
+                        outputDiv.innerHTML = '<p class="text-gray-500 dark:text-gray-400">Result was an empty array.</p>';
+                    } else {
+                        result.forEach((item, index) => {
+                            const li = document.createElement('li');
+                            li.className = 'p-1 bg-gray-100 dark:bg-gray-700 rounded-md flex items-start text-gray-800 dark:text-gray-200';
+                            const itemText = String(item).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                            li.innerHTML = `<span class="mr-3 text-gray-500 dark:text-gray-400">${index + 1}.</span><span class="flex-1 break-words">${itemText}</span>`;
+                            list.appendChild(li);
+                        });
+                        outputDiv.appendChild(list);
+                    }
+                } else {
+                    outputDiv.innerHTML = `<p class="text-red-400">Error: The code did not return an array.</p>`;
+                }
+
+            } catch (error) {
+                console.error("User code execution failed:", error);
+                const errorPre = document.createElement('pre');
+                errorPre.className = 'text-red-400 whitespace-pre-wrap';
+                errorPre.textContent = `Error: ${error.name}\n\n${error.message}`;
+                outputDiv.appendChild(errorPre);
+            }
+            
+            requestAnimationFrame(updateButtonPosition);
+        }
+
+        // --- Event Listener ---
+        runButton.addEventListener('click', executeUserCode);
+        
+        // --- Initial Run on Page Load ---
+        document.addEventListener('DOMContentLoaded', executeUserCode);
+
+    </script>
+</body>
+</html>
