@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bad Apple!! MBR</title>
+    
+    <!-- Embedded Apple Icon (SVG Data URI) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><path d=%22M50 20 C45 5 35 5 30 15 C20 15 10 25 10 40 C10 65 25 85 40 85 C45 85 48 80 50 80 C52 80 55 85 60 85 C75 85 90 65 90 40 C90 25 80 15 70 15 C65 5 55 5 50 20 Z M50 20 C52 10 58 5 62 5%22 fill=%22white%22 stroke=%22black%22 stroke-width=%223%22/></svg>">
+
+    <style>
+        :root {
+            /* Default to Dark Mode (Bad Apple Style) */
+            --bg-color: #000000;
+            --text-color: #FFFFFF;
+            --code-bg: #111111;
+            --border-color: #333333;
+            --warning-bg: #FFFFFF;
+            --warning-text: #000000;
+        }
+
+        /* Light Mode Variables */
+        body.light-mode {
+            --bg-color: #FFFFFF;
+            --text-color: #000000;
+            --code-bg: #f4f4f4;
+            --border-color: #CCCCCC;
+            --warning-bg: #000000;
+            --warning-text: #FFFFFF;
+        }
+
+        * {
+            box-sizing: border-box;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: "Courier New", Courier, monospace; /* Retro terminal feel */
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            padding: 2rem 1rem;
+            text-align: center;
+            border-bottom: 2px solid var(--text-color);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        /* CSS Apple Icon for Header */
+        .apple-icon {
+            width: 30px;
+            height: 30px;
+            background-color: var(--text-color);
+            -webkit-mask: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M50 20 C45 5 35 5 30 15 C20 15 10 25 10 40 C10 65 25 85 40 85 C45 85 48 80 50 80 C52 80 55 85 60 85 C75 85 90 65 90 40 C90 25 80 15 70 15 C65 5 55 5 50 20 Z M50 20 C52 10 58 5 62 5" /></svg>') no-repeat center;
+            mask: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M50 20 C45 5 35 5 30 15 C20 15 10 25 10 40 C10 65 25 85 40 85 C45 85 48 80 50 80 C52 80 55 85 60 85 C75 85 90 65 90 40 C90 25 80 15 70 15 C65 5 55 5 50 20 Z M50 20 C52 10 58 5 62 5" /></svg>') no-repeat center;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: 0.5rem;
+        }
+
+        /* Toggle Button */
+        .theme-toggle {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: transparent;
+            border: 2px solid var(--text-color);
+            color: var(--text-color);
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .theme-toggle:hover {
+            background: var(--text-color);
+            color: var(--bg-color);
+        }
+
+        main {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+            width: 100%;
+            flex: 1;
+        }
+
+        /* Warning Box */
+        .warning-box {
+            border: 2px solid var(--text-color);
+            background-color: var(--warning-bg);
+            color: var(--warning-text);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        /* Video Placeholder */
+        .video-container {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background-color: var(--code-bg);
+            border: 2px solid var(--text-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .video-placeholder-text {
+            text-align: center;
+        }
+        
+        .video-placeholder-text span {
+            display: block;
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Content Styling */
+        h2 {
+            border-bottom: 1px dashed var(--text-color);
+            padding-bottom: 0.5rem;
+            margin-top: 2rem;
+        }
+
+        p {
+            margin-bottom: 1.5rem;
+            text-align: justify;
+        }
+
+        ul {
+            list-style-type: square;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: var(--code-bg);
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.9rem;
+        }
+
+        /* Large Link Button */
+        .btn-large {
+            display: block;
+            width: 100%;
+            padding: 1.5rem;
+            text-align: center;
+            border: 2px solid var(--text-color);
+            margin-top: 3rem;
+            margin-bottom: 3rem;
+            text-decoration: none;
+            text-transform: uppercase;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--text-color);
+        }
+
+        .btn-large:hover {
+            background-color: var(--text-color);
+            color: var(--bg-color);
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.8rem; }
+            .theme-toggle { position: static; display: block; width: 100%; margin-bottom: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <button class="theme-toggle" id="theme-btn">Invert Colors</button>
+        <h1><div class="apple-icon"></div>Bad Apple!! MBR</h1>
+        <div class="subtitle">Running in 512 Bytes + Data</div>
+    </header>
+
+    <main>
+        
+        <!-- AUDIO WARNING -->
+        <div class="warning-box">
+            ⚠️ Warning: Loud Audio (PC Speaker) <br>
+            <span style="font-size: 0.8rem; font-weight: normal;">This project uses best found, but not perfect MIDI. Please lower your volume.</span>
+        </div>
+
+        <!-- VIDEO SECTION -->
+        <div class="video-container">
+            <iframe 
+                width="100%" 
+                height="100%" 
+                src="https://www.youtube.com/embed/VIDEO_ID_HERE" 
+                title="YouTube video player" 
+                frameborder="0" 
+                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                referrerpolicy="strict-origin-when-cross-origin" 
+                allowfullscreen>
+            </iframe>
+        </div>
+
+        <article>
+            <p>
+                <strong>Bad Apple!! MBR</strong> is a raw assembly project that boots a computer directly into the "Bad Apple!!". No Windows, no Linux, no Operating System—just pure code.
+            </p>
+
+            <h2>How It Works</h2>
+            <p>
+                The project consists of a bootloader written in NASM Assembly and a custom Python encoder pipeline. The animation plays in <strong>80x50 Text Mode</strong>, and the audio is synthesized in real-time using the internal <strong>PC Speaker</strong>.
+            </p>
+
+            <h3>1. The Visuals (XOR Rendering)</h3>
+            <p>
+                Storing a full video on a floppy or MBR setup is impossible without heavy compression. This project uses <strong>Adaptive Delta Encoding</strong>. 
+            </p>
+            <p>
+                Instead of drawing every frame, the bootloader only draws the pixels that changed. It uses an XOR operation (<code>0xFB</code>) to flip characters between a "Space" (Black) and a "Block" (White).
+            </p>
+<pre><code>; From bootloader.asm
+flip_loop:
+    xor byte [es:di], 0xFB ; The Magic Flip
+    inc di
+    inc di
+    loop flip_loop</code></pre>
+
+            <h3>2. The Audio (PIT)</h3>
+            <p>
+                The audio is Monophonic. The Python encoder reads a MIDI file, extracts the highest note at any given moment, and converts it into a frequency divisor for the <strong>Programmable Interval Timer (PIT)</strong>.
+            </p>
+            <p>
+                The audio data is interleaved directly with the video frames. The video framerate (30 FPS) acts as the clock for the audio, keeping everything perfectly synchronized.
+            </p>
+
+            <h2>Technical Specs</h2>
+            <ul>
+                <li><strong>Environment:</strong> 16-bit Real Mode</li>
+                <li><strong>Resolution:</strong> 80x50 Characters (Text Mode 03h with 8x8 font)</li>
+                <li><strong>Audio:</strong> PC Speaker (Channel 2 PIT)</li>
+                <li><strong>Framerate:</strong> ~30 FPS (Controlled by BIOS Int 15h)</li>
+                <li><strong>Compression:</strong> Custom RLE & Positional Hybrid</li>
+            </ul>
+
+            <p>
+                Yeah, the size is big, around 1 mb, but what else do you expect from 6000 frames and audio...
+            </p>
+
+            <h2>Building the Project</h2>
+            <p>
+                The build process involves Python 3.13 for encoding the assets and NASM for compiling the bootloader.
+            </p>
+<pre><code># Install requirements
+pip install -r requirements.txt
+
+# Run the compiler script
+./compile.bat</code></pre>
+            <a href="https://github.com/serbinskis/bad-apple-mbr" class="btn-large">
+                View Source on GitHub
+            </a>
+
+        </article>
+    </main>
+
+    <script>
+        // Simple Logic for Dark/Light Mode
+        const toggleBtn = document.getElementById('theme-btn');
+        const body = document.body;
+
+        // Check for saved user preference
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme) {
+            body.classList.add(currentTheme);
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            body.classList.toggle('light-mode');
+            
+            // Save preference
+            if (body.classList.contains('light-mode')) {
+                localStorage.setItem('theme', 'light-mode');
+            } else {
+                localStorage.removeItem('theme');
+            }
+        });
+    </script>
+</body>
+</html>
