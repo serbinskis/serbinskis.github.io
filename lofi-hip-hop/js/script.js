@@ -1,4 +1,6 @@
-var splitted = 'https://github.com/serbinskis/serbinskis.github.io/releases/tag/lofi-hip-hop'.split('/');
+const PROXY_URL = (s) => `${atob('aHR0cHM6Ly9yYXBpZC1jYWtlLWViNDYudGVtcG9yYWx5MDAxLndvcmtlcnMuZGV2')}/${s}`
+const SPLITTED = atob('aHR0cHM6Ly9naXRodWIuY29tL3NlcmJpbnNraXMvc2VyYmluc2tpcy5naXRodWIuaW8vcmVsZWFzZXMvdGFnL2xvZmktaGlwLWhvcA==').split('/');
+
 var playlist;
 var preloaded = {};
 var audio = new Audio();
@@ -33,7 +35,7 @@ function base64ToBlob(base64, type) {
 async function loadPlaylist() {
     var response = await new Promise(resolve => {
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', `https://api.github.com/repos/${splitted[3]}/${splitted[4]}/releases/tags/${splitted[7]}`);
+        xhr.open('GET', `https://api.github.com/repos/${SPLITTED[3]}/${SPLITTED[4]}/releases/tags/${SPLITTED[7]}`);
         xhr.onload = () => resolve(xhr.response);
         xhr.send();
     });
@@ -55,8 +57,7 @@ async function loadFile(url) {
 async function preload() {
     var rnum = Math.floor(Math.random() * Math.floor(playlist.length));
     var targetUrl = playlist[rnum].browser_download_url;
-    var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
-    var buffer = await loadFile(proxyUrl);
+    var buffer = await loadFile(PROXY_URL(targetUrl));
     var name = playlist[rnum].name;
     var type = `audio/${name.split('.').pop()}`;
 
