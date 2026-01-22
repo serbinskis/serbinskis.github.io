@@ -25,7 +25,7 @@ var navigationItems = [
         icon: "fa-solid fa-flask",
     },
     {
-        name: "Bad Apple!!! MBR",
+        name: "Bad Apple!! MBR",
         href: "/bad-apple-mbr",
         icon: "fas fa-apple-alt",
     },
