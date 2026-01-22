@@ -1,4 +1,4 @@
-const PROXY_URL = (s) => `${atob('aHR0cHM6Ly9yYXBpZC1jYWtlLWViNDYudGVtcG9yYWx5MDAxLndvcmtlcnMuZGV2')}/${s}`
+const PROXY_URL = (s) => `${atob('d2VicHJ4eS02Ny5tZG9yaWZoamtsLndvcmtlcnMuZGV2')}/${s}`
 const SPLITTED = atob('aHR0cHM6Ly9naXRodWIuY29tL3NlcmJpbnNraXMvc2VyYmluc2tpcy5naXRodWIuaW8vcmVsZWFzZXMvdGFnL2xvZmktaGlwLWhvcA==').split('/');
 
 var playlist;
