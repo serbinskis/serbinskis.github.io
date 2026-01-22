@@ -70,7 +70,7 @@ var navigationItems = [
         icon: "fa-brands fa-usps",
     },
     {
-        name: "MBR - Image Builder",
+        name: "MBR/UEFI - Image Builder",
         href: "https://github.com/serbinskis/Delphi/tree/master/MBR%20-%20Image%20Builder",
         icon: "fas fa-dice-d6",
     },
