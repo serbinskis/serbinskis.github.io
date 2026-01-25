@@ -121,7 +121,6 @@
         /* Video Placeholder */
         .video-container {
             width: 100%;
-            aspect-ratio: 16 / 9;
             background-color: var(--code-bg);
             border: 2px solid var(--text-color);
             display: flex;
@@ -129,6 +128,13 @@
             justify-content: center;
             margin-bottom: 2rem;
             position: relative;
+        }
+
+        .video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: black;
         }
 
         .video-placeholder-text {
@@ -211,15 +217,10 @@
 
         <!-- VIDEO SECTION -->
         <div class="video-container">
-            <iframe 
-                width="100%" 
-                height="100%" 
-                src="https://www.youtube.com/embed/nBUfOrYKLAY" 
-                frameborder="0" 
-                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                referrerpolicy="strict-origin-when-cross-origin" 
-                allowfullscreen>
-            </iframe>
+            <video width="100%" height="100%" controls muted preload="metadata">
+                <source src="media/Bad_Apple_MBR.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
         </div>
 
         <article>
