@@ -226,8 +226,8 @@ async function loadScript(url) {
 
     link.onload = () => {
         navigationItems.forEach(item => createItem(item));
-        setTimeout(() => document.getElementsByClassName("toggle")[0].click(), 100);
-        if (document.location.pathname != '/home/') { setTimeout(() => document.getElementsByClassName("toggle")[0].click(), 500); }
+        if (document.location.pathname == '/home/') { setTimeout(() => document.getElementsByClassName("toggle")[0].click(), 100); }
+        //if (document.location.pathname != '/home/') { setTimeout(() => document.getElementsByClassName("toggle")[0].click(), 500); }
         bindMarquee(".navigation-title");
 
         document.querySelector(".toggle").onclick = () => {
