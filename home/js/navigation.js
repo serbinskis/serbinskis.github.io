@@ -40,11 +40,6 @@ var navigationItems = [
         icon: "fa-solid fa-traffic-light",
     },
     {
-        name: "Kahoot Flooder",
-        href: "/kahoot-flooder",
-        icon: "fa-solid fa-k",
-    },
-    {
         name: "MSI Control",
         href: "https://github.com/serbinskis/Delphi/tree/master/MSIControl",
         icon: "fas fa-cogs",
