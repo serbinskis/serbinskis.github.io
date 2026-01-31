@@ -1,0 +1,25 @@
+{
+  "name": "github-website",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "cd dist & node index.js",
+    "build": "tsc --outDir dist",
+    "test": "rimraf dev & tsc --outDir dev & cd dev & node index.js"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1"
+  },
+  "engines": {
+    "node": "24.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.18",
+    "rimraf": "^4.1.2",
+    "typescript": "^5.8.3"
+  }
+}
