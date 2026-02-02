@@ -1,0 +1,249 @@
+// @ts-check
+
+import { UnoConfig } from './config.js';
+import { GameManager } from './game.js';
+import { HostDisconnectPayload, Packet, PACKET_REGISTRY, PeerConnectPayload, PeerDisconnectPayload } from './packets.js';
+
+// When connecting to host, it will expose other peers, this is intended behavior
+// This is in case if host migrates, we need to be able to connect to other peers directly
+// For this reason, if we are client, we only will listen to host and not other peers
+// Host will handle all other connections
+
+export class NetworkManager extends EventTarget {
+    /** @protected @type {string} */ peerId = ''; // PeerJS ID visible to others, we need to know this in case if host migrates
+    /** @protected @type {boolean} */ _isHost = false;
+    /** @protected @type {any} */ peer = false;
+    /** @protected @type {any} */ connection = false;
+    /** @protected @type {Object<string, any>} */ connections = {};
+    /** @protected @type {Map<string, Function>} */ eventHandlers = new Map();
+
+    constructor() {
+        super();
+        this.eventHandlers = new Map();
+    }
+
+    /**
+     * Initializes the PeerJS connection.
+     *
+     * @param {string | null} [hostId=null] - The ID to connect to. If null, a new Peer will be created as a host.
+     * @returns {Promise<string | null>} A promise that resolves with the client's own Peer ID upon successful connection,
+     * or rejects with an error if the connection fails.
+     */
+    async init(hostId = null) {
+        this.setHost(!hostId);
+        let id = await this.initPeer();
+        if (!id) { return null; }
+
+        if (hostId) { await this.connectPeer(hostId); }
+        if (hostId && !this.connection) { return null; }
+        this.heartbeat(500);
+        return (this.peerId = id);
+    }
+
+    /**
+     * Initializes the PeerJS connection to the host.
+     *
+     * @param {string} peerId - The ID to connect to. If null, a new Peer will be created as a host.
+     * @returns {Promise<boolean>} A promise that resolves with the client's own Peer ID upon successful connection,
+     * or rejects with an error if the connection fails.
+     */
+    async connectPeer(peerId) {
+        return new Promise(async (resolve, reject) => {
+            if (!this.peer) { return false; }
+            this.connection = this.peer.connect(peerId);
+
+            this.connection.on('error', (/** @type {Error} */ err) => {
+                this.connection = null;
+                alert("Network Error: " + err);
+                reject(false);
+            });
+
+            this.connection.on('open', () => {
+                // Used for send method, which just uses broadcast, which uses this map
+                this.connections[peerId] = this.connection;
+                resolve(true);
+            });
+
+            this.connection.on('close', () => {
+                delete this.connections[peerId];
+                this.handlePacket(peerId, new HostDisconnectPayload(peerId, 'Connection closed'));
+            });
+
+            // This part essentialy runs as client, note this is client-host conenctions
+            // All messages are only from the host, and not anybody else
+
+            this.connection.on('data', (/** @type {any} */ data) => {
+                this.handlePacket(peerId, data);
+            });
+        });
+    }
+
+    /**
+     * Initializes the PeerJS connection as host.
+     *
+     * @returns {Promise<string | null>} A promise that resolves with the client's own Peer ID upon successful connection.
+     */
+    async initPeer() {
+        return new Promise((resolve, reject) => {
+            if (this.peer) { this.peer.disconnect(); }
+            // @ts-ignore
+            this.peer = new Peer(UnoConfig.PEER_OPTS);
+
+            // First we connect to the peer, something like lobby, it give us
+            // our id, by which we can connect to other users, or receive connections.
+
+            this.peer.once('open', (/** @type {String} */ id) => {
+                this.peerId = String(id);
+                console.log(`[NetworkManager] Ready. ID: ${id}`);
+                resolve(this.peerId);
+            });
+
+            this.peer.once('error', (/** @type {Error} */ err) => {
+                alert("Network Error: " + err);
+                reject(null);
+            });
+
+            // Doesn't matter if we are host or client we will handle incomming connections, but
+            // if we are client we will just ignore packets, only host will process them.
+            // This is needed for host migration, because when host disconnects, we will try to connect
+            // to next in the list player, and he will become host, that means that each player, need to be
+            // ready for becoming a host, therefore we accept connections, and if we become host we then
+            // send packet that we are ready for communcation, and after that game continuous
+
+            // This also means that anyone with malicous intent can connect to other players, but they won't be able to
+            // do anything because we won't accept their packets, we only will allow them to be connected
+
+            this.peer.on('connection', (/** @type {any} */ conn) => {
+                conn.on('open', () => {
+                    this.connections[conn.peer] = conn;
+                    //TODO: Add ignore case
+                    this.handlePacket(conn.peer, new PeerConnectPayload(conn.peer));
+                });
+
+                conn.on('close', () => {
+                    delete this.connections[conn.peer];
+                    //TODO: Add ignore case
+                    this.handlePacket(conn.peer, new PeerDisconnectPayload(conn.peer, 'Connection closed'));
+                });
+
+                conn.on('data', (/** @type {any} */ data) => {
+                    //TODO: Add ignore case
+                    this.handlePacket(conn.peer, data);
+                });
+            });
+        });
+    }
+
+    /**
+     * Sends a periodic heartbeat to manage connections.
+     * Ensures that any disconnected or failed peers are removed from the connection list.
+     * 
+     * @param {number} [interval=0] The interval in milliseconds. If > 0, the heartbeat repeats. If 0, it runs once. If < 0, it is disabled.
+     */
+    heartbeat(interval = 0) {
+        clearTimeout(this.heartbeat_interval);
+        if (interval < 0) { return; }
+        if (interval > 0) { this.heartbeat_interval = setTimeout(() => this.heartbeat(interval), interval); }
+
+        Object.values(this.connections).forEach(conn => {
+            if (!['disconnected', 'failed'].includes(conn.peerConnection.connectionState)) { return; }
+            delete this.connections[conn.peer];
+            this.handlePacket(conn.peer, new PeerDisconnectPayload(conn.peer, 'Connection closed'));
+        });
+    }
+
+    /**
+     * Checks if the current instance is the host.
+     * @returns {boolean} True if the instance is the host, false otherwise.
+     */
+    isHost() {
+        return this._isHost;
+    }
+
+    /**
+     * Sets the host status of the current instance.
+     * @param {boolean} isHost - True to set as host, false otherwise.
+     */
+    setHost(isHost) {
+        this._isHost = isHost;
+    }
+
+    /**
+     * @returns {string} Returns peer id
+     */
+    getPeerId() {
+        return this.peerId;
+    }
+
+    /**
+     * Send message to host or broadcast
+     * It is pretty much same as broadcast for clients,
+     * but clients should only have one connection to host
+     * @param {Packet} packet 
+     */
+    send(packet) {
+        this.broadcast(packet);
+    }
+
+    /**
+     * Send to specific peer (Host only)
+     * @param {string} peerId
+     * @param {Packet} packet
+     */
+    sendTo(peerId, packet) {
+        if (this.connections[peerId]) {
+            this.connections[peerId].send(JSON.stringify(packet.toJSON()));
+        }
+    }
+
+    /**
+     * Broadcast message to all connected peers, host excluded
+     * @param {Packet} packet - The packet to broadcast.
+     */
+    broadcast(packet) {
+        // For some reason just sending object doesnt work, it just throws an error
+        Object.values(this.connections).forEach(c => c.send(JSON.stringify(packet.toJSON())));
+    }
+
+    /**
+     * Registers an event handler for a specific packet type.
+    * @template {Packet} T
+    * @param {{ PACKET: string, prototype: T }} PacketClass
+    * @param {(peer: string, packet: T, manager: GameManager) => void} cb
+    */
+    on(PacketClass, cb) {
+        this.eventHandlers.set(PacketClass.PACKET, (/** @type {String} */ peer, /** @type {T} */ packet) => cb(peer, packet, GameManager.getInstance()));
+    }
+
+    /**
+     * Handles a packet received from another peer.
+     * @param {string} peerId - 
+     * @param {any | Packet} packet - The packet data to be handled.
+     */
+    handlePacket(peerId, /** @type {Packet} */ packet) {
+        // This handles hosts and clients packets at the same time
+        // If packet is class, that means we invoked handlePacket on host side (SOMEWHERE IN GAME LOGIC)
+        // to handle it and broadcast at the same time
+
+        // If packet is object then it was received from outside, which means
+        // we just handle it either as client or host
+
+        if (typeof packet === 'string') { try { packet = JSON.parse(packet); } catch (e) { console.warn('[NetworkManager] Failed to parse packet data:', e); return; } }
+        if (!PACKET_REGISTRY[packet?.packetType]) { console.warn('[NetworkManager] Received packet without type:', packet); return; }
+        if (this.isHost() && (packet instanceof Packet)) { this.broadcast(packet); } //TODO: verify if this is safe
+        if (!(packet instanceof Packet)) { packet = Packet.parse(packet); }
+        if (!packet.validate()) { console.warn('[NetworkManager] Received invalid packet:', packet.getPacketType()); return; }
+        console.log(`[NetworkManager] handlePacket -> peerId: ${peerId}, type: ${packet.getPacketType()} packet:`);
+        console.dir(packet, { depth: null });
+        this.emit(peerId, packet);
+    }
+
+    /**
+     * Emits an event for the given packet type.
+     * @param {string} peerId - 
+     * @param {Packet} packet - The packet data to emit.
+     */
+    emit(peerId, packet) {
+        this.eventHandlers.get(packet?.packetType)?.(peerId,packet);
+    }
+}
