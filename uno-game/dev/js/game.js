@@ -29,7 +29,7 @@ export class GameManager extends EventManager {
     /** @protected @type {boolean} */ skipped = false;
     /** @protected @type {boolean} */ choosing_color = false;
     /** @protected @type {string} */ choosing_id = '';
-    /** @protected @type {number | null} */ player_delay = null;
+    /** @protected @type {number | null} */ playerTimer = null;
     /** @protected @type {Date | null} */ player_delay_date = null;
 
     /** @protected */ constructor() {
@@ -700,12 +700,12 @@ export class GameManager extends EventManager {
         //when player is stacking the turn dealy is active which prevents
         //taking cards, so timer by default when taking cards will not work
 
-        return; // Disabled for now
+        return;
 
-        if (this.player_delay) { Timer.stop(this.player_delay); }
+        if (this.playerTimer) { Timer.stop(this.playerTimer); }
         this.player_delay_date = new Date();
 
-        this.player_delay = Timer.start(() => {
+        this.playerTimer = Number(Timer.start(() => {
             this.setSkipped(true);
             let isChoosingColor = this.isChoosingColor();
             let choosingId = this.getChoosingId();
@@ -714,11 +714,11 @@ export class GameManager extends EventManager {
             if (choosingId) { UnoEvents.execute(this.io, socket, 'save_card', { card_id: choosingId }); }
             if (!isChoosingColor && !choosingId) UnoEvents.execute(this.io, socket, 'take_card');
             this.setSkipped(false);
-        }, this.getPlayerTime() * 1000 + 500);
+        }, this.getPlayerTime() * 1000 + 500));
 
-        var player = this.getCurrentPlayer();
-        if (player?.isDisconnected()) { Timer.finish(this.player_delay); } // If disconnected players turn arives then finish timer instantly
-        if ((this.getPlayerTime() <= 0) && !player?.isDisconnected()) { Timer.stop(this.player_delay); }
+        let player = this.getCurrentPlayer();
+        if (player?.isDisconnected()) { Timer.finish(this.playerTimer); } // If disconnected players turn arives then finish timer instantly
+        if ((this.getPlayerTime() <= 0) && !player?.isDisconnected()) { Timer.stop(this.playerTimer); }
     }
 
     /** Starts the disconnection timer for a player.
