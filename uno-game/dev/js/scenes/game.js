@@ -198,6 +198,10 @@ export class GameUI {
 
         // Enable/disable deck
         $("#carddeck").toggleClass("disabled", (game.getCurrentPlayerId() != me.getPlayerId()));
+
+        //TODO: NOW WE NEED TO RENDER JUMP IN CARDS
+        $("#cards").removeClass("disabled");
+        $(".card").removeClass('jumpin')
     }
 
     // Renders the player cover overlay.
