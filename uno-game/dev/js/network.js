@@ -16,7 +16,7 @@ export class NetworkManager extends EventTarget {
     /** @protected @type {any} */ connection = null;
     /** @protected @type {Object<string, any>} */ connections = {};
     /** @protected @type {Map<string, Function>} */ eventHandlers = new Map();
-    /** @protected @type {number} */ heartbeat_interval = 0;
+    /** @protected @type {number|NodeJS.Timeout} */ heartbeat_interval = 0;
 
     constructor() {
         super();

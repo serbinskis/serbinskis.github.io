@@ -4,7 +4,7 @@ import { UnoConfig } from './config.js';
 import { UnoUtils } from './utils/utils.js';
 import { UnoPlayer } from './player.js';
 import { EventManager } from './events.js';
-import { GameStatePayload, JoinRequestPayload } from './packets.js';
+import { GameStatePayload, JoinRequestPayload, KickPlayerPayload } from './packets.js';
 import { Timer } from './utils/timers.js';
 import { GameUI } from './scenes/game.js';
 
@@ -24,6 +24,7 @@ export class GameManager extends EventManager {
     /** @protected @type {string | null} */ winner_id = null;
     /** @protected @type {{ color: string; type: string } | null} */ current_card = null;
     /** @protected @type {string} */ currentPlayerId = ''; //
+    /** @protected @type {string} */ currentMoveId = crypto.randomUUID(); //
     /** @protected @type {number} */ direction = UnoConfig.DIRECTION_FORWARD;
     /** @protected @type {boolean} */ skipped = false;
     /** @protected @type {boolean} */ choosing_color = false;
@@ -78,6 +79,7 @@ export class GameManager extends EventManager {
     }
 
     startGame(reset = false) {
+        if (!this.isHost()) { return console.warn("[GameManager] Only host can start the game."); }
         if (this.started && !reset) { return; } // Prevent restarting an already started game
         this.setStarted(true);
         this.setDirection(UnoConfig.DIRECTION_FORWARD);
@@ -192,6 +194,12 @@ export class GameManager extends EventManager {
      * @returns {UnoPlayer}
      */
     addPlayer(packet_player) {
+        // First check if player with same private ID exists and allow rejoin
+        let privatePlayer = this.getPrivatePlayer(packet_player.getPrivateId());
+        privatePlayer?.setPeerId(packet_player.getPeerId());
+        privatePlayer?.setReconnected();
+        if (privatePlayer) { packet_player = privatePlayer; }
+
         let player = this.getPlayer(packet_player.getPlayerId());
         if (!player) { player = this.players[packet_player.getPlayerId()] = packet_player; }
         this.broadcastGameState(); // Broadcast updated game state and trigger on(GameStatePayload)
@@ -206,9 +214,13 @@ export class GameManager extends EventManager {
         let player = this.getPlayer(playerId);
         if (!player) { return console.warn(`[GameManager] Tried to remove non-existing player[playerId=${playerId}]`); }
 
-        player.disconnectPlayer(); // If player leaves we set discconect data in any way
+        if (player.isDisconnected()) { player.setLeft(true); } // If player is disconnected and removePlayer is called, mark as left
         if (!this.isStarted() || !this.canRejoin()) { player.setLeft(true); }
         if (player.isLeft()) { delete this.players[playerId]; }
+
+        // If player is disconnected but not left, just mark as disconnected
+        // After n amount of time remove him from game
+        if (!player.isLeft()) { player.disconnectPlayer(() => this.removePlayer(playerId)); }
 
         //If left player is not last and he was owner then select new owner
         if ((this.getOnline(true) != 0) && (this.owner_id == playerId)) {
@@ -220,6 +232,16 @@ export class GameManager extends EventManager {
  
         this.broadcastGameState(); // Broadcast updated game state and trigger on(GameStatePayload)
         return this.owner_id;
+    }
+
+    /** Kicks a player from the game
+     * @param {string} playerId - The ID of the player to kick.
+     * @param {string} [reason] - The reason for the kick.
+     */
+    kickPlayer(playerId, reason = 'Kicked by host') {
+        let player = this.getPlayer(playerId);
+        if (!player) { return console.warn(`[GameManager] Tried to kick non-existing player[playerId=${playerId}]`); }
+        this.handlePacket(this.getPeerId(), new KickPlayerPayload(playerId, reason));
     }
 
     /** Adds a card to a player's hand
@@ -258,12 +280,36 @@ export class GameManager extends EventManager {
         return this.getPlayer(this.getCurrentPlayerId());
     }
 
+    /** Gets my player instance
+     * @returns {UnoPlayer | undefined} The UnoPlayer instance corresponding to my peer ID, or null if not found.
+     */
+    getMyPlayer() {
+        return this.getPeerPlayer(this.getPeerId());
+    }
+
     /** Gets a player by their peer ID
      * @param {string} peerId - The ID of the player's peer to retrieve.
-     * @returns {UnoPlayer | null} The UnoPlayer instance corresponding to the given ID, or null if not found.
+     * @returns {UnoPlayer | undefined} The UnoPlayer instance corresponding to the given ID, or null if not found.
      */
     getPeerPlayer(peerId) {
-        return Object.values(this.players).filter(player => player.getPeerId() == peerId)[0];
+        return Object.values(this.players).find(player => player.getPeerId() == peerId);
+    }
+
+    /** Gets a player by their private ID
+     * @param {string | null} privateId - The private ID of the player to retrieve.
+     * @returns {UnoPlayer | undefined} The UnoPlayer instance corresponding to the given private ID, or null if not found.
+     */
+    getPrivatePlayer(privateId) {
+        return Object.values(this.players).find(player => player.getPrivateId() == privateId);
+    }
+
+    /** Gets a player's private ID by their peer ID
+     * @param {string} peerId - The ID of the player's peer.
+     * @returns {string | null} The private ID of the player, or null if not found.
+     */
+    getPrivateId(peerId) {
+        const player = this.getPeerPlayer(peerId);
+        return player ? player.getPrivateId() : null;
     }
 
     /** Gets all players in the game
@@ -296,7 +342,7 @@ export class GameManager extends EventManager {
     }
 
     /** Gets game owner
-     * @returns {UnoPlayer | null} The owner player instance or null if owner is not yet added (WHEN JOINING)
+     * @returns {UnoPlayer | undefined} The owner player instance or null if owner is not yet added (WHEN JOINING)
      */
     getOwner() {
         let owner = this.getPeerPlayer(this.getOwnerId());
@@ -404,6 +450,22 @@ export class GameManager extends EventManager {
      */
     setCurrentPlayerId(currentPlayerId) {
         return (this.currentPlayerId = currentPlayerId);
+    }
+
+    /** Sets the current move ID, uid for tracking if game player ID changed
+     * Even if current player is same, move ID will be different for each turn
+     * @returns {string} The updated current move ID.
+     */
+    nextCurrentMoveId() {
+        return (this.currentMoveId = crypto.randomUUID());
+    }
+
+    /** Gets the current move ID, uid for tracking if game player ID changed
+     * Even if current player is same, move ID will be different for each turn
+     * @returns {string} The current move ID.
+     */
+    getCurrentMoveId() {
+        return this.currentMoveId;
     }
 
     /**
@@ -518,6 +580,19 @@ export class GameManager extends EventManager {
      */
     canRejoin() {
         return this.settings.canRejoin;
+    }
+
+    /** Checks if a player can rejoin the game.
+     * @param {string} privateId - The private ID of the player to check.
+     * @returns {UnoPlayer|null} The UnoPlayer instance if the player can rejoin, null otherwise.
+     */
+    canPlayerRejoin(privateId) {
+        let player = this.getPrivatePlayer(privateId);
+        if (!player) { return null; }
+        if (!this.canRejoin()) { return null; }
+        if (!player.isDisconnected() && (Date.now() - player.getDisconnectTime()) > UnoConfig.REJOIN_TIME) { return null; }
+        if (player.isLeft()) { return null; }
+        return player;
     }
 
     /** Gets the number of starting cards for each player.

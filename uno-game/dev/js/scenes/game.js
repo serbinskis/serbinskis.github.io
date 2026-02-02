@@ -2,6 +2,7 @@
 
 import { GameManager } from '../game.js';
 import { UnoPlayer } from '../player.js';
+import { Timer } from '../utils/timers.js';
 import { UnoUtils } from '../utils/utils.js';
 
 /** @type {any} */
@@ -166,7 +167,7 @@ export class GameUI {
     // Renders the cards of the current player.
     static renderCards() {
         const game = GameManager.getInstance();
-        const me = game.getPeerPlayer(game.getPeerId());
+        const me = game.getMyPlayer();
         if (!me) { return; }
 
         // Get current player's cards
@@ -199,11 +200,29 @@ export class GameUI {
         $("#carddeck").toggleClass("disabled", (game.getCurrentPlayerId() != me.getPlayerId()));
     }
 
+    // Renders the player cover overlay.
+    static renderPlayerCover() {
+        // THIS SHOULD ONLY RUN WHEN CURRENT MOVE CHANGES
+        // So ideally we should store currentMoveId and compare it here
+
+        const game = GameManager.getInstance();
+        if (!game.isStarted()) { return; }
+        let currentMoveId = game.getCurrentMoveId();
+        if (Timer.exists(currentMoveId)) { return; }
+
+        Timer.start(() => {
+            if (currentMoveId !== game.getCurrentMoveId()) { return Timer.stop(currentMoveId); }
+            let playerId = game.getCurrentPlayerId();
+            GameUI.setOverlayText(playerId, String(Number(Timer.getRemaining(currentMoveId))+1));
+        }, 1000, { immediate: true, id: currentMoveId, interval: true, amount: game.getPlayerTime()-1 });
+    }
+
     /** Renders the game UI, updating player list and room ID display. */
     static render() {
         GameUI.renderPlayers();
         GameUI.renderCards();
         GameUI.renderDeck();
+        GameUI.renderPlayerCover();
 
         $("#room-id")[0].innerText = '*'.repeat(GameManager.getInstance().getRoomId().length);
         $("#arrow").toggleClass("hidden", !GameManager.getInstance().isStarted());
@@ -211,6 +230,43 @@ export class GameUI {
         let direction = GameManager.getInstance().getDirection();
         $("#arrow").toggleClass("directionRight", direction > 0);
         $("#arrow").toggleClass("directionLeft", direction < 0);
+    }
+
+    /** Sets overlay image on player's avatar.
+     * @param {string} playerId - The ID of the player.
+     * @param {string} src - The source URL of the overlay image.
+     */
+    static setOverlay(playerId, src) {
+        if (!$(`#overlay_${playerId}`)[0]) { return; }
+        $(`#overlay_${playerId}`)[0].src = src;
+        $(`#overlay_${playerId}`).removeClass("popup");
+        void $(`#overlay_${playerId}`)[0].offsetWidth;
+        $(`#overlay_${playerId}`).addClass("popup");
+    }
+
+    /** Sets overlay text on player's avatar.
+     * @param {string} playerId - The ID of the player.
+     * @param {string} text - The text to display on the overlay.
+     */
+    static setOverlayText(playerId, text) {
+        var canvas = document.createElement("canvas");
+        canvas.width = 64;
+        canvas.height = 64;
+        let ctx = canvas.getContext("2d");
+        if (!ctx) { throw new Error("2D context not supported"); }
+
+        ctx.font = "27px Uni_Sans_Heavy";
+        ctx.fillStyle = "white";
+        ctx.lineWidth = 1.7;
+        ctx.strokeStyle = "black";
+        let x = (canvas.width - ctx.measureText(text).width)/2;
+        let fontSizeMatch = ctx.font.match(/\d+/);
+        let fontSize = fontSizeMatch ? parseInt(fontSizeMatch[0], 10) : 27;
+        let y = (canvas.height/2 + fontSize/2)-2;
+
+        ctx.fillText(text, x, y);
+        ctx.strokeText(text, x, y);
+        GameUI.setOverlay(playerId, canvas.toDataURL("image/png"));
     }
 
     /** Creates or updates player element in the settings UI.
@@ -238,7 +294,7 @@ export class GameUI {
         kickElement.innerHTML = "Kick";
 
         kickElement.addEventListener("click", () => {
-            // TODO ADD KICK PACKET
+            GameManager.getInstance().kickPlayer(player.getPlayerId());
         }, false);
 
         let mePlayer = GameManager.getInstance().getPeerPlayer(GameManager.getInstance().getPeerId())

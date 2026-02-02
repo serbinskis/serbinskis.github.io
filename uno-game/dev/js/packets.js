@@ -172,11 +172,10 @@ export class JoinRequestPayload extends Packet {
      */
     toPlayer(peerId) {
         if (!this.privateId) { this.privateId = crypto.randomUUID(); }
-        if (!this.peerId && peerId) { this.peerId = peerId; }
+        if (peerId) { this.peerId = peerId; }
 
         let player = new UnoPlayer({
             privateId: this.privateId,
-            playerId: this.playerId, // If null, it will by default hash private ID as public ID
             peerId: this.peerId,
             avatar: this.avatar,
             username: this.username,
@@ -194,6 +193,28 @@ export class JoinRequestPayload extends Packet {
         const element = document.querySelector(`${selector} .setting-state`);
         return element ? element.innerHTML.trim() : '';
     };
+}
+
+/** Represents the response payload sent by the host after processing a join request.
+ * Only sent if there is an error or message to convey.
+ */
+export class JoinResponsePayload extends Packet {
+    static PACKET = 'JOIN_RESPONSE'
+
+    /** The response message containing code and message. @type {{ code: number, message: string }} */
+    response;
+
+    /** Creates a JoinResponsePayload object.
+     * @param {{ code: number, message: string }} response - The response message.
+     */
+    constructor(response) {
+        super(JoinResponsePayload.PACKET);
+        this.response = { ...response };
+    }
+
+    getResponse() {
+        return this.response;
+    }
 }
 
 export class PeerConnectPayload extends Packet  {
@@ -329,12 +350,131 @@ export class GameStatePayload extends Packet {
     }
 }
 
+export class PlaceCardPayload extends Packet {
+    static PACKET = 'PLACE_CARD';
+
+    /** The ID of the card being placed. @type {string} */
+    cardId;
+
+    /** Creates a PlaceCardPayload object.
+     * @param {string} cardId - The ID of the card being placed.
+     */
+    constructor(cardId) {
+        super(PlaceCardPayload.PACKET);
+        this.cardId = cardId;
+    }
+
+    getCardId() {
+        return this.cardId;
+    }
+}
+
+export class SaveCardPayload extends Packet {
+    static PACKET = 'SAVE_CARD';
+
+    /** The ID of the card being saved. @type {string} */
+    cardId;
+
+    /** Creates a SaveCardPayload object.
+     * @param {string} cardId - The ID of the card being saved.
+     */
+    constructor(cardId) {
+        super(SaveCardPayload.PACKET);
+        this.cardId = cardId;
+    }
+
+    getCardId() {
+        return this.cardId;
+    }
+}
+
+export class DrawCardPayload extends Packet {
+    static PACKET = 'DRAW_CARD';
+
+    /** Creates a DrawCardPayload object. */
+    constructor() {
+        super(DrawCardPayload.PACKET);
+    }
+}
+
+export class ChangeColorPayload extends Packet {
+    static PACKET = 'CHANGE_COLOR';
+
+    /** The chosen color. @type {string} */
+    color;
+
+    /** Creates a ChangeColorPayload object.
+     * @param {string} color - The chosen color.
+     */
+    constructor(color) {
+        super(ChangeColorPayload.PACKET);
+        this.color = color;
+    }
+
+    /** Gets the chosen color.
+     * @returns {string} The chosen color.
+     */
+    getColor() {
+        return this.color;
+    }
+}
+
+export class UnoPressPayload extends Packet {
+    static PACKET = 'UNO_PRESS';
+
+    /** Creates a UnoPressPayload object. */
+    constructor() {
+        super(UnoPressPayload.PACKET);
+    }
+}
+
+export class KickPlayerPayload extends Packet {
+    static PACKET = 'KICK_PLAYER';
+
+    /** The ID of the player being kicked. @type {string} */
+    playerId;
+    /** The reason for the kick. @type {string} */
+    reason;
+
+    /** Creates a KickPlayerPayload object.
+     * @param {string} playerId - The ID of the player being kicked.
+     * @param {string} [reason] - The reason for the kick.
+     */
+    constructor(playerId, reason = 'Kicked by host') {
+        super(KickPlayerPayload.PACKET);
+        this.playerId = playerId;
+        this.reason = reason;
+    }
+
+    /** Gets the ID of the player being kicked.
+     * @returns {string} The ID of the player being kicked.
+     */
+    getPlayerId() {
+        return this.playerId;
+    }
+
+    /** Gets the reason for the kick.
+     * @returns {string} The reason for the kick.
+     */
+
+    getReason() {
+        return this.reason;
+    }
+}
+
 export const PACKET_REGISTRY = {
     [PeerConnectPayload.PACKET]: PeerConnectPayload,
     [PeerDisconnectPayload.PACKET]: PeerDisconnectPayload,
     [HostDisconnectPayload.PACKET]: HostDisconnectPayload,
     [JoinRequestPayload.PACKET]: JoinRequestPayload,
     [GameStatePayload.PACKET]: GameStatePayload,
+    [JoinResponsePayload.PACKET]: JoinResponsePayload,
+    [PlaceCardPayload.PACKET]: PlaceCardPayload,
+    [SaveCardPayload.PACKET]: SaveCardPayload,
+    [DrawCardPayload.PACKET]: DrawCardPayload,
+    [ChangeColorPayload.PACKET]: ChangeColorPayload,
+    [UnoPressPayload.PACKET]: UnoPressPayload,
+    [KickPlayerPayload.PACKET]: KickPlayerPayload,
 };
 
 // For debugging purposes, expose all packets under window.Packets

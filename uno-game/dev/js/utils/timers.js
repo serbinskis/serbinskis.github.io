@@ -4,6 +4,7 @@
  * @property {number|string} [id]
  * @property {boolean} [immediate]
  * @property {boolean} [interval]
+ * @property {number} [amount] // how many times to run (interval only)
  */
 
 /**
@@ -21,27 +22,16 @@
  * Allows for creating, stopping, and changing stoppable, interval-based timers.
  */
 export class Timer {
+    static { // @ts-ignore
+        window.Timer = Timer;
+    }
+
     // A dictionary to hold all active timer instances, keyed by their ID.
     /** @type {{ [id: number|string]: TimerInstance }} */
     static timers = {};
 
     /** @type {number} */
     static counter = 0;
-
-    /**
-     * @overload
-     * @param {(immediate?: boolean) => Promise<void>} cb
-     * @param {number} gap
-     * @param {{ immediate: true }} opts
-     * @returns {Promise<number>}
-     */
-
-    /**
-     * @overload
-     * @param {(immediate?: boolean) => void} cb
-     * @param {number} gap
-     * @returns {number}
-     */
 
     /**
      * @param {(immediate?: boolean) => void | Promise<void>} cb
@@ -58,8 +48,12 @@ export class Timer {
         opts.id = opts.id ?? ++this.counter; // Assign a new unique ID if one isn't provided.
         this.stop(opts.id); // Stop any existing timer with the same ID before starting a new one.
 
+        opts.amount = (typeof opts.amount === 'number') ? opts.amount : undefined;
         let promise = null; // To hold the result of the callback if it's a promise.
         let result = opts.id; // Default result is the timer ID.
+
+        this.timers[opts.id] = { callback: cb, gap, options: opts };
+
         if (opts.immediate) { promise = cb(true); } // If 'immediate' is true, execute the callback right away.
         if (promise instanceof Promise) { result = promise.then(() => opts.id); } // If the callback returns a promise, wait for it to resolve.
         delete opts.immediate; // The 'immediate' flag is then removed to prevent it from running again on intervals.
@@ -80,11 +74,19 @@ export class Timer {
     static finish(id) {
         if (!this.timers[id]) { return; }
 
+        // If a limited run amount is set, decrement it and stop the timer once exhausted
+        if (typeof this.timers[id].options.amount === 'number') {
+            this.timers[id].options.amount--;
+        }
+
         try {
             this.timers[id].callback();
         } catch (e) {
             console.error(e);
         }
+
+        // Update remaining before callback, but check after it
+        if (this.timers[id].options.amount <= 0) { return this.stop(id); }
 
         // Check again if the timer still exists, as the callback might have stopped it.
         if (!this.timers[id]) { return; }
@@ -132,6 +134,25 @@ export class Timer {
 
         // Reschedule the timer with the same gap.
         this.change(id, this.timers[id].gap);
+    }
+
+    /**
+     * Checks if a timer with the given ID exists.
+     * @param {number|string} id The ID of the timer to check.
+     * @returns {boolean} True if the timer exists, false otherwise.
+     */
+    static exists(id) {
+        return Boolean(this.timers[id]);
+    }
+
+    /**
+     * Gets the remaining amount of executions for a timer with the given ID.
+     * @param {number|string} id The ID of the timer to check.
+     * @returns {number|null} The remaining executions, or null if the timer does not exist or has no limit.
+     */
+    static getRemaining(id) {
+        if (!this.timers[id]) { return null; }
+        return this.timers[id].options?.amount ?? null;
     }
 
     /**

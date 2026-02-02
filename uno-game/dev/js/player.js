@@ -1,5 +1,7 @@
 //@ts-check
 
+import { UnoConfig } from './config.js';
+import { Timer } from './utils/timers.js';
 import { UnoUtils } from './utils/utils.js';
 
 export class UnoPlayer {
@@ -59,22 +61,27 @@ export class UnoPlayer {
 
     /**
      * The time when the player disconnected.
-     * @type {number | null}
+     * @type {number}
      */
-    disconnectTime = null;
+    disconnectTime = 0;
+
+    /**
+     * The timer for handling disconnection timeouts.
+     * @type {number|string|null}
+     */
+    disconnectTimer = null;
 
     /**
      * Creates an instance of UnoPlayer.
      * @param {Object} opts - The options for the player.
      * @param {string} opts.privateId - The private ID of the player.
-     * @param {string} opts.playerId - The unique ID of the player.
      * @param {string} opts.peerId - The public ID of the player connection.
      * @param {string | null} opts.avatar - The avatar of the player.
      * @param {string} opts.username - The username of the player.
      */
     constructor(opts) {
         this.privateId = opts.privateId;
-        this.playerId = opts.playerId || UnoUtils.hashString(opts.privateId);
+        this.playerId = UnoUtils.hashString(opts.privateId);
         this.peerId = opts.peerId;
         this.avatar = opts.avatar;
         this.username = opts.username;
@@ -84,7 +91,7 @@ export class UnoPlayer {
 
     /**
      * Gets the time when the player disconnected.
-     * @returns {number | null} The disconnect time of the player.
+     * @returns {number} The disconnect time of the player.
      */
     getDisconnectTime() {
         return this.disconnectTime;
@@ -92,10 +99,22 @@ export class UnoPlayer {
 
     /**
      * Marks the player as disconnected.
+     * @param {Function | null} cb - The callback to execute after disconnection time expires.
      */
-    disconnectPlayer() {
+    disconnectPlayer(cb = null) {
         this.disconnected = true;
         this.disconnectTime = Date.now();
+        this.disconnectTimer = Number(Timer.start(() => cb && cb(), UnoConfig.REJOIN_TIME)); // After timeout, execute callback (e.g., remove player)
+    }
+
+    /**
+     * Marks the player as reconnected.
+     */
+    setReconnected() {
+        if (this.disconnectTimer != null) { Timer.stop(this.disconnectTimer); }
+        this.disconnected = false;
+        this.disconnectTime = 0;
+        this.disconnectTimer = null;
     }
 
     /**
@@ -131,6 +150,14 @@ export class UnoPlayer {
      */
     getPlayerId() {
         return this.playerId;
+    }
+
+    /**
+     * Sets the player's unique peer ID.
+     * @param {string} peerId - The new peer ID for the player.
+     */
+    setPeerId(peerId) {
+        this.peerId = peerId;
     }
 
     /**
