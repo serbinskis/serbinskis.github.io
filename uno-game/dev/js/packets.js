@@ -2,6 +2,7 @@
 
 import { UnoConfig } from './config.js';
 import { GameManager } from './game.js';
+import { NetworkManager } from './network.js';
 import { UnoPlayer } from './player.js';
 
 export class Packet {
@@ -31,16 +32,42 @@ export class Packet {
         return { ...this }
     }
 
+    /** Converts the packet to a JSON string.
+     * @returns {string} The JSON string representation of the packet.
+     */
+    stringify() {
+        return JSON.stringify(this.toJSON());
+    }
+
+    /**
+     * Parses a JSON object or string into a Packet instance.
+     * @param {any} packet - The JSON object to populate from.
+     * @returns {Packet|null} The populated packet instance.
+     */
+    static parse(packet) {
+        if (typeof packet === 'string') { try { packet = JSON.parse(packet); } catch (e) { console.warn('[Packet] Failed to parse packet data:', e); return null; } }
+        if (!PACKET_REGISTRY[packet?.packetType]) { console.warn('[Packet] Trying to parse packet without type:', packet); return null; }
+        if (!(packet instanceof Packet)) { packet = Packet.factory(packet); }
+        return packet;
+    }
+
     /**
      * Converts the JSON object to a packet.
      * @param {any} packet_obj
      * @returns {Packet} The JSON representation of the packet.
      */
-    static parse(packet_obj) {
+    static factory(packet_obj) {
         let PacketClass = PACKET_REGISTRY[packet_obj.packetType];
         const packet = Object.create(PacketClass.prototype);
         Object.assign(packet, packet_obj);
         return packet;
+    }
+
+    /** Clones the packet.
+     * @returns {this} The cloned packet.
+     */
+    clone() {
+        return /** @type {this} */ (Packet.parse(this.stringify()));
     }
 
     /**
@@ -135,9 +162,6 @@ export class JoinRequestPayload extends Packet {
         payload.peerId = player.peerId;
         if (secret) { payload.privateId = player.getPrivateId(); }
         payload.avatar = avatar ? player.getAvatar() : null;
-
-        //TODO ENCRYPT CARDS
-
         return payload;
     }
 
@@ -236,9 +260,86 @@ export class PlayerDisconnectPayload extends PeerDisconnectPayload {
     }
 }
 
+export class GameStatePayload extends Packet {
+    static PACKET = 'GAME_STATE';
+
+    //This is map of all GameManager properties
+    /** @type {{ [key: string]: any }} */
+    state = {};
+
+    constructor() {
+        super(GameStatePayload.PACKET);
+    }
+
+    /** Converts a GameManager instance into a GameStatePayload.
+     * @param {GameManager} game - The game state to convert.
+     * @param {boolean} avatar - Whether to include player avatars.
+     * @param {string | null} peerId - Optional peer ID to exclude private IDs for other players.
+     * @returns {GameStatePayload} The GameStatePayload instance created from the game state.
+     */
+    static fromGameState(game, avatar = true, peerId = null) {
+        // TODO: Broadcast per player, to include their private IDs only to themselves
+        // TODO: Broadcast per player, to include their private IDs only to themselves
+        // TODO: Broadcast per player, to include their private IDs only to themselves
+
+        let payload = new GameStatePayload();
+        Object.entries(game).forEach(([key, value]) => { payload.state[key] = value; });
+        Object.entries(new NetworkManager()).forEach(([key, value]) => { delete payload.state[key]; }); // Remove network properties
+        const packetPacket = /** @type {GameStatePayload} */ (Packet.parse(payload.stringify())); // Deep clone to avoid mutating original game state
+        const manager = packetPacket.getGameManager(packetPacket.getGameState()); // All this only to be sure data is duplicated correctly
+
+        // Remove private IDs for security, except for the specified peerId, and remove avatars if not needed
+        manager.getPlayers().forEach(player => {
+            if (!peerId || (player.getPeerId() !== peerId)) { player.setPrivateId(null); }
+            if (!avatar) { player.setAvatar(null); }
+        });
+
+        payload = new GameStatePayload(); // Now we can work on clean copy
+        Object.entries(manager).forEach(([key, value]) => { payload.state[key] = value; });
+        return payload;
+    }
+
+    /** Gets the game state stored in the payload.
+     * @returns {{ [key: string]: any }} The game state.
+     */
+    getGameState() {
+        return this.state;
+    }
+
+    /** Converts the payload back into a GameManager instance, only for reading.
+     * @param {{ [key: string]: any }} [state] - Optional state to use instead of the payload's state.
+     * @returns {GameManager} The READ-ONLY GameManager instance created from the payload.
+     */
+    getGameManager(state) {
+        const gm = /** @type GameManager */ (Object.create(GameManager.prototype));
+        Object.assign(gm, state || this.state);
+
+        // Convert plain player objects back into UnoPlayer instances
+        gm.getPlayers().forEach((objPlayer) => {
+            const unoPlayer = /** @type UnoPlayer */ (Object.create(UnoPlayer.prototype));
+            Object.assign(unoPlayer, objPlayer);
+            gm.setPlayer(unoPlayer.getPlayerId(), unoPlayer);
+
+            // Sync avatars from local players if exists to payload instance
+            const localPlayer = GameManager.getInstance().getPlayer(unoPlayer.getPlayerId());
+            if (localPlayer && localPlayer.getAvatar() && !unoPlayer.getAvatar()) { unoPlayer.setAvatar(localPlayer.getAvatar()); }
+        });
+
+        return gm;
+    }
+}
+
 export const PACKET_REGISTRY = {
     [PeerConnectPayload.PACKET]: PeerConnectPayload,
     [PeerDisconnectPayload.PACKET]: PeerDisconnectPayload,
     [HostDisconnectPayload.PACKET]: HostDisconnectPayload,
     [JoinRequestPayload.PACKET]: JoinRequestPayload,
+    [GameStatePayload.PACKET]: GameStatePayload,
 };
+
+// For debugging purposes, expose all packets under window.Packets
+
+(async () => {
+    const mod = await import('./packets.js'); // @ts-ignore, line bellow
+    window.Packets = { ...mod }; // Assign all exports to a single object on window
+})();

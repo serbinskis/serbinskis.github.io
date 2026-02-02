@@ -4,7 +4,7 @@ import { UnoConfig } from './config.js';
 import { UnoUtils } from './utils/utils.js';
 import { UnoPlayer } from './player.js';
 import { EventManager } from './events.js';
-import { JoinRequestPayload } from './packets.js';
+import { GameStatePayload, JoinRequestPayload } from './packets.js';
 import { Timer } from './utils/timers.js';
 import { GameUI } from './scenes/game.js';
 
@@ -15,7 +15,7 @@ export class GameManager extends EventManager {
 
     /** @protected @type {GameManager | null} */ static GAME_MANAGER = null;
     /** @protected @type {string} */ roomId = '';
-    /** @protected @type {JoinRequestPayload} */ data = JoinRequestPayload.EMPTY;
+    /** @protected @type {JoinRequestPayload} */ settings = JoinRequestPayload.EMPTY;
     /** @protected @type {{ [player_id: string]: { [card_id: string]: any; }; }} */ cards = {};
     /** @protected @type {{ [player_id: string]: UnoPlayer; }} */ players = {};
     /** @protected @type {boolean} */ started = false;
@@ -33,7 +33,8 @@ export class GameManager extends EventManager {
 
     /** @protected */ constructor() {
         super();
-        GameManager.GAME_MANAGER = this;
+        GameManager.GAME_MANAGER = this; // @ts-ignore, line bellow
+        window.game = this; // For debugging purposes
     }
 
     /** Gets the singleton instance of the GameManager.
@@ -48,27 +49,28 @@ export class GameManager extends EventManager {
     /**
      * Creates a new game with the provided settings.
      * 
-     * @param {JoinRequestPayload} data - The settings and player info for the new game.
+     * @param {JoinRequestPayload} settings - The settings and player info for the new game.
     **/
-    static async createGame(data) {
+    static async createGame(settings) {
         const instance = GameManager.getInstance();
         let id = await instance.init().catch(() => {});
         if (!id) { return GameManager.GAME_MANAGER = null; }
-        instance.handlePacket(instance.peerId, data); // This will also broadcast, but since we are alone, it doesn't matter
-        instance.roomId = instance.peerId;
-        instance.data = data;
+        instance.handlePacket(instance.getPeerId(), settings); // This will also broadcast, but since we are alone, it doesn't matter
+        instance.roomId = instance.getPeerId();
+        instance.settings = settings.clone();
+        instance.settings.avatar = null; // No need to store avatar in settings
     }
 
     /** Joins an existing game using the provided invite code and settings.
-     * @param {JoinRequestPayload} data - The invite code and player info to join the game.
+     * @param {JoinRequestPayload} settings - The invite code and player info to join the game.
     **/
-    static async joinGame(data) {
+    static async joinGame(settings) {
         const instance = GameManager.getInstance();
-        let id = await instance.init(data.invite).catch(() => {});
+        let id = await instance.init(settings.invite).catch(() => {});
         if (!id) { return GameManager.GAME_MANAGER = null; }
         console.log('Joined game');
-        instance.send(data);
-        instance.roomId = data.invite;
+        instance.send(settings);
+        instance.roomId = settings.invite;
     }
 
     async migrateHost() {
@@ -110,11 +112,11 @@ export class GameManager extends EventManager {
     generateCards(/** @type string **/ player_id, /** @type boolean **/ includeSpecial) {
         if (!this.cards[player_id]) { this.cards[player_id] = {} }
 
-        for (var i = 0; i < this.data?.startCards; i++) {
+        for (var i = 0; i < this.settings?.startCards; i++) {
             this.cards[player_id][crypto.randomUUID()] = GameManager.generateCard(includeSpecial);
         }
 
-        this.getPlayer(player_id)?.setCardCount(this.data?.startCards || 0);
+        this.getPlayer(player_id)?.setCardCount(this.settings?.startCards || 0);
         return this.cards[player_id];
     }
 
@@ -153,7 +155,6 @@ export class GameManager extends EventManager {
             }
         }
  
-        GameUI.renderPlayers();
         return this.owner_id;
     }
 
@@ -169,16 +170,13 @@ export class GameManager extends EventManager {
         return (this.cards[playerId][cardId] = card);
     }
 
-    /** Sets a player in the game
-     * @param {any} socket - The socket associated with the player.
-     * @param {{ username: string; avatar: string; player_id: string; card_count: number; }} options - The player options.
-     * @returns {UnoPlayer} The UnoPlayer instance that was set.
+    /** Sets or updates a player in the game
+     * @param {string} playerId - The ID of the player to set.
+     * @param {UnoPlayer} player - The UnoPlayer instance to set.
+     * @returns {UnoPlayer} The updated UnoPlayer instance.
      */
-    setPlayer(socket, options) {
-        // @ts-ignore
-        this.players_json[options.player_id] = options;
-        // @ts-ignore
-        return (this.players[options.player_id] = new UnoPlayer(socket, Object.assign({ room_id: this.room_id }, options)));
+    setPlayer(playerId, player) {
+        return (this.players[playerId] = player);
     }
 
     /** Gets a player by their ID
@@ -201,7 +199,7 @@ export class GameManager extends EventManager {
      * @returns {UnoPlayer[]} An array of all UnoPlayer instances in the game.
      */
     getPlayers() {
-        return Object.values(this.players);
+        return Object.values(this.players || {});
     }
 
     /** Gets all count of players who are still connected
@@ -435,56 +433,56 @@ export class GameManager extends EventManager {
      * @returns {number} The maximum number of players allowed in the game.
      */
     getMaxPlayers() {
-        return this.data.maxPlayers;
+        return this.settings.maxPlayers;
     }
 
     /** Whether players can "jump in" out of turn with an identical card.
      * @returns {boolean} True if players can jump in, false otherwise.
      */
     canJumpIn() {
-        return this.data.canJumpIn;
+        return this.settings.canJumpIn;
     }
 
     /** Whether players must call "UNO".
      * @returns {boolean} True if players must call "UNO", false otherwise.
      */
     canUno() {
-        return this.data.canUno;
+        return this.settings.canUno;
     }
 
     /** Whether players can rejoin a game in progress.
      * @returns {boolean} True if players can rejoin, false otherwise.
      */
     canRejoin() {
-        return this.data.canRejoin;
+        return this.settings.canRejoin;
     }
 
     /** Gets the maximum number of cards a player can hold.
      * @returns {number} The maximum number of cards.
      */
     getMaxCards() {
-        return this.data.maxCards;
+        return this.settings.maxCards;
     }
 
     /** Gets the time limit for each player's turn.
      * @returns {number} The time limit in seconds.
      */
     getPlayerTime() {
-        return this.data.playerTime;
+        return this.settings.playerTime;
     }
 
     /** Whether drawing to match is enforced.
      * @returns {boolean} True if drawing to match is enforced, false otherwise.
      */
     drawToMatch() {
-        return this.data.drawToMatch;
+        return this.settings.drawToMatch;
     }
 
     /** Whether stacking of +2 and +4 cards is allowed.
      * @returns {boolean} True if stacking is allowed, false otherwise.
      */
     canStackCards() {
-        return this.data.canStackCards;
+        return this.settings.canStackCards;
     }
 
     /** Changes the color of the current card if it's a PLUS_FOUR or COLOR_CHANGE card.
@@ -686,5 +684,33 @@ export class GameManager extends EventManager {
         }
 
         return { canPlay: true, nextBy: next_by, pickColor: pick_color };
+    }
+
+    /** Converts the current game state to a packet format.
+     * @param {boolean} [avatar=true] - Whether to include player avatars in the packet.
+     * @param {string | null} [peerId=null] - The peer ID of the player requesting the packet (for personalized data).
+     * @returns {GameStatePayload} The game state in packet format.
+     */
+    toPacket(avatar = true, peerId = null) {
+        return GameStatePayload.fromGameState(this, avatar, peerId);
+    }
+
+    /** Loads the game state from a packet.
+     * @param {GameStatePayload} packet - The game state packet to load from.
+     */
+    fromPacket(packet) {
+        let manager = packet.getGameManager();
+        Object.assign(this, manager);
+    }
+
+    /** Broadcasts the current game state to all players.
+     * @param {boolean} [avatar=true] - Whether to include player avatars in the broadcast.
+     */
+    broadcastGameState(avatar = true) {
+        this.getPlayers().forEach((player) => {
+            this.sendTo(player.getPeerId(), this.toPacket(avatar, player.getPeerId()));
+        });
+
+        this.handlePacket(this.getPeerId(), this.toPacket(avatar, this.getPeerId()), true); // Also handle for self packet, this will trigger events
     }
 }

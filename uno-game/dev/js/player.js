@@ -151,7 +151,7 @@ export class UnoPlayer {
 
     /**
      * Sets the player's private ID for reconnections.
-     * @param {string} privateId - The new private ID for the player.
+     * @param {string|null} privateId - The new private ID for the player.
      */
     setPrivateId(privateId) {
         this.privateId = privateId;
@@ -163,6 +163,14 @@ export class UnoPlayer {
      */
     getUsername() {
         return this.username;
+    }
+
+    /**
+     * Sets the player's avatar.
+     * @param {string | null} avatar - The new avatar for the player.
+     */
+    setAvatar(avatar) {
+        this.avatar = avatar;
     }
 
     /**

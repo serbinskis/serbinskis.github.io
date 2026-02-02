@@ -2,7 +2,7 @@
 
 import { UnoConfig } from './config.js';
 import { GameManager } from './game.js';
-import { HostDisconnectPayload, Packet, PACKET_REGISTRY, PeerConnectPayload, PeerDisconnectPayload } from './packets.js';
+import { HostDisconnectPayload, Packet, PeerConnectPayload, PeerDisconnectPayload } from './packets.js';
 
 // When connecting to host, it will expose other peers, this is intended behavior
 // This is in case if host migrates, we need to be able to connect to other peers directly
@@ -12,10 +12,11 @@ import { HostDisconnectPayload, Packet, PACKET_REGISTRY, PeerConnectPayload, Pee
 export class NetworkManager extends EventTarget {
     /** @protected @type {string} */ peerId = ''; // PeerJS ID visible to others, we need to know this in case if host migrates
     /** @protected @type {boolean} */ _isHost = false;
-    /** @protected @type {any} */ peer = false;
-    /** @protected @type {any} */ connection = false;
+    /** @protected @type {any} */ peer = null;
+    /** @protected @type {any} */ connection = null;
     /** @protected @type {Object<string, any>} */ connections = {};
     /** @protected @type {Map<string, Function>} */ eventHandlers = new Map();
+    /** @protected @type {number} */ heartbeat_interval = 0;
 
     constructor() {
         super();
@@ -191,9 +192,7 @@ export class NetworkManager extends EventTarget {
      * @param {Packet} packet
      */
     sendTo(peerId, packet) {
-        if (this.connections[peerId]) {
-            this.connections[peerId].send(JSON.stringify(packet.toJSON()));
-        }
+        if (this.connections[peerId]) { this.connections[peerId].send(packet.stringify()); }
     }
 
     /**
@@ -202,7 +201,7 @@ export class NetworkManager extends EventTarget {
      */
     broadcast(packet) {
         // For some reason just sending object doesnt work, it just throws an error
-        Object.values(this.connections).forEach(c => c.send(JSON.stringify(packet.toJSON())));
+        Object.values(this.connections).forEach(c => c.send(packet.stringify()));
     }
 
     /**
@@ -219,8 +218,9 @@ export class NetworkManager extends EventTarget {
      * Handles a packet received from another peer.
      * @param {string} peerId - 
      * @param {any | Packet} packet - The packet data to be handled.
+     * @param {boolean} [suppress=false] - Whether to suppress broadcasting the packet if this instance is the host.
      */
-    handlePacket(peerId, /** @type {Packet} */ packet) {
+    handlePacket(peerId, /** @type {Packet|null} */ packet, suppress = false) {
         // This handles hosts and clients packets at the same time
         // If packet is class, that means we invoked handlePacket on host side (SOMEWHERE IN GAME LOGIC)
         // to handle it and broadcast at the same time
@@ -228,13 +228,11 @@ export class NetworkManager extends EventTarget {
         // If packet is object then it was received from outside, which means
         // we just handle it either as client or host
 
-        if (typeof packet === 'string') { try { packet = JSON.parse(packet); } catch (e) { console.warn('[NetworkManager] Failed to parse packet data:', e); return; } }
-        if (!PACKET_REGISTRY[packet?.packetType]) { console.warn('[NetworkManager] Received packet without type:', packet); return; }
-        if (this.isHost() && (packet instanceof Packet)) { this.broadcast(packet); } //TODO: verify if this is safe
-        if (!(packet instanceof Packet)) { packet = Packet.parse(packet); }
-        if (!packet.validate()) { console.warn('[NetworkManager] Received invalid packet:', packet.getPacketType()); return; }
+        if (this.isHost() && !suppress && (packet instanceof Packet)) { this.broadcast(packet); } //TODO: verify if this is safe
+        if (!(packet instanceof Packet)) { packet = Packet.parse(packet); } // Convert string or object to Packet instance
+        if (!packet?.validate()) { console.warn('[NetworkManager] Received invalid packet:', packet?.getPacketType()); return; } // Question mark also checks for null
         console.log(`[NetworkManager] handlePacket -> peerId: ${peerId}, type: ${packet.getPacketType()} packet:`);
-        console.dir(packet, { depth: null });
+        console.dir(packet.clone(), { depth: null });
         this.emit(peerId, packet);
     }
 
@@ -244,6 +242,6 @@ export class NetworkManager extends EventTarget {
      * @param {Packet} packet - The packet data to emit.
      */
     emit(peerId, packet) {
-        this.eventHandlers.get(packet?.packetType)?.(peerId,packet);
+        this.eventHandlers.get(packet?.packetType)?.(peerId, packet);
     }
 }

@@ -11,6 +11,7 @@ export class GameUI {
         window.GameUI = GameUI;
     }
 
+    /** Shows the game scene and hides the login scene. */
     static showGameScene() {
         $("#login-container").addClass("hidden");
         $("#game-container").removeClass("hidden");
@@ -25,7 +26,7 @@ export class GameUI {
         if ($(`#${player.getPlayerId()}`)[0]) {
             $(`#username_${player.getPlayerId()}`)[0].className = "username" + (player.isDisconnected() ? " disconnected" : "");
             $(`#username_${player.getPlayerId()}`)[0].innerHTML = player.getUsername();
-            $(`#avatar_${player.getPlayerId()}`)[0].src = player.getAvatar();
+            $(`#avatar_${player.getPlayerId()}`)[0].src = player.getAvatar() || 'resources/defaultAvatar.png';
             $(`#count_${player.getPlayerId()}`)[0].innerHTML = String(player.getCardCount());
         } else {
             let divElement = document.createElement("div");
@@ -151,6 +152,7 @@ export class GameUI {
         $("#game-container #settings-wrapper")[0].appendChild(divElement);
     }
 
+    /** Prepares the settings UI by populating it with current players. */
     static prepareSettings() {
         $(".setting-player").remove();
         let scrollTop = $("#game-container #settings-wrapper")[0].scrollTop;
@@ -166,6 +168,7 @@ export class GameUI {
         $("#game-container #settings-container")[0].style = `transform: translate(-50%, -50%) scale(${enabled ? 1 : 0});`
     }
 
+    /** Renders the game UI, updating player list and room ID display. */
     static render() {
         GameUI.renderPlayers();
         $("#room-id")[0].innerText = '*'.repeat(GameManager.getInstance().getRoomId().length);

@@ -1,13 +1,14 @@
 // @ts-check
 
-import { JoinRequestPayload, PeerConnectPayload, PeerDisconnectPayload } from './packets.js';
+import { GameStatePayload, JoinRequestPayload, PeerConnectPayload, PeerDisconnectPayload } from './packets.js';
 import { NetworkManager } from './network.js';
 import { GameUI } from './scenes/game.js';
 import { UnoUtils } from './utils/utils.js';
 
 export class EventManager extends NetworkManager {
     constructor() {
-        super();
+        super(); // @ts-ignore, line bellow
+        window.events = this; // For debugging purposes
 
         // All events should only be executed as host or client
         // If request somehow are being sent from other clients
@@ -15,38 +16,33 @@ export class EventManager extends NetworkManager {
         // request contains corresponding peerId of sender, which
         // should not be possible to fake
 
-        this.on(PeerConnectPayload, async (peerId, payload, game) => {
-
-        });
-
-        // IF tab is closed not reloaded this doesnt fire for some reason
+        // If tab is closed not reloaded this deosn't fire for some reason, fixed with heartbeat method
+        // This runs on client and host, because host in network manager automatically boradcasts to all clients
         this.on(PeerDisconnectPayload, async (peerId, payload, game) => {
+            if (!this.isHost()) { return console.warn("[EventManager] Received PeerDisconnectPayload on client, ignoring."); }
             let player = game.getPeerPlayer(peerId);
             if (!player) { return console.warn(`[EventManager] Peer[${peerId}] disconnected without being a player.`); }
             game.removePlayer(player.getPlayerId());
+            game.broadcastGameState(); // Broadcast updated game state and trigger on(GameStatePayload)
         });
 
         this.on(JoinRequestPayload, async (peerId, payload, game) => {
-            let player;
+            if (!this.isHost()) { return console.warn("[EventManager] Received JoinRequestPayload on client, ignoring."); }
+            if (!await UnoUtils.isJoinDataValid(payload)) { return; }
 
-            if (this.isHost()) {
-                if (!await UnoUtils.isJoinDataValid(payload)) { return; }
+            //TODO Add lobby capacity check
+            //TODO Add kick check
+            //TODO Add started game check
 
-                // publicId -> Doesn't change, is hashed privateId
-                // privateId -> Doesn't change, used to encrypt desk data
-                // peerId -> Changes, used for communication
+            game.addPlayer(payload.toPlayer(peerId)); // Add player
+            game.broadcastGameState(); // Broadcast updated game state and trigger on(GameStatePayload)
+        });
 
-                player = game.addPlayer(payload.toPlayer(peerId));
-                this.broadcast(JoinRequestPayload.fromPlayer(player, true));
-
-                //TODO SYNC NEW PEER WITH GAME STATE
-            } else {
-                player = game.addPlayer(payload.toPlayer());
-                console.warn("Received JoinRequestPayload on client, ignoring.");
-            }
-
-            GameUI.showGameScene();
-            GameUI.render();
+        // Malicious clients also can send this to host, so only non-hosts should process it
+        this.on(GameStatePayload, async (peerId, payload, game) => {
+            if (!this.isHost()) { game.fromPacket(payload); }
+            if (!this.isHost() || (peerId == game.getPeerId())) { GameUI.showGameScene(); }
+            if (!this.isHost() || (peerId == game.getPeerId())) { GameUI.render(); }
         });
     }
 }
