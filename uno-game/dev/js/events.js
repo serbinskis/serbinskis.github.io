@@ -1,6 +1,6 @@
 // @ts-check
 
-import { GameStatePayload, JoinRequestPayload, PeerConnectPayload, PeerDisconnectPayload } from './packets.js';
+import { GameStatePayload, JoinRequestPayload, PeerDisconnectPayload } from './packets.js';
 import { NetworkManager } from './network.js';
 import { GameUI } from './scenes/game.js';
 import { UnoUtils } from './utils/utils.js';
@@ -23,7 +23,6 @@ export class EventManager extends NetworkManager {
             let player = game.getPeerPlayer(peerId);
             if (!player) { return console.warn(`[EventManager] Peer[${peerId}] disconnected without being a player.`); }
             game.removePlayer(player.getPlayerId());
-            game.broadcastGameState(); // Broadcast updated game state and trigger on(GameStatePayload)
         });
 
         this.on(JoinRequestPayload, async (peerId, payload, game) => {
@@ -35,7 +34,6 @@ export class EventManager extends NetworkManager {
             //TODO Add started game check
 
             game.addPlayer(payload.toPlayer(peerId)); // Add player
-            game.broadcastGameState(); // Broadcast updated game state and trigger on(GameStatePayload)
         });
 
         // Malicious clients also can send this to host, so only non-hosts should process it

@@ -4,6 +4,10 @@ import { UnoConfig } from '../config.js';
 import { JoinRequestPayload } from '../packets.js';
 
 export class UnoUtils {
+    static { // @ts-ignore
+        window.UnoUtils = UnoUtils;
+    }
+
     /**
      * Shuffles an array in place using the Fisher-Yates algorithm.
      * @param {Array<any>} array - The array to shuffle.
@@ -22,8 +26,8 @@ export class UnoUtils {
      * @param {string} name - Filename in resources/sounds/
      */
     static playSound(name) {
-        const audio = new Audio(`resources/sounds/${name}`);
-        audio.volume = 0.5;
+        const audio = new Audio(`${window.location.href}resources/sounds/${name}`);
+        audio.volume = 1;
         audio.play().catch(e => console.warn("Audio blocked:", e));
     }
 
@@ -53,6 +57,53 @@ export class UnoUtils {
         }
 
         return hash.toString(36);
+    }
+
+    /** Converts a string to a Uint8Array of bytes.
+     * @param {string} str - The input string.
+     * @returns {Uint8Array} The resulting byte array.
+     */
+    static strToBytes(str) {
+        const bytes = new Uint8Array(str.length);
+        for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i);
+        return bytes;
+    }
+
+    /** Encrypts a string using a simple XOR cipher with the provided key.
+     * @param {string} str - The string to encrypt.
+     * @param {string} key - The encryption key.
+     * @returns {string} The encrypted string in Base64 format.
+     */
+    static encryptString(str, key) {
+        const encoder = new TextEncoder();
+        const strBytes = encoder.encode(str); // UTF-8
+        const keyBytes = encoder.encode(key);
+
+        const out = new Uint8Array(strBytes.length);
+        for (let i = 0; i < strBytes.length; i++) {
+            out[i] = strBytes[i] ^ keyBytes[i % keyBytes.length];
+        }
+
+        return btoa(String.fromCharCode(...out)); // Base64 safe
+    }
+
+    /** Decrypts a string that was encrypted using the XOR cipher with the provided key.
+     * @param {string} encrypted - The encrypted string in Base64 format.
+     * @param {string} key - The decryption key.
+     * @returns {string} The decrypted string.
+     */
+    static decryptString(encrypted, key) {
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+        const keyBytes = encoder.encode(key);
+
+        const encBytes = Uint8Array.from(atob(encrypted), c => c.charCodeAt(0));
+        const out = new Uint8Array(encBytes.length);
+        for (let i = 0; i < encBytes.length; i++) {
+            out[i] = encBytes[i] ^ keyBytes[i % keyBytes.length];
+        }
+
+        return decoder.decode(out);
     }
 
     /**

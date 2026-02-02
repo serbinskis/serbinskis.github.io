@@ -2,6 +2,7 @@
 
 import { GameManager } from '../game.js';
 import { UnoPlayer } from '../player.js';
+import { UnoUtils } from '../utils/utils.js';
 
 /** @type {any} */
 const $ = (/** @type {any} */(window)).$;
@@ -68,6 +69,10 @@ export class GameUI {
         $(".crown").removeClass("crown");
         const owner = GameManager.getInstance().getOwner();
         if (owner) { $(`#username_${owner.getPlayerId()}`).addClass("crown"); }
+
+        $(".glow").removeClass("glow");
+        const current = GameManager.getInstance().getCurrentPlayer();
+        if (current) { $(`#username_${current.getPlayerId()}`).addClass("glow"); }
     }
 
     /** Removes player element in the UI with sliding animation.
@@ -112,6 +117,100 @@ export class GameUI {
         }
 
         this.prepareSettings();
+    }
+
+    static renderDeck() {
+        $("#UNO_CARD").toggleClass("hidden", GameManager.getInstance().isStarted());
+        let currentCard = GameManager.getInstance().getCurrentCard();
+        if (!currentCard) { return; }
+
+        // If the current card is already shown, do not add another one
+        let currentUiCard = $("#cards-desk img").not("#UNO_CARD").last();
+        if (currentUiCard?.attr("src")?.includes(`${currentCard.color}_${currentCard.type}`)) { return; }
+
+        // Add card to desk with animation
+        var img = document.createElement("img");
+
+        // When animation ends, remove the first card (old one)
+        img.addEventListener('animationend', () => {
+            if ($("#cards-desk img").not("#UNO_CARD").length > 1) {
+                $("#cards-desk img").not("#UNO_CARD").first().remove();
+            }
+        }, { once: true });
+
+        // Set image properties
+        img.className = "card-desk";
+        img.src = `resources/cards/${currentCard.color}_${currentCard.type}.png`;
+        img.draggable = false;
+        $('#cards-desk')[0].appendChild(img);
+
+        // Play sound based on card type
+        switch(currentCard.type) {
+            case "REVERSE":
+                UnoUtils.playSound("reverse.mp3");
+                break;
+            case "BLOCK":
+                UnoUtils.playSound("block.mp3");
+                break;
+            case "PLUS_TWO":
+                UnoUtils.playSound("plus_two.mp3");
+                break;
+            case "PLUS_FOUR":
+                UnoUtils.playSound("plus_four.mp3");
+                break;
+            default:
+                UnoUtils.playSound("card_place.mp3");
+        }
+    }
+
+    // Renders the cards of the current player.
+    static renderCards() {
+        const game = GameManager.getInstance();
+        const me = game.getPeerPlayer(game.getPeerId());
+        if (!me) { return; }
+
+        // Get current player's cards
+        let cards = GameManager.getInstance().getPlayerCards(me.getPlayerId());
+
+        // Remove non-existing cards from UI
+        Array.from($("#cards .card")).filter(el => cards[el.id] == null).forEach(el => el.remove());
+        let uiCards = Array.from($("#cards .card")).filter(el => cards[el.id] != null);
+        let addCards = Object.keys(cards).filter(cardId => !uiCards.find(el => el.id == cardId));
+
+        // Add missing cards to UI
+        addCards.forEach(cardId => {
+            var img = document.createElement("img");
+            img.className = "card";
+            img.id = cardId;
+            img.src = `resources/cards/${cards[cardId].color}_${cards[cardId].type}.png`;
+            img.draggable = false;
+
+            img.addEventListener("click", () => {
+                //TODO Send play card packet
+            }, false);
+
+            $('#cards')[0].appendChild(img);
+        });
+
+        // Disable cards if it's not player's turn
+        $("#cards .card").toggleClass("disabled", (game.getCurrentPlayerId() != me.getPlayerId()));
+
+        // Enable/disable deck
+        $("#carddeck").toggleClass("disabled", (game.getCurrentPlayerId() != me.getPlayerId()));
+    }
+
+    /** Renders the game UI, updating player list and room ID display. */
+    static render() {
+        GameUI.renderPlayers();
+        GameUI.renderCards();
+        GameUI.renderDeck();
+
+        $("#room-id")[0].innerText = '*'.repeat(GameManager.getInstance().getRoomId().length);
+        $("#arrow").toggleClass("hidden", !GameManager.getInstance().isStarted());
+
+        let direction = GameManager.getInstance().getDirection();
+        $("#arrow").toggleClass("directionRight", direction > 0);
+        $("#arrow").toggleClass("directionLeft", direction < 0);
     }
 
     /** Creates or updates player element in the settings UI.
@@ -167,12 +266,6 @@ export class GameUI {
     static showSettings(enabled) {
         $("#game-container #settings-container")[0].style = `transform: translate(-50%, -50%) scale(${enabled ? 1 : 0});`
     }
-
-    /** Renders the game UI, updating player list and room ID display. */
-    static render() {
-        GameUI.renderPlayers();
-        $("#room-id")[0].innerText = '*'.repeat(GameManager.getInstance().getRoomId().length);
-    }
 }
 
 // ============================
@@ -216,4 +309,12 @@ $("#room-id").mousedown(() => {
     document.execCommand('copy');
     document.body.removeChild(copy);
     alert('Room id copied.');
+});
+
+// ============================
+// ========= BUTTONS ==========
+// ============================
+
+$("#UNO_CARD").click(() => {
+    GameManager.getInstance().startGame();
 });

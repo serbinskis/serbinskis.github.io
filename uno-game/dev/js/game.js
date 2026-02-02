@@ -23,7 +23,7 @@ export class GameManager extends EventManager {
     /** @protected @type {string | null} */ uno_id = null;
     /** @protected @type {string | null} */ winner_id = null;
     /** @protected @type {{ color: string; type: string } | null} */ current_card = null;
-    /** @protected @type {string} */ current_player = ''; //
+    /** @protected @type {string} */ currentPlayerId = ''; //
     /** @protected @type {number} */ direction = UnoConfig.DIRECTION_FORWARD;
     /** @protected @type {boolean} */ skipped = false;
     /** @protected @type {boolean} */ choosing_color = false;
@@ -88,10 +88,12 @@ export class GameManager extends EventManager {
         this.setSkipped(false);
 
         let activePlayers = this.getPlayers().filter((e) => e.isOnline(false)); // Player can be disconnected but not left
-        this.setCurrentPlayer(activePlayers[UnoUtils.randomRange(0, activePlayers.length-1)].getPlayerId());
+        this.setCurrentPlayerId(activePlayers[UnoUtils.randomRange(0, activePlayers.length-1)].getPlayerId());
         this.setCurrentCard(GameManager.generateCard(false));
-        this.getPlayers().forEach((player) => this.generateCards(player.getPlayerId(), true)); // Generate starting cards for each player
+        this.getPlayers().forEach((player) => this.generateCards(player.getPlayerId(), true, this.getStartCards())); // Generate starting cards for each player
         this.startPlayerTimer(); // Start timer for each player turn
+
+        this.broadcastGameState();
     }
 
     /**
@@ -101,23 +103,88 @@ export class GameManager extends EventManager {
      */
     static generateCard(/** @type boolean **/ includeSpecial) {
         let cards = (includeSpecial && (UnoUtils.randomRange(1, 2) == 2)) ? UnoConfig.CARDS.special : UnoConfig.CARDS.standart;
-        return cards[UnoUtils.randomRange(0, cards.length-1)];
+        return { ...cards[UnoUtils.randomRange(0, cards.length-1)] }; // Return a copy of the card object
     }
 
     /** Generates starting cards for a player
-     * @param {string} player_id - The ID of the player to generate cards for.
+     * @param {string} playerId - The ID of the player to generate cards for.
      * @param {boolean} includeSpecial - Whether to include special cards in the generation.
-     * @returns {{ [card_id: string]: any; }} The generated cards mapped by their unique IDs.
+     * @param {number} amount - The number of cards to generate.
+     * @returns {{ [card_id: string]: { color: string; type: string } }} The generated cards mapped by their unique IDs.
      */
-    generateCards(/** @type string **/ player_id, /** @type boolean **/ includeSpecial) {
-        if (!this.cards[player_id]) { this.cards[player_id] = {} }
+    generateCards(/** @type string **/ playerId, /** @type boolean **/ includeSpecial, amount = 0) {
+        let player = this.getPlayer(playerId);
+        if (!player || !player.getPrivateId()) { throw new Error(`[GameManager] generateCards() -> Player[playerId=${playerId}] not found or has no private ID.`); }
+        if (!this.cards[playerId]) { this.cards[playerId] = {} }
 
-        for (var i = 0; i < this.settings?.startCards; i++) {
-            this.cards[player_id][crypto.randomUUID()] = GameManager.generateCard(includeSpecial);
+        // NOW WE HAVE TO ENCRYPT CARDS WITH PLAYER PRIVATE ID TO PREVENT CHEATING
+        for (var i = 0; i < amount; i++) {
+            let card = GameManager.generateCard(includeSpecial);
+            let color = UnoUtils.encryptString(card.color, String(player.getPrivateId()));
+            let type = UnoUtils.encryptString(card.type, String(player.getPrivateId()));
+            let cardId = UnoUtils.encryptString(crypto.randomUUID(), String(player.getPrivateId()));
+            this.cards[playerId][cardId] = { color, type };
         }
 
-        this.getPlayer(player_id)?.setCardCount(this.settings?.startCards || 0);
-        return this.cards[player_id];
+        this.getPlayer(playerId)?.setCardCount(Object.keys(this.cards[playerId]).length);
+        return this.cards[playerId];
+    }
+
+    /** Gets the decrypted cards of a player
+     * @param {string} playerId - The ID of the player whose cards to retrieve.
+     * @returns {{ [card_id: string]: { color: string; type: string } }} The decrypted cards of the specified player.
+     */
+    getPlayerCards(playerId) {
+        let player = this.getPlayer(playerId);
+        if (!player || !player.getPrivateId()) { throw new Error(`[GameManager] getPlayerCards() -> Player[playerId=${playerId}] not found or has no private ID.`); }
+
+        return Object.fromEntries(Object.entries(this.cards[playerId] || {}).map(([cardId, card]) => {
+            cardId = UnoUtils.decryptString(cardId, String(player.getPrivateId()));
+            let color = UnoUtils.decryptString(card.color, String(player.getPrivateId()));
+            let type = UnoUtils.decryptString(card.type, String(player.getPrivateId()));
+            return [cardId, { color, type }];
+        }));
+    }
+
+    /** Gets a decrypted card by its uncrypted ID
+     * @param {string} cardId - The uncrypted ID of the card to retrieve.
+     * @returns {{ color: string; type: string } | null} The decrypted card object, or null if not found.
+     */
+    getCard(cardId) {
+        for (const playerId in this.cards) {
+            let player = this.getPlayer(playerId);
+            if (!player || !player.getPrivateId()) { continue; }
+
+            for (const cId in this.cards[playerId]) {
+                let decryptedCardId = UnoUtils.decryptString(cId, String(player.getPrivateId()));
+                if (decryptedCardId != cardId) { continue; }
+                let card = this.cards[playerId][cId];
+                let color = UnoUtils.decryptString(card.color, String(player.getPrivateId()));
+                let type = UnoUtils.decryptString(card.type, String(player.getPrivateId()));
+                return { color, type };
+            }
+        }
+
+        return null;
+    }
+
+    /** Removes a card from a player's hand by its uncrypted ID
+     * @param {string} cardId - The uncrypted ID of the card to remove.
+     */
+    removeCard(cardId) {
+        for (const playerId in this.cards) {
+            let player = this.getPlayer(playerId);
+            if (!player || !player.getPrivateId()) { continue; }
+
+            for (const cId in this.cards[playerId]) {
+                let decryptedCardId = UnoUtils.decryptString(cId, String(player.getPrivateId()));
+                if (decryptedCardId != cardId) { continue; }
+                delete this.cards[playerId][cId];
+                player.setCardCount(player.getCardCount()-1);
+                this.broadcastGameState();
+                return;
+            }
+        }
     }
 
     /** Adds or updates player to the game
@@ -127,11 +194,7 @@ export class GameManager extends EventManager {
     addPlayer(packet_player) {
         let player = this.getPlayer(packet_player.getPlayerId());
         if (!player) { player = this.players[packet_player.getPlayerId()] = packet_player; }
-
-        //TODO UPDATE PLAYER INFO FROM PACKET
-        player.setCardCount(packet_player.getCardCount());
-
-        GameUI.renderPlayers();
+        this.broadcastGameState(); // Broadcast updated game state and trigger on(GameStatePayload)
         return player;
     }
 
@@ -155,6 +218,7 @@ export class GameManager extends EventManager {
             }
         }
  
+        this.broadcastGameState(); // Broadcast updated game state and trigger on(GameStatePayload)
         return this.owner_id;
     }
 
@@ -187,6 +251,13 @@ export class GameManager extends EventManager {
         return this.players[playerId] ? this.players[playerId] : null;
     }
 
+    /** Gets the current playing player instance
+     * @returns {UnoPlayer | null} The current playing UnoPlayer instance, or null if not found.
+     */
+    getCurrentPlayer() {
+        return this.getPlayer(this.getCurrentPlayerId());
+    }
+
     /** Gets a player by their peer ID
      * @param {string} peerId - The ID of the player's peer to retrieve.
      * @returns {UnoPlayer | null} The UnoPlayer instance corresponding to the given ID, or null if not found.
@@ -208,14 +279,6 @@ export class GameManager extends EventManager {
      */
     getOnline(includeDisconnected) {
         return this.getPlayers().filter((e) => e.isOnline(includeDisconnected)).length;
-    }
-
-    /** Gets the cards of a player
-     * @param {string} playerId - The ID of the player whose cards to retrieve.
-     * @returns {{ [card_id: string]: { color: string; type: string; }; }} The cards of the specified player.
-     */
-    getPlayerCards(playerId) {
-        return this.cards[playerId];
     }
 
     /** Gets the room ID of the game.
@@ -279,14 +342,14 @@ export class GameManager extends EventManager {
         return (this.choosing_color = choosing_color);
     }
 
-    /** Gets the ID of the player currently choosing a color.
+    /** Gets the ID of the player currently choosing to place or save a card.
      * @returns {string} The choosing player ID.
      */
     getChoosingId() {
         return this.choosing_id;
     }
 
-    /** Sets the ID of the player currently choosing a color.
+    /** Sets the ID of the player currently choosing to place or save a card.
      * @param {string} choosing_id - The new choosing player ID.
      * @returns {string} The updated choosing player ID.
      */
@@ -330,17 +393,17 @@ export class GameManager extends EventManager {
      * Gets the current player in the game.
      * @returns {string} The current player ID.
      */
-    getCurrentPlayer() {
-        return this.current_player;
+    getCurrentPlayerId() {
+        return this.currentPlayerId;
     }
 
     /**
      * Sets the current player in the game.
-     * @param {string} current_player - The new current player ID.
+     * @param {string} currentPlayerId - The new current player ID.
      * @returns {string} The updated current player ID.
      */
-    setCurrentPlayer(current_player) {
-        return (this.current_player = current_player);
+    setCurrentPlayerId(currentPlayerId) {
+        return (this.currentPlayerId = currentPlayerId);
     }
 
     /**
@@ -457,6 +520,13 @@ export class GameManager extends EventManager {
         return this.settings.canRejoin;
     }
 
+    /** Gets the number of starting cards for each player.
+     * @returns {number} The number of starting cards.
+     */
+    getStartCards() {
+        return this.settings.startCards || UnoConfig.START_CARDS.default;
+    }
+
     /** Gets the maximum number of cards a player can hold.
      * @returns {number} The maximum number of cards.
      */
@@ -494,8 +564,7 @@ export class GameManager extends EventManager {
         if ((this.current_card?.type != 'PLUS_FOUR') && (this.current_card?.type != 'COLOR_CHANGE')) { return false; }
         this.setChoosingColor(false);
         this.setCurrentCard({ color: color, type: this.current_card.type });
-        // @ts-ignore
-        this.emit('change_color', { color: color, type: this.current_card.type });
+        this.broadcastGameState();
         return true;
     }
 
@@ -556,33 +625,25 @@ export class GameManager extends EventManager {
         //when player is stacking the turn dealy is active which prevents
         //taking cards, so timer by default when taking cards will not work
 
+        return; // Disabled for now
+
         if (this.player_delay) { Timer.stop(this.player_delay); }
         this.player_delay_date = new Date();
 
         this.player_delay = Timer.start(() => {
-            this.skipped = true;
-            // @ts-ignore
-            var socket = this.getPlayer(this.current_move).getSocket();
-            // @ts-ignore
-            var color = config.colors[sutils.randomRange(0, config.colors.length-1)];
+            this.setSkipped(true);
+            let isChoosingColor = this.isChoosingColor();
+            let choosingId = this.getChoosingId();
 
-            var isChoosingColor = this.isChoosingColor();
-            var choosingId = this.getChoosingId();
-
-            // @ts-ignore
-            if (isChoosingColor) { UnoEvents.execute(this.io, socket, 'change_color', { color: color }); }
-            // @ts-ignore
+            if (isChoosingColor) { this.changeColor(UnoConfig.COLORS[UnoUtils.randomRange(0, UnoConfig.COLORS.length-1)]); }
             if (choosingId) { UnoEvents.execute(this.io, socket, 'save_card', { card_id: choosingId }); }
-            // @ts-ignore
             if (!isChoosingColor && !choosingId) UnoEvents.execute(this.io, socket, 'take_card');
-            this.skipped = false;
-        // @ts-ignore
-        }, this.player_time*1000 + 500);
+            this.setSkipped(false);
+        }, this.getPlayerTime() * 1000 + 500);
 
-        var player = this.getPlayer(this.current_player);
-        if (player?.isDisconnected()) { Timer.finish(this.player_delay); }
-        // @ts-ignore
-        if ((this.player_time <= 0) && !player?.isDisconnected()) { Timer.stop(this.player_delay); }
+        var player = this.getCurrentPlayer();
+        if (player?.isDisconnected()) { Timer.finish(this.player_delay); } // If disconnected players turn arives then finish timer instantly
+        if ((this.getPlayerTime() <= 0) && !player?.isDisconnected()) { Timer.stop(this.player_delay); }
     }
 
     /** Starts the disconnection timer for a player.
