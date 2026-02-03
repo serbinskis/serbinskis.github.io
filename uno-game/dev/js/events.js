@@ -1,6 +1,6 @@
 // @ts-check
 
-import { GameStatePayload, HostDisconnectPayload, JoinRequestPayload, JoinResponsePayload, KickPlayerPayload, PeerDisconnectPayload } from './packets.js';
+import { ChangeColorPayload, GameStatePayload, HostDisconnectPayload, JoinRequestPayload, JoinResponsePayload, KickPlayerPayload, PeerDisconnectPayload, PlaceCardPayload } from './packets.js';
 import { NetworkManager } from './network.js';
 import { GameUI } from './scenes/game.js';
 import { UnoUtils } from './utils/utils.js';
@@ -59,7 +59,7 @@ export class EventManager extends NetworkManager {
 
         this.on(KickPlayerPayload, async (peerId, payload, game) => {
             if (!this.isHost()) {
-                if (payload.getPlayerId() !== game?.getPeerPlayer(game.getPeerId())?.getPlayerId()) { return; } // Check if this kick is for us
+                if (payload.getPlayerId() !== game.getPeerPlayer(game.getPeerId())?.getPlayerId()) { return; } // Check if this kick is for us
                 alert(`You have been kicked from the game. Reason: ${payload.getReason()}`);
                 location.reload();
             } else {
@@ -69,6 +69,25 @@ export class EventManager extends NetworkManager {
                 if (!player) { return console.warn(`[EventManager] Host received KickPlayerPayload for non-existing player ID ${payload.getPlayerId()}`); }
                 game.removePlayer(player.getPlayerId());
             }
+        });
+
+        this.on(PlaceCardPayload, async (peerId, payload, game) => {
+            if (!this.isHost()) { return console.warn("[EventManager] Received PlaceCardPayload on client, ignoring."); }
+            if (!game.isStarted() || game.isChoosingColor()) { return; }
+
+            let card = game.getCard(payload.getCardId());
+            if (!card) { return; }
+
+            let canPlayInfo = game.canPlayCard(card);
+            if (!canPlayInfo.canPlay) { return; }
+
+            game.setCurrentCard(card);
+            game.removeCard(payload.getCardId());
+            game.setChoosingId(null);
+        });
+
+        this.on(ChangeColorPayload, async (peerId, payload, game) => {
+
         });
     }
 }

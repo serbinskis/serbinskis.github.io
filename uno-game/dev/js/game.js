@@ -28,7 +28,7 @@ export class GameManager extends EventManager {
     /** @protected @type {number} */ direction = UnoConfig.DIRECTION_FORWARD;
     /** @protected @type {boolean} */ skipped = false;
     /** @protected @type {boolean} */ choosing_color = false;
-    /** @protected @type {string} */ choosing_id = '';
+    /** @protected @type {string|null} */ choosing_id = null;
     /** @protected @type {number | null} */ playerTimer = null;
     /** @protected @type {Date | null} */ player_delay_date = null;
 
@@ -389,15 +389,15 @@ export class GameManager extends EventManager {
     }
 
     /** Gets the ID of the player currently choosing to place or save a card.
-     * @returns {string} The choosing player ID.
+     * @returns {string|null} The choosing player ID.
      */
     getChoosingId() {
         return this.choosing_id;
     }
 
     /** Sets the ID of the player currently choosing to place or save a card.
-     * @param {string} choosing_id - The new choosing player ID.
-     * @returns {string} The updated choosing player ID.
+     * @param {string|null} choosing_id - The new choosing player ID.
+     * @returns {string|null} The updated choosing player ID.
      */
     setChoosingId(choosing_id) {
         return (this.choosing_id = choosing_id);
@@ -787,39 +787,40 @@ export class GameManager extends EventManager {
 
     /** Checks if a card can be played based on the current game state.
      * @param {{ color: string; type: string; }} card - The card to check.
-     * @param {boolean} [update=false] - Whether to update the game state if the card can be played.
-     * @returns {{ canPlay: boolean; nextBy?: number; pickColor?: boolean; }} An object indicating if the card can be played and additional info.
+     * @returns {{ canPlay: boolean; direction?: number; stack?: number; nextBy?: number; shouldPickColor?: boolean; }} An object indicating if the card can be played and additional info.
     */
-    canPlayCard(card, update = false) {
-        let next_by = 1;
-        let pick_color = false;
+    canPlayCard(card) {
+        let stack = 0;
+        let nextBy = 1;
+        let direction = this.direction;
+        let shouldPickColor = false;
 
         switch (card.type) {
             case 'REVERSE': //Can put on same color or same type, reverse direction, can be put after stack was taken
                 if (this.stack > 0 || (card.color != this.current_card?.color && card.type != this.current_card?.type)) { return { canPlay: false }; }
-                if (update) { this.direction *= UnoConfig.DIRECTION_REVERSE; }
+                direction *= UnoConfig.DIRECTION_REVERSE;
                 break;
             case 'BLOCK': //Can put on same color or same type, just skip by 1 more, can be put after stack was taken
                 if (this.stack > 0 || (card.color != this.current_card?.color && card.type != this.current_card?.type)) { return { canPlay: false }; }
-                next_by += 1;
+                nextBy += 1;
                 break;
             case 'PLUS_TWO': //Cannot put PLUS_TWO on PLUS_FOUR, but can put it on anything else with same color, can be put after stack was taken
                 if ((this.stack > 0 && this.current_card?.type == 'PLUS_FOUR') || (card.color != this.current_card?.color && card.type != this.current_card?.type)) { return { canPlay: false }; }
-                if (update) { this.stack += 2; }
+                stack += 2;
                 break;
             case 'PLUS_FOUR': //PLUS_FOUR can be aplied to everything there is no limits, so no need to check color or type
-                pick_color = true;
-                if (update) { this.stack += 4; }
+                shouldPickColor = true;
+                stack += 4;
                 break;
             case 'COLOR_CHANGE': //Cannot be put on PLUS_FOUR and PLUS_TWO, but can put it on anything else with different color, can be put after stack was taken
                 if ((this.stack > 0 && (this.current_card?.type == 'PLUS_FOUR' || this.current_card?.type == 'PLUS_TWO'))) { return { canPlay: false }; }
-                pick_color = true;
+                shouldPickColor = true;
                 break;
             default:
                 if (this.stack > 0 || ((card.color != this.current_card?.color) && (card.type != this.current_card?.type))) { return { canPlay: false }; }
         }
 
-        return { canPlay: true, nextBy: next_by, pickColor: pick_color };
+        return { canPlay: true, direction: direction, stack: stack, nextBy: nextBy, shouldPickColor: shouldPickColor };
     }
 
     /** Converts the current game state to a packet format.

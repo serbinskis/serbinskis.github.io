@@ -1,6 +1,7 @@
 // @ts-check
 
 import { GameManager } from '../game.js';
+import { PlaceCardPayload } from '../packets.js';
 import { UnoPlayer } from '../player.js';
 import { Timer } from '../utils/timers.js';
 import { UnoUtils } from '../utils/utils.js';
@@ -185,11 +186,7 @@ export class GameUI {
             img.id = cardId;
             img.src = `resources/cards/${cards[cardId].color}_${cards[cardId].type}.png`;
             img.draggable = false;
-
-            img.addEventListener("click", () => {
-                //TODO Send play card packet
-            }, false);
-
+            img.addEventListener("click", () => game.send(new PlaceCardPayload(cardId)), false);
             $('#cards')[0].appendChild(img);
         });
 
@@ -200,6 +197,7 @@ export class GameUI {
         $("#carddeck").toggleClass("disabled", (game.getCurrentPlayerId() != me.getPlayerId()));
 
         //TODO: NOW WE NEED TO RENDER JUMP IN CARDS
+        game.sendWhoCanJumpIn
         $("#cards").removeClass("disabled");
         $(".card").removeClass('jumpin')
     }
