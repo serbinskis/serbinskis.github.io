@@ -14,6 +14,16 @@ export class GameUI {
         window.GameUI = GameUI;
     }
 
+    /**
+     * Plays a sound effect
+     * @param {string} name - Filename in resources/sounds/
+     */
+    static playSound(name) {
+        const audio = new Audio(`${window.location.href}resources/sounds/${name}`);
+        audio.volume = 1;
+        audio.play().catch(e => console.warn("Audio blocked:", e));
+    }
+
     /** Shows the game scene and hides the login scene. */
     static showGameScene() {
         $("#login-container").addClass("hidden");
@@ -149,19 +159,19 @@ export class GameUI {
         // Play sound based on card type
         switch(currentCard.type) {
             case "REVERSE":
-                UnoUtils.playSound("reverse.mp3");
+                GameUI.playSound("reverse.mp3");
                 break;
             case "BLOCK":
-                UnoUtils.playSound("block.mp3");
+                GameUI.playSound("block.mp3");
                 break;
             case "PLUS_TWO":
-                UnoUtils.playSound("plus_two.mp3");
+                GameUI.playSound("plus_two.mp3");
                 break;
             case "PLUS_FOUR":
-                UnoUtils.playSound("plus_four.mp3");
+                GameUI.playSound("plus_four.mp3");
                 break;
             default:
-                UnoUtils.playSound("card_place.mp3");
+                GameUI.playSound("card_place.mp3");
         }
     }
 
@@ -186,7 +196,7 @@ export class GameUI {
             img.id = cardId;
             img.src = `resources/cards/${cards[cardId].color}_${cards[cardId].type}.png`;
             img.draggable = false;
-            img.addEventListener("click", () => game.send(new PlaceCardPayload(cardId)), false);
+            img.addEventListener("click", () => game.handlePacket(game.getPeerId(), new PlaceCardPayload(cardId)), false);
             $('#cards')[0].appendChild(img);
         });
 
@@ -225,6 +235,7 @@ export class GameUI {
         GameUI.renderCards();
         GameUI.renderDeck();
         GameUI.renderPlayerCover();
+        GameUI.setStack(GameManager.getInstance().getStack());
 
         $("#room-id")[0].innerText = '*'.repeat(GameManager.getInstance().getRoomId().length);
         $("#arrow").toggleClass("hidden", !GameManager.getInstance().isStarted());
@@ -324,6 +335,47 @@ export class GameUI {
     static showSettings(enabled) {
         $("#game-container #settings-container")[0].style = `transform: translate(-50%, -50%) scale(${enabled ? 1 : 0});`
     }
+
+    /** Sets the stack count display and shows/hides the stacking container based on the stack value.
+     * @param {number} stack - The current stack count.
+     **/
+    static setStack(stack) {
+        // If stack is 0 and container is not already hidden, hide it or show it if false
+        if ((stack == 0) && !$("#stacking-container").hasClass("PopIn")) { return; }
+        if (stack > 0) { $("#stacking-count")[0].innerHTML = `+${stack}`; }
+        $("#stacking-container").toggleClass("PopIn", stack > 0);
+        $("#stacking-container").toggleClass("PopOut", stack == 0);
+    }
+
+    /** Shows or hides the color selection container.
+     * @param {boolean} show - Whether to show the color selection container.
+     */
+    static showColorChoose(show) {
+        if (!show && !$("#color-select").hasClass("PopIn")) { return; }
+        $("#color-select").toggleClass("PopOut", !show);
+        $("#color-select").toggleClass("PopIn", show);
+    }
+
+    /** Shows the choose card container with the specified card or hides it if cardId is null.
+     * @param {string|null} cardId - The ID of the card to choose or null to hide the container.
+     * @param {{ color: string; type: string; }} [card] - The card object containing color and type (optional, required if cardId is not null).
+     */
+    static showChooseCard(cardId, card) {
+        $("#choose-container").toggleClass("hidden", (cardId == null));
+        if (card) { $("#choose-card")[0].card = { cardId: cardId, ...card }; }
+        if (card) { $("#choose-card")[0].src = `resources/cards/${card.color}_${card.type}.png`; }
+        $("#choose-card").toggleClass("ChooseAnimation", (cardId != null));
+    }
+
+    /** Sets a full-screen cover image with a popup animation.
+     * @param {string} src - The source URL of the cover image.
+     */
+    static setScreenCover(src) {
+        $("#cover")[0].src = src;
+        $("#cover").removeClass("popupCover");
+        void $("#cover")[0].offsetWidth;
+        $("#cover").addClass("popupCover");
+    }
 }
 
 // ============================
@@ -373,6 +425,41 @@ $("#room-id").mousedown(() => {
 // ========= BUTTONS ==========
 // ============================
 
+// When click on UNO CARD, start the game (only host can press this button, so no need to check if host)
 $("#UNO_CARD").click(() => {
     GameManager.getInstance().startGame();
+});
+
+// When click on deck, send draw card request to host
+$("#carddeck").click(() => {
+    GameManager.getInstance().clientDrawCard();
+});
+
+// When click on UNO button, send UNO press payload to host
+$("#uno").click(() => {
+    GameManager.getInstance().clientCallUno();
+});
+
+// If player decided to place a card instead of keepint it, send that to host
+$("#choose-place").click(() => {
+    GameUI.showChooseCard(null);
+    GameManager.getInstance().clientPlaceCard($("#choose-card")[0].card.cardId);
+    $("#choose-card")[0].card = null;
+});
+
+// If player decided to save a card instead of placing it, send that to host
+$("#choose-save").click(() => {
+    GameUI.showChooseCard(null);
+    GameManager.getInstance().clientSaveCard($("#choose-card")[0].card.cardId);
+    $("#choose-card")[0].card = null;
+});
+
+$(".color").click((/** @type {any} */ e) => {
+    GameManager.getInstance().clientChangeColor(e.target.id);
+    GameUI.playSound("color_press.mp3");
+});
+
+// When click on winner return button, reload page
+$("#winner-return").click(() => {
+    location.reload();
 });

@@ -4,7 +4,7 @@ import { UnoConfig } from './config.js';
 import { UnoUtils } from './utils/utils.js';
 import { UnoPlayer } from './player.js';
 import { EventManager } from './events.js';
-import { GameStatePayload, JoinRequestPayload, KickPlayerPayload } from './packets.js';
+import { ChangeColorPayload, DrawCardPayload, GameStatePayload, JoinRequestPayload, KickPlayerPayload, SaveCardPayload, UnoPressPayload } from './packets.js';
 import { Timer } from './utils/timers.js';
 import { GameUI } from './scenes/game.js';
 
@@ -30,6 +30,7 @@ export class GameManager extends EventManager {
     /** @protected @type {boolean} */ choosing_color = false;
     /** @protected @type {string|null} */ choosing_id = null;
     /** @protected @type {number | null} */ playerTimer = null;
+    /** @protected @type {number | null} */ turnTimer = null;
     /** @protected @type {Date | null} */ player_delay_date = null;
 
     /** @protected */ constructor() {
@@ -78,9 +79,12 @@ export class GameManager extends EventManager {
 
     }
 
+    /** Starts the game if the caller is the host. If the game has already started, it will reset the game state if reset is true.
+     * @param {boolean} reset - Whether to reset the game state if the game has already started.
+     */
     startGame(reset = false) {
         if (!this.isHost()) { return console.warn("[GameManager] Only host can start the game."); }
-        if (this.started && !reset) { return; } // Prevent restarting an already started game
+        if (this.isStarted() && !reset) { return; } // Prevent restarting an already started game
         this.setStarted(true);
         this.setDirection(UnoConfig.DIRECTION_FORWARD);
         this.setStack(0);
@@ -89,13 +93,48 @@ export class GameManager extends EventManager {
         this.setChoosingColor(false);
         this.setSkipped(false);
 
-        let activePlayers = this.getPlayers().filter((e) => e.isOnline(false)); // Player can be disconnected but not left
-        this.setCurrentPlayerId(activePlayers[UnoUtils.randomRange(0, activePlayers.length-1)].getPlayerId());
+        this.setCurrentPlayerId(this.getRandomPlayerId()); // Set random player as starting player
         this.setCurrentCard(GameManager.generateCard(false));
         this.getPlayers().forEach((player) => this.generateCards(player.getPlayerId(), true, this.getStartCards())); // Generate starting cards for each player
         this.startPlayerTimer(); // Start timer for each player turn
 
         this.broadcastGameState();
+    }
+
+    /** Sends a request to place a card on the current card. The actual card placement will be handled by the host after validating the move.
+     * @param {string} cardId - The uncrypted ID of the card to place.
+    **/
+    clientPlaceCard(cardId) {
+        this.send(new SaveCardPayload(cardId));
+    }
+
+    /** Sends a request to change the color of the current card. The actual color change will be handled by the host after validating the move.
+     * @param {string} color - The new color to change to.
+    */
+    clientChangeColor(color) {
+        if (!UnoConfig.COLORS.includes(color)) { return alert(`[GameManager] clientChangeColor() -> Invalid color ${color}.`); }
+        this.handlePacket(this.getPeerId(), new ChangeColorPayload(color));
+    }
+
+    /** Sends a request to save a card for later play. The actual saving will be handled by the host after validating the move.
+     * @param {string} cardId - The uncrypted ID of the card to save.
+    **/
+    clientSaveCard(cardId) {
+        this.handlePacket(this.getPeerId(), new SaveCardPayload(cardId));
+    }
+
+    /** Sends a request to draw a card from the deck. The actual drawing will be handled by the host after validating the move.
+     * Remeber this also can be called as host, so we have to handle that as well.
+    */
+    clientDrawCard() {
+        this.handlePacket(this.getPeerId(), new DrawCardPayload());
+    }
+
+    /** Sends a request to call UNO. The actual call will be handled by the host after validating the move.
+     * Remeber this also can be called as host, so we have to handle that as well.
+    */
+    clientCallUno() {
+        this.handlePacket(this.getPeerId(), new UnoPressPayload());
     }
 
     /**
@@ -148,6 +187,16 @@ export class GameManager extends EventManager {
         }));
     }
 
+    /** Gets a decrypted card of a player by its uncrypted ID
+     * @param {string} playerId - The ID of the player whose card to retrieve.
+     * @param {string} cardId - The uncrypted ID of the card to retrieve.
+     * @returns {{ color: string; type: string } | null} The decrypted card object, or null if not found.
+     */
+    getPlayerCard(playerId, cardId) {
+        let playerCards = this.getPlayerCards(playerId);
+        return playerCards[cardId] || null;
+    }
+
     /** Gets a decrypted card by its uncrypted ID
      * @param {string} cardId - The uncrypted ID of the card to retrieve.
      * @returns {{ color: string; type: string } | null} The decrypted card object, or null if not found.
@@ -183,7 +232,6 @@ export class GameManager extends EventManager {
                 if (decryptedCardId != cardId) { continue; }
                 delete this.cards[playerId][cId];
                 player.setCardCount(player.getCardCount()-1);
-                this.broadcastGameState();
                 return;
             }
         }
@@ -449,6 +497,7 @@ export class GameManager extends EventManager {
      * @returns {string} The updated current player ID.
      */
     setCurrentPlayerId(currentPlayerId) {
+        this.nextCurrentMoveId(); // Update move ID to trigger timer reset on clients when current player is same as last turn
         return (this.currentPlayerId = currentPlayerId);
     }
 
@@ -482,7 +531,7 @@ export class GameManager extends EventManager {
      * @returns {{ color: string; type: string; }} The updated current card.
      */
     setCurrentCard(current_card) {
-        return (this.current_card = current_card);
+        return (this.current_card = { ...current_card });
     }
 
     /** Sets the UNO caller ID.
@@ -639,44 +688,42 @@ export class GameManager extends EventManager {
         if ((this.current_card?.type != 'PLUS_FOUR') && (this.current_card?.type != 'COLOR_CHANGE')) { return false; }
         this.setChoosingColor(false);
         this.setCurrentCard({ color: color, type: this.current_card.type });
-        this.broadcastGameState();
         return true;
     }
 
-    /** Sets the turn delay timer.
-     * @param {number} turn_delay - The turn delay timer.
-     * @returns {number} The updated turn delay timer.
-     */
-    setTurnDelay(turn_delay) {
-        return (this.turn_delay = turn_delay);
-    }
-
     /** Gets the turn delay timer.
-     * @returns {number} The turn delay timer.
+     * @returns {number|null} The turn delay timer.
      */
     getTurnDelay() {
-        return this.turn_delay;
+        return this.turnTimer;
     }
 
     /** Starts the turn delay timer for the player.
      * After the delay, it sets the next player as the current player.
-     * This is small delay after placing a card, to prevent instant next turn in case if stakcking or jump in enabled.
-     * @param {string} player_id - The ID of the current player.
-     * @param {number} next_by - The number of players to skip for the turn.
+     * This is small delay after placing a card, to prevent instant next turn in case if stacking or jump in is enabled.
+     * @param {string} playerId - The ID of the current player.
+     * @param {number} by - The number of players to skip for the turn.
      */
-    startTurnDelay(player_id, next_by) {
-        if (this.turn_delay) { Timer.stop(this.turn_delay); }
+    startTurnDelay(playerId, by) {
+        if (this.turnTimer) { Timer.stop(this.turnTimer); }
 
-        //Delay next move after selecting color
-        this.turn_delay = Timer.start(() => {
-            this.turn_delay = null; //Clear delay variable
-            // @ts-ignore
-            this.setCurrentPlayer(this.nextPlayer(player_id, next_by)); //Get and set next player
+        // Cache player ID in case if current player leaves during delay
+        let nextPlayerId = this.getNextPlayerId(playerId, by);
+
+        // Delay next move after selecting color or placing a card
+        this.turnTimer = Number(Timer.start(() => {
+            this.turnTimer = null; //Clear delay variable
+            this.setCurrentPlayerId(nextPlayerId); //Get and set next player
             this.setUno(null); //Clear uno variable
-            // @ts-ignore
-            this.emit1('next_move', { next_move: this.current_player, player_time: this.data.playerTime });
-            this.startPlayerTimer();
-        }, UnoConfig.TURN_DELAY);
+            this.startPlayerTimer(); // This also triggers broadcastGameState()
+        }, UnoConfig.TURN_DELAY));
+    }
+
+    /** Removes the turn delay timer and starts the player timer immediately. */
+    removeTurnDelay() {
+        if (this.turnTimer) { Timer.stop(this.turnTimer); }
+        this.turnTimer = null;
+        this.startPlayerTimer();
     }
 
     /** Starts the player timer for the current player's turn.
@@ -700,6 +747,7 @@ export class GameManager extends EventManager {
         //when player is stacking the turn dealy is active which prevents
         //taking cards, so timer by default when taking cards will not work
 
+        this.broadcastGameState(); // Update game state for all players, so they can see the timer
         return;
 
         if (this.playerTimer) { Timer.stop(this.playerTimer); }
@@ -741,24 +789,42 @@ export class GameManager extends EventManager {
     }
 
     /** Gets the next player in turn order.
-     * @param {string} player_id - The current player ID.
+     * @param {string} playerId - The current player ID.
      * @param {number} by - The number of players to skip.
-     * @returns {string | null} The next player ID or null if not found.
+     * @returns {string} The next player ID or null if not found.
      */
-    nextPlayer(player_id, by) {
-        var players_id = Object.keys(this.players);
-        var index = players_id.indexOf(player_id);
-        if (index == -1) { return null; } // -1, not found
+    getNextPlayerId(playerId, by) {
+        let playerIds = this.getPlayers().map((p) => p.getPlayerId());
+        if (playerIds.length == 0) { throw new Error("[GameManager] getNextPlayerId -> No players in game"); }
+        let index = playerIds.indexOf(playerId);
+        if (index == -1) { return this.getRandomPlayerId(); } // If player not found, return random player
 
-        index += this.direction;
-        while (index > players_id.length-1) { index = index - players_id.length; }
-        while (index < 0) { index = players_id.length + index; }
+        index += this.getDirection(); // Move to next player based on direction
+        while (index > playerIds.length-1) { index = index - playerIds.length; }
+        while (index < 0) { index = playerIds.length + index; }
 
-        var player_id = players_id[index];
-        var player = this.getPlayer(player_id);
+        playerId = playerIds[index];
+        let player = this.getPlayer(playerId);
 
-        //Return only if last by and player has not left
-        return ((by <= 1) && player?.isOnline(false)) ? player_id : this.nextPlayer(player_id, (!player?.isOnline(false) ? by : by-1));
+        // Return only if last by and player has not left
+        // This check is NOW obsolete since fully left players are removed from game
+        // But I will leave it here just in case
+        return ((by <= 1) && player?.isOnline(false)) ? playerId : this.getNextPlayerId(playerId, (!player?.isOnline(false) ? by : by-1));
+    }
+
+    /** Gets a list of active players who are online.
+     * @returns {UnoPlayer[]} An array of active UnoPlayer instances.
+     */
+    getActivePlayers() {
+        return this.getPlayers().filter((e) => e.isOnline(false)); // Player can be disconnected but not left
+    }
+
+    /** Gets a random player ID from the list of active players.
+     * @returns {string} A random player ID.
+     */
+    getRandomPlayerId() {
+        let activePlayers = this.getActivePlayers();
+        return activePlayers[UnoUtils.randomRange(0, activePlayers.length-1)].getPlayerId();
     }
 
     /** Sends information about who can jump in to all eligible players.
@@ -785,7 +851,7 @@ export class GameManager extends EventManager {
         }
     }
 
-    /** Checks if a card can be played based on the current game state.
+    /** Checks if a card can be played based on the current placed card.
      * @param {{ color: string; type: string; }} card - The card to check.
      * @returns {{ canPlay: boolean; direction?: number; stack?: number; nextBy?: number; shouldPickColor?: boolean; }} An object indicating if the card can be played and additional info.
     */

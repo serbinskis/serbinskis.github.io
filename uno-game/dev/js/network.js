@@ -10,13 +10,14 @@ import { HostDisconnectPayload, Packet, PeerConnectPayload, PeerDisconnectPayloa
 // Host will handle all other connections
 
 export class NetworkManager extends EventTarget {
+    static HEARTBEAT_INTERVAL = 500;
     /** @protected @type {string} */ peerId = ''; // PeerJS ID visible to others, we need to know this in case if host migrates
     /** @protected @type {boolean} */ _isHost = false;
     /** @protected @type {any} */ peer = null;
     /** @protected @type {any} */ connection = null;
     /** @protected @type {Object<string, any>} */ connections = {};
     /** @protected @type {Map<string, Function>} */ eventHandlers = new Map();
-    /** @protected @type {number} */ heartbeat_interval = 0;
+    /** @protected @type {number|any} */ heartbeat_interval = 0;
 
     constructor() {
         super();
@@ -37,7 +38,7 @@ export class NetworkManager extends EventTarget {
 
         if (hostId) { await this.connectPeer(hostId); }
         if (hostId && !this.connection) { return null; }
-        this.heartbeat(500);
+        this.heartbeat(NetworkManager.HEARTBEAT_INTERVAL);
         return (this.peerId = id);
     }
 
@@ -52,6 +53,7 @@ export class NetworkManager extends EventTarget {
         return new Promise(async (resolve, reject) => {
             if (!this.peer) { return false; }
             this.connection = this.peer.connect(peerId);
+            this.heartbeat(NetworkManager.HEARTBEAT_INTERVAL); // We also have to periodically check if we still have connection with the host
 
             this.connection.on('error', (/** @type {Error} */ err) => {
                 this.connection = null;
@@ -149,7 +151,8 @@ export class NetworkManager extends EventTarget {
         Object.values(this.connections).forEach(conn => {
             if (!['disconnected', 'failed'].includes(conn.peerConnection.connectionState)) { return; }
             delete this.connections[conn.peer];
-            this.handlePacket(conn.peer, new PeerDisconnectPayload(conn.peer, 'Connection closed'));
+            this.handlePacket(conn.peer, new PeerDisconnectPayload(conn.peer, 'Timed out'));
+            if (!this.isHost()) { this.handlePacket(conn.peer, new HostDisconnectPayload(conn.peer, 'Timed out')); }
         });
     }
 

@@ -22,16 +22,6 @@ export class UnoUtils {
     }
 
     /**
-     * Plays a sound effect
-     * @param {string} name - Filename in resources/sounds/
-     */
-    static playSound(name) {
-        const audio = new Audio(`${window.location.href}resources/sounds/${name}`);
-        audio.volume = 1;
-        audio.play().catch(e => console.warn("Audio blocked:", e));
-    }
-
-    /**
      * Generates a random integer between min and max (inclusive).
      * @param {number} min - The minimum integer value.
      * @param {number} max - The maximum integer value.

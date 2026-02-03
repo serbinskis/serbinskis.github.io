@@ -131,7 +131,7 @@ export class JoinRequestPayload extends Packet {
         this.username = username;
 
         // Data from Local Storage
-        this.avatar = localStorage.getItem("avatar") || "";
+        this.avatar = localStorage.getItem("avatar") || null;
         this.privateId = localStorage.getItem("privateId") || "";
 
         // Game settings from the DOM (with parsing)
