@@ -11,6 +11,10 @@
 }
 
 .navigationContainer {
+    font-size: initial !important;
+    -webkit-box-sizing: initial !important;
+    box-sizing: initial !important;
+    -moz-box-sizing: initial !important;
     position: fixed;
     height: 100%;
     width: 0px;
@@ -108,6 +112,9 @@
     border: 3px solid rgba(104, 67, 209, 0.4);
     border-radius: 50%;
     transition: 0.5s;
+    -webkit-box-sizing: initial !important;
+    box-sizing: initial !important;
+    -moz-box-sizing: initial !important;
 }
 
 .toggle.active {
