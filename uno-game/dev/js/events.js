@@ -1,6 +1,6 @@
 // @ts-check
 
-import { ChangeColorPayload, DrawCardPayload, GameStatePayload, HostDisconnectPayload, JoinRequestPayload, JoinResponsePayload, KickPlayerPayload, PeerDisconnectPayload, PlaceCardPayload, SaveCardPayload } from './packets.js';
+import { ChangeColorPayload, DrawCardPayload, GameStatePayload, HostDisconnectPayload, JoinRequestPayload, JoinResponsePayload, KickPlayerPayload, PeerDisconnectPayload, PlaceCardPayload, SaveCardPayload, UnoPressPayload } from './packets.js';
 import { NetworkManager } from './network.js';
 import { GameUI } from './scenes/game.js';
 import { UnoUtils } from './utils/utils.js';
@@ -213,5 +213,9 @@ export class EventManager extends NetworkManager {
             game.setStack(0); // Reset stack after drawing
             game.broadcastGameState();
         });
+
+        this.on(UnoPressPayload, async (peerId, payload, game) => {
+            // TODO: Implement
+        }
     }
 }
