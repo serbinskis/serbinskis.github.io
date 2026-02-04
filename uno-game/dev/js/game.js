@@ -19,7 +19,7 @@ export class GameManager extends EventManager {
     /** @protected @type {{ [player_id: string]: UnoPlayer; }} */ players = {};
     /** @protected @type {boolean} */ started = false;
     /** @protected @type {number} */ stack = 0;
-    /** @protected @type {string | null} */ uno_id = null;
+    /** @protected @type {string | null} */ unoId = null;
     /** @protected @type {string | null} */ winner_id = null;
     /** @protected @type {{ color: string; type: string, id?: string } | null} */ currentCard = null;
     /** @protected @type {string} */ currentPlayerId = ''; // Player ID of current playing player
@@ -86,7 +86,7 @@ export class GameManager extends EventManager {
         this.setStarted(true);
         this.setDirection(UnoConfig.DIRECTION_FORWARD);
         this.setStack(0);
-        this.setUno(null);
+        this.setUnoId(null);
         this.setWinner(null);
         this.setChoosingColor(false);
         this.setRunOutOfTime(false);
@@ -504,18 +504,18 @@ export class GameManager extends EventManager {
     }
 
     /** Sets the UNO caller ID.
-     * @param {string | null} uno_id - The ID of the player who called UNO.
+     * @param {string | null} unoId - The ID of the player who called UNO.
      * @returns {string | null} The UNO caller ID.
      */
-    setUno(uno_id) {
-        return (this.uno_id = uno_id);
+    setUnoId(unoId) {
+        return (this.uno_id = unoId);
     }
 
     /** Gets the UNO caller ID.
      * @returns {string | null} The UNO caller ID or null if no one called UNO.
      */
-    getUno() {
-        return this.uno_id;
+    getUnoId() {
+        return this.unoId;
     }
 
     /**
@@ -683,7 +683,7 @@ export class GameManager extends EventManager {
         this.turnTimer = Number(Timer.start(() => {
             this.turnTimer = null; //Clear delay variable
             this.setCurrentPlayerId(nextPlayerId); //Get and set next player
-            this.setUno(null); //Clear uno variable
+            this.setUnoId(null); //Clear uno variable
             this.startPlayerTimer(); // This also triggers broadcastGameState()
         }, UnoConfig.TURN_DELAY));
     }

@@ -140,7 +140,10 @@ export class GameUI {
 
         // If player is choosing color, show color chooser
         GameUI.showColorChoose(game.isChoosingColor() && (game.getCurrentPlayerId() == game.getMyPlayer()?.getPlayerId()));
-    
+
+        // Show UNO button if someone has 1 card
+        GameUI.showUnoButton(game.getUnoId());
+
         // If player is choosing card, show choose card container
         let choosableCardId = game.getChoosingCardId();
         let choosingCard = game.getCard(choosableCardId);
@@ -169,20 +172,11 @@ export class GameUI {
 
         // Play sound based on card type
         switch(currentCard.type) {
-            case "REVERSE":
-                GameUI.playSound("reverse.mp3");
-                break;
-            case "BLOCK":
-                GameUI.playSound("block.mp3");
-                break;
-            case "PLUS_TWO":
-                GameUI.playSound("plus_two.mp3");
-                break;
-            case "PLUS_FOUR":
-                GameUI.playSound("plus_four.mp3");
-                break;
-            default:
-                GameUI.playSound("card_place.mp3");
+            case "REVERSE": GameUI.playSound("reverse.mp3"); break;
+            case "BLOCK": GameUI.playSound("block.mp3"); break;
+            case "PLUS_TWO": GameUI.playSound("plus_two.mp3"); break;
+            case "PLUS_FOUR": GameUI.playSound("plus_four.mp3"); break;
+            default: GameUI.playSound("card_place.mp3");
         }
     }
 
@@ -377,6 +371,21 @@ export class GameUI {
         if (card) { $("#choose-card")[0].card = { cardId: cardId, ...card }; }
         if (card) { $("#choose-card")[0].src = `resources/cards/${card.color}_${card.type}.png`; }
         $("#choose-card").toggleClass("ChooseAnimation", (cardId != null));
+    }
+
+    /** Shows or hides the UNO button based on the provided UNO caller ID.
+     * @param {string | null} unoId - The ID of the player who called UNO or null to hide the button.
+     */
+    static showUnoButton(unoId) {
+        if (unoId && (!$("#uno")[0].style.transform.includes("scale(1)") || (unoId != $("#uno")[0].unoId))) {
+            let unoX = (200+UnoUtils.randomRange(0, 150))*(UnoUtils.randomRange(1, 2) == 1 ? -1 : 1);
+            let unoY = UnoUtils.randomRange(-100, 100);
+            $("#uno-wrapper")[0].style = `left: calc(50% + ${unoX}px); top: calc(50% + ${unoY}px);`
+            $("#uno")[0].unoId = unoId;
+            $("#uno")[0].style = "transform: scale(1);"
+        } else if (!unoId) {
+            $("#uno")[0].style = "transform: scale(0);"
+        }
     }
 
     /** Sets a full-screen cover image with a popup animation.

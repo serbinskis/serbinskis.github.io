@@ -215,7 +215,25 @@ export class EventManager extends NetworkManager {
         });
 
         this.on(UnoPressPayload, async (peerId, payload, game) => {
-            // TODO: Implement
-        }
+            // Game must be started and UNO must be active
+            if (!game.isStarted() || !game.getUnoId()) { return; }
+            let player = game.getPeerPlayer(peerId);
+            if (!player) { return console.warn(`[EventManager] Received UnoPressPayload from non-player Peer[${peerId}], ignoring.`); }
+
+            // If somehow the UNO caller is not valid, just clear UNO state
+            let unoPlayer = game.getPlayer(String(game.getUnoId()));
+            game.setUnoId(null);
+            if (!unoPlayer) { return; }
+
+            // If the player who pressed UNO is the one who has 1 card, clear UNO state (IDC ABOUT THE LOOP)
+            // Give 2 penalty cards to the player who failed to call UNO
+            for (var i = 0; i < UnoConfig.UNO_CARD_AMOUNT; i++) {
+                if (game.getCurrentPlayerId() == player.getPlayerId()) { break; }
+                if (unoPlayer.getCardCount() >= game.getMaxCards()) { break; }
+                game.generateCards(unoPlayer.getPlayerId(), false, 1);
+            }
+
+            game.broadcastGameState();
+        });
     }
 }
