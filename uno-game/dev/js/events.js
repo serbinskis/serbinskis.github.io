@@ -94,7 +94,8 @@ export class EventManager extends NetworkManager {
             // So technically without stacking you can place 2 cards
             // NOTE: You cannot jump-in on yourself
 
-            let isJumpIn = (game.getCurrentPlayerId() != player.getPlayerId());
+            // Jump-in is only possible if turn delay is active, and not current player's turn
+            let isJumpIn = game.getTurnDelay() && (game.getCurrentPlayerId() != player.getPlayerId());
 
             if (game.getTurnDelay()) {
                 // TODO: Check if stacking or jump-in is allowed

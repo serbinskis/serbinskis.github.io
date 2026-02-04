@@ -1,5 +1,6 @@
 // @ts-check
 
+import { UnoConfig } from '../config.js';
 import { GameManager } from '../game.js';
 import { PlaceCardPayload } from '../packets.js';
 import { UnoPlayer } from '../player.js';
@@ -386,6 +387,25 @@ export class GameUI {
         } else if (!unoId) {
             $("#uno")[0].style = "transform: scale(0);"
         }
+    }
+
+    /** Shows or hides the winner container with the specified winner's information.
+     * @param {string | null} winnerId - The ID of the winning player or null to hide the container.
+     */
+    static showWinner(winnerId) {
+        const winner = winnerId && GameManager.getInstance().getPlayer(String(winnerId));
+        let callback = () => $(`#winner-container`).toggleClass("hidden", !winner);
+        $(`#winner-wrapper`).toggleClass("ScaleUp", Boolean(winner));
+    
+        if (winner) { setTimeout(callback, 500); } else { callback(); }
+        if (winnerId && winner) { $(`#winner-username`)[0].innerHTML = $(`#username_${winnerId}`)[0]?.innerHTML; }
+        if (winnerId && winner) { $(`#winner-avatar`)[0].src = $(`#avatar_${winnerId}`)[0]?.src; }
+        if (!winner || Timer.exists(winnerId)) { return; }
+
+        Timer.start((timer) => { // DONT ASK, GUGU GAGA TIME
+            let seconds = Math.round((timer?.amount || 1)/2)-1;
+            $(`#winner-timeout`)[0].innerHTML = `Next game will start in ${seconds} seconds.`;
+        }, 500, { immediate: false, id: winnerId, interval: true, amount: (UnoConfig.NEXT_GAME_TIMEOUT+1)*2 });
     }
 
     /** Sets a full-screen cover image with a popup animation.
