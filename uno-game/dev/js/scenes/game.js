@@ -139,7 +139,7 @@ export class GameUI {
         if (!currentCard) { return; }
 
         // If player is choosing color, show color chooser
-        GameUI.showColorChoose(game.isChoosingColor() && game.getCurrentPlayerId() == game.getMyPlayer()?.getPlayerId());
+        GameUI.showColorChoose(game.isChoosingColor() && (game.getCurrentPlayerId() == game.getMyPlayer()?.getPlayerId()));
     
         // If player is choosing card, show choose card container
         let choosableCardId = game.getChoosingCardId();
