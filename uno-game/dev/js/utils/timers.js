@@ -34,7 +34,7 @@ export class Timer {
     static counter = 0;
 
     /**
-     * @param {(immediate?: boolean) => void | Promise<void>} cb
+     * @param {(timer?: TimerOptions) => void | Promise<void>} cb
      * @param {number} gap
      * @param {TimerOptions} [opts]
      * @returns {number|string|Promise<number|string>}
@@ -52,10 +52,12 @@ export class Timer {
         let promise = null; // To hold the result of the callback if it's a promise.
         let result = opts.id; // Default result is the timer ID.
 
+        // Store the timer instance with the callback and options before executing the callback, so that it can be accessed if 'immediate' is true.
         this.timers[opts.id] = { callback: cb, gap, options: opts };
 
-        if (opts.immediate) { promise = cb(true); } // If 'immediate' is true, execute the callback right away.
+        if (opts.immediate) { promise = cb(JSON.parse(JSON.stringify(opts))); } // If 'immediate' is true, execute the callback right away.
         if (promise instanceof Promise) { result = promise.then(() => opts.id); } // If the callback returns a promise, wait for it to resolve.
+        if (opts.immediate && opts.amount != null) { opts.amount--; } // Decrement the amount if immediate execution occurred.
         delete opts.immediate; // The 'immediate' flag is then removed to prevent it from running again on intervals.
 
         this.timers[opts.id] = { // Schedule the timer to execute the callback after we execute the immediate call (if any).
@@ -74,22 +76,22 @@ export class Timer {
     static finish(id) {
         if (!this.timers[id]) { return; }
 
+        try {
+            this.timers[id].callback(JSON.parse(JSON.stringify(this.timers[id].options)));
+        } catch (e) {
+            console.error(e);
+        }
+
+        // Check again if the timer still exists, as the callback might have stopped it.
+        if (!this.timers[id]) { return; }
+
         // If a limited run amount is set, decrement it and stop the timer once exhausted
         if (typeof this.timers[id].options.amount === 'number') {
             this.timers[id].options.amount--;
         }
 
-        try {
-            this.timers[id].callback();
-        } catch (e) {
-            console.error(e);
-        }
-
         // Update remaining before callback, but check after it
         if (this.timers[id].options.amount <= 0) { return this.stop(id); }
-
-        // Check again if the timer still exists, as the callback might have stopped it.
-        if (!this.timers[id]) { return; }
 
         // If it's an interval timer, restart it. Otherwise, delete it.
         if (!this.timers[id].options.interval) { return delete this.timers[id]; }

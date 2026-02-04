@@ -8,17 +8,20 @@ export class UnoUtils {
         window.UnoUtils = UnoUtils;
     }
 
-    /**
-     * Shuffles an array in place using the Fisher-Yates algorithm.
-     * @param {Array<any>} array - The array to shuffle.
-     * @returns {Array<any>} The shuffled array.
+    /** Generates a random UUID.
+     * @returns {string} A random UUID.
      */
-    static shuffle(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-        return array;
+    static randomUUID() {
+        return crypto.randomUUID();
+    }
+
+    /** Reverses a given string.
+     * @param {string|null} str - The string to reverse.
+     * @returns {string|null} The reversed string.
+     */
+    static reverse(str) {
+        if (!str) { return str; }
+        return str.split('').reverse().join('');
     }
 
     /**

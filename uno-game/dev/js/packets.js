@@ -4,6 +4,7 @@ import { UnoConfig } from './config.js';
 import { GameManager } from './game.js';
 import { NetworkManager } from './network.js';
 import { UnoPlayer } from './player.js';
+import { UnoUtils } from './utils/utils.js';
 
 export class Packet {
     /** The type of the packet. @type {string} */
@@ -171,7 +172,7 @@ export class JoinRequestPayload extends Packet {
      * @returns {UnoPlayer} The UnoPlayer instance created from the validated payload.
      */
     toPlayer(peerId) {
-        if (!this.privateId) { this.privateId = crypto.randomUUID(); }
+        if (!this.privateId) { this.privateId = UnoUtils.randomUUID(); }
         if (peerId) { this.peerId = peerId; }
 
         let player = new UnoPlayer({

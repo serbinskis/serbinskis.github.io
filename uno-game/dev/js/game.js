@@ -4,9 +4,8 @@ import { UnoConfig } from './config.js';
 import { UnoUtils } from './utils/utils.js';
 import { UnoPlayer } from './player.js';
 import { EventManager } from './events.js';
-import { ChangeColorPayload, DrawCardPayload, GameStatePayload, JoinRequestPayload, KickPlayerPayload, SaveCardPayload, UnoPressPayload } from './packets.js';
+import { ChangeColorPayload, DrawCardPayload, GameStatePayload, JoinRequestPayload, KickPlayerPayload, PlaceCardPayload, SaveCardPayload, UnoPressPayload } from './packets.js';
 import { Timer } from './utils/timers.js';
-import { GameUI } from './scenes/game.js';
 
 export class GameManager extends EventManager {
     static { // @ts-ignore
@@ -22,16 +21,15 @@ export class GameManager extends EventManager {
     /** @protected @type {number} */ stack = 0;
     /** @protected @type {string | null} */ uno_id = null;
     /** @protected @type {string | null} */ winner_id = null;
-    /** @protected @type {{ color: string; type: string } | null} */ current_card = null;
-    /** @protected @type {string} */ currentPlayerId = ''; //
-    /** @protected @type {string} */ currentMoveId = crypto.randomUUID(); //
+    /** @protected @type {{ color: string; type: string, id?: string } | null} */ currentCard = null;
+    /** @protected @type {string} */ currentPlayerId = ''; // Player ID of current playing player
     /** @protected @type {number} */ direction = UnoConfig.DIRECTION_FORWARD;
-    /** @protected @type {boolean} */ skipped = false;
-    /** @protected @type {boolean} */ choosing_color = false;
-    /** @protected @type {string|null} */ choosing_id = null;
-    /** @protected @type {number | null} */ playerTimer = null;
+    /** @protected @type {boolean} */ runOutOfTime = false;
+    /** @protected @type {boolean} */ choosingColor = false;
+    /** @protected @type {string|null} */ choosingCardId = null;
+    /** @protected @type {string | null} */ playerTimer = null;
     /** @protected @type {number | null} */ turnTimer = null;
-    /** @protected @type {Date | null} */ player_delay_date = null;
+    /** @protected @type {number | null} */ playerTimerCount = null;
 
     /** @protected */ constructor() {
         super();
@@ -91,7 +89,7 @@ export class GameManager extends EventManager {
         this.setUno(null);
         this.setWinner(null);
         this.setChoosingColor(false);
-        this.setSkipped(false);
+        this.setRunOutOfTime(false);
 
         this.setCurrentPlayerId(this.getRandomPlayerId()); // Set random player as starting player
         this.setCurrentCard(GameManager.generateCard(false));
@@ -105,7 +103,7 @@ export class GameManager extends EventManager {
      * @param {string} cardId - The uncrypted ID of the card to place.
     **/
     clientPlaceCard(cardId) {
-        this.send(new SaveCardPayload(cardId));
+        this.handlePacket(this.getPeerId(), new PlaceCardPayload(cardId));
     }
 
     /** Sends a request to change the color of the current card. The actual color change will be handled by the host after validating the move.
@@ -147,28 +145,35 @@ export class GameManager extends EventManager {
         return { ...cards[UnoUtils.randomRange(0, cards.length-1)] }; // Return a copy of the card object
     }
 
-    /** Generates starting cards for a player
+    /** Generates encrypted starting cards for a player
      * @param {string} playerId - The ID of the player to generate cards for.
      * @param {boolean} includeSpecial - Whether to include special cards in the generation.
      * @param {number} amount - The number of cards to generate.
-     * @returns {{ [card_id: string]: { color: string; type: string } }} The generated cards mapped by their unique IDs.
+     * @returns {{ [card_id: string]: { color: string; type: string } }} The generated unencrypted cards mapped by their unique IDs.
      */
     generateCards(/** @type string **/ playerId, /** @type boolean **/ includeSpecial, amount = 0) {
         let player = this.getPlayer(playerId);
         if (!player || !player.getPrivateId()) { throw new Error(`[GameManager] generateCards() -> Player[playerId=${playerId}] not found or has no private ID.`); }
         if (!this.cards[playerId]) { this.cards[playerId] = {} }
 
+        /** @type {{ [card_id: string]: { color: string; type: string } }} */
+        let generatedCards = {}; // To hold the generated cards to return
+
         // NOW WE HAVE TO ENCRYPT CARDS WITH PLAYER PRIVATE ID TO PREVENT CHEATING
         for (var i = 0; i < amount; i++) {
-            let card = GameManager.generateCard(includeSpecial);
-            let color = UnoUtils.encryptString(card.color, String(player.getPrivateId()));
-            let type = UnoUtils.encryptString(card.type, String(player.getPrivateId()));
-            let cardId = UnoUtils.encryptString(crypto.randomUUID(), String(player.getPrivateId()));
+            let cardId = UnoUtils.randomUUID();
+            console.log('Generated cardId:', cardId, 'for playerId:', playerId);
+            generatedCards[cardId] = GameManager.generateCard(includeSpecial);
+            let color = UnoUtils.encryptString(generatedCards[cardId].color, String(player.getPrivateId()));
+            let type = UnoUtils.encryptString(generatedCards[cardId].type, String(player.getPrivateId()));
+            cardId = UnoUtils.encryptString(cardId, String(player.getPrivateId()));
+            console.log('Encrypted cardId:', cardId);
+            console.log('Decrypted cardId:', UnoUtils.decryptString(cardId, String(player.getPrivateId())));
             this.cards[playerId][cardId] = { color, type };
         }
 
         this.getPlayer(playerId)?.setCardCount(Object.keys(this.cards[playerId]).length);
-        return this.cards[playerId];
+        return generatedCards;
     }
 
     /** Gets the decrypted cards of a player
@@ -198,7 +203,7 @@ export class GameManager extends EventManager {
     }
 
     /** Gets a decrypted card by its uncrypted ID
-     * @param {string} cardId - The uncrypted ID of the card to retrieve.
+     * @param {string|null} cardId - The uncrypted ID of the card to retrieve.
      * @returns {{ color: string; type: string } | null} The decrypted card object, or null if not found.
      */
     getCard(cardId) {
@@ -290,18 +295,6 @@ export class GameManager extends EventManager {
         let player = this.getPlayer(playerId);
         if (!player) { return console.warn(`[GameManager] Tried to kick non-existing player[playerId=${playerId}]`); }
         this.handlePacket(this.getPeerId(), new KickPlayerPayload(playerId, reason));
-    }
-
-    /** Adds a card to a player's hand
-     * @param {string} playerId - The ID of the player to add the card to.
-     * @param {string} cardId - The unique ID of the card to add.
-     * @param {{ color: string; type: string; }} card - The card object to add.
-     * @returns {{ color: string; type: string; }} The added card object.
-     */
-    addCard(playerId, cardId, card) {
-        var player = this.getPlayer(playerId);
-        player?.setCardCount(player.getCardCount()+1);
-        return (this.cards[playerId][cardId] = card);
     }
 
     /** Sets or updates a player in the game
@@ -425,45 +418,37 @@ export class GameManager extends EventManager {
      * @returns {boolean} True if the player is choosing a color, false otherwise.
      */
     isChoosingColor() {
-        return this.choosing_color;
+        return this.choosingColor;
     }
 
     /** Sets the choosing color status of the player.
-     * @param {boolean} choosing_color - The new choosing color status.
+     * @param {boolean} choosingColor - The new choosing color status.
      * @returns {boolean} The updated choosing color status.
      */
-    setChoosingColor(choosing_color) {
-        return (this.choosing_color = choosing_color);
+    setChoosingColor(choosingColor) {
+        return (this.choosingColor = choosingColor);
     }
 
-    /** Gets the ID of the player currently choosing to place or save a card.
-     * @returns {string|null} The choosing player ID.
+    /** Gets the ID of the card currently being choosen to place or save a card.
+     * @returns {string|null} The choosing card ID.
      */
-    getChoosingId() {
-        return this.choosing_id;
+    getChoosingCardId() {
+        return this.choosingCardId;
     }
 
-    /** Sets the ID of the player currently choosing to place or save a card.
-     * @param {string|null} choosing_id - The new choosing player ID.
-     * @returns {string|null} The updated choosing player ID.
+    /** Sets the ID of the card currently being choosen to place or save a card.
+     * @param {string|null} choosingCardId - The new choosing card ID.
+     * @returns {string|null} The updated choosing card ID.
      */
-    setChoosingId(choosing_id) {
-        return (this.choosing_id = choosing_id);
+    setChoosingCardId(choosingCardId) {
+        return (this.choosingCardId = choosingCardId);
     }
 
-    /** Gets the delay timestamp for the current player's turn.
-     * @returns {number | null} The player delay timestamp, or null if no delay is set.
+    /** Gets the player timer count for the current player's turn.
+     * @returns {number} The player timer count.
      */
-    getPlayerDelay() {
-        return this.player_delay;
-    }
-
-    //Will return aproximate player delay in seconds since last time it was started
-    //FUCK, have no clue how to explain this
-    getCurrentPlayerDelay() {
-        if (!this.player_delay) { return 0; }
-        // @ts-ignore
-        return Math.round(this.player_time-((new Date().getTime() - this.player_delay_date.getTime())/1000));
+    getPlayerTimerCount() {
+        return this.playerTimerCount || 0;
     }
 
     /**
@@ -497,41 +482,25 @@ export class GameManager extends EventManager {
      * @returns {string} The updated current player ID.
      */
     setCurrentPlayerId(currentPlayerId) {
-        this.nextCurrentMoveId(); // Update move ID to trigger timer reset on clients when current player is same as last turn
         return (this.currentPlayerId = currentPlayerId);
-    }
-
-    /** Sets the current move ID, uid for tracking if game player ID changed
-     * Even if current player is same, move ID will be different for each turn
-     * @returns {string} The updated current move ID.
-     */
-    nextCurrentMoveId() {
-        return (this.currentMoveId = crypto.randomUUID());
-    }
-
-    /** Gets the current move ID, uid for tracking if game player ID changed
-     * Even if current player is same, move ID will be different for each turn
-     * @returns {string} The current move ID.
-     */
-    getCurrentMoveId() {
-        return this.currentMoveId;
     }
 
     /**
      * Gets the current card in deck.
-     * @returns {{ color: string; type: string; } | null} The current card.
+     * @returns {{ color: string; type: string; id?: string } | null} The current card.
      */
     getCurrentCard() {
-        return this.current_card;
+        return this.currentCard;
     }
 
     /**
      * Sets the current card in deck.
-     * @param {{ color: string; type: string; }} current_card - The new current card.
-     * @returns {{ color: string; type: string; }} The updated current card.
+     * @param {{ color: string; type: string; }} currentCard - The new current card.
+     * @returns {{ color: string; type: string; id?: string }} The updated current card.
      */
-    setCurrentCard(current_card) {
-        return (this.current_card = { ...current_card });
+    setCurrentCard(currentCard) {
+        // This ID is used only for animation purpose on client side
+        return (this.currentCard = { ...currentCard, id: UnoUtils.randomUUID() });
     }
 
     /** Sets the UNO caller ID.
@@ -573,19 +542,19 @@ export class GameManager extends EventManager {
         return (this.winner_id != null);
     }
 
-    /** Sets whether the next player is skipped.
-     * @param {boolean} skipped - Whether the next player is skipped.
-     * @returns {boolean} The updated skipped status.
+    /** Sets the run out of time status for the current player.
+     * @param {boolean} runOutOfTime - The new run out of time status.
+     * @returns {boolean} The updated run out of time status.
      */
-    setSkipped(skipped) {
-        return (this.skipped = skipped);
+    setRunOutOfTime(runOutOfTime) {
+        return (this.runOutOfTime = runOutOfTime);
     }
 
-    /** Checks if the next player is skipped.
-     * @returns {boolean} True if the next player is skipped, false otherwise.
+    /** Gets the run out of time status for the current player.
+     * @returns {boolean} The run out of time status.
      */
-    isSkipped() {
-        return this.skipped;
+    hasRunOutOfTime() {
+        return this.runOutOfTime;
     }
 
     /** Sets the current stack count.
@@ -685,9 +654,9 @@ export class GameManager extends EventManager {
      */
     changeColor(color) {
         //Check if current card is PLUS_FOUR or COLOR_CHANGE
-        if ((this.current_card?.type != 'PLUS_FOUR') && (this.current_card?.type != 'COLOR_CHANGE')) { return false; }
+        if ((this.currentCard?.type != 'PLUS_FOUR') && (this.currentCard?.type != 'COLOR_CHANGE')) { return false; }
         this.setChoosingColor(false);
-        this.setCurrentCard({ color: color, type: this.current_card.type });
+        this.setCurrentCard({ color: color, type: this.currentCard.type });
         return true;
     }
 
@@ -747,45 +716,32 @@ export class GameManager extends EventManager {
         //when player is stacking the turn dealy is active which prevents
         //taking cards, so timer by default when taking cards will not work
 
-        this.broadcastGameState(); // Update game state for all players, so they can see the timer
-        return;
-
         if (this.playerTimer) { Timer.stop(this.playerTimer); }
-        this.player_delay_date = new Date();
 
-        this.playerTimer = Number(Timer.start(() => {
-            this.setSkipped(true);
+        this.playerTimer = String(Timer.start((timer) => {            
+            this.setRunOutOfTime(true);
             let isChoosingColor = this.isChoosingColor();
-            let choosingId = this.getChoosingId();
+            let choosingCardId = this.getChoosingCardId();
 
-            if (isChoosingColor) { this.changeColor(UnoConfig.COLORS[UnoUtils.randomRange(0, UnoConfig.COLORS.length-1)]); }
-            if (choosingId) { UnoEvents.execute(this.io, socket, 'save_card', { card_id: choosingId }); }
-            if (!isChoosingColor && !choosingId) UnoEvents.execute(this.io, socket, 'take_card');
-            this.setSkipped(false);
-        }, this.getPlayerTime() * 1000 + 500));
+            if (isChoosingColor) { this.handlePacket(this.getCurrentPlayer()?.getPeerId() || '', new ChangeColorPayload(UnoConfig.COLORS[UnoUtils.randomRange(0, UnoConfig.COLORS.length-1)])); }
+            if (choosingCardId) { this.handlePacket(this.getPeerId(), new SaveCardPayload(choosingCardId)); }
+            if (!isChoosingColor && !choosingCardId) { this.handlePacket(this.getCurrentPlayer()?.getPeerId() || '', new DrawCardPayload()); }
+            this.setRunOutOfTime(false);
+        }, this.getPlayerTime() * 1000 + 500, { id: UnoUtils.randomUUID() })); // Extra 500ms to prevent instant skip due to timer reaching 0
 
         let player = this.getCurrentPlayer();
         if (player?.isDisconnected()) { Timer.finish(this.playerTimer); } // If disconnected players turn arives then finish timer instantly
         if ((this.getPlayerTime() <= 0) && !player?.isDisconnected()) { Timer.stop(this.playerTimer); }
+
+        // Update game state for all players, so they can see the timer
+        this.broadcastGameState();
     }
 
-    /** Starts the disconnection timer for a player.
-     * @param {string} player_id - The ID of the player to start the disconnection timer for.
+    /** Gets the player timer for the current player's turn.
+     * @returns {string | null} The player timer.
      */
-    startPlayerDisconnect(player_id) { //TODO INSTEAD OF THIS STUPID TIMER JUST STORE PLAYER DISCONNECT TIME AND CHECK IT WHEN NEEDED
-        //Some weird error in here
-        var player = this.getPlayer(player_id);
-        // @ts-ignore
-        player.disconnect_delay = Timer.start(() => {
-            // @ts-ignore
-            if (this.deleted) { return; }
-            // @ts-ignore
-            player.setLeft(true);
-            // @ts-ignore
-            this.players_json[player_id].left = true;
-            // @ts-ignore
-            this.emit('disconnected', { left_id: player_id });
-        }, UnoConfig.REJOIN_TIME);
+    getPlayerTimer() {
+        return this.playerTimer;
     }
 
     /** Gets the next player in turn order.
@@ -842,8 +798,8 @@ export class GameManager extends EventManager {
             if ((player.getPlayerId() == this.current_player) && !this.canStackCards()) { continue; }
 
             var cards = Object.entries(this.getPlayerCards(player.getPlayerId())).filter(([_, card]) => {
-                var card_color = (card.color != 'ANY') ? card.color : this.current_card?.color;
-                return ((card_color == this.current_card?.color) && (card.type == this.current_card?.type));
+                var card_color = (card.color != 'ANY') ? card.color : this.currentCard?.color;
+                return ((card_color == this.currentCard?.color) && (card.type == this.currentCard?.type));
             }).map(([card_id, _]) => card_id);
 
             // @ts-ignore
@@ -863,15 +819,15 @@ export class GameManager extends EventManager {
 
         switch (card.type) {
             case 'REVERSE': //Can put on same color or same type, reverse direction, can be put after stack was taken
-                if (this.stack > 0 || (card.color != this.current_card?.color && card.type != this.current_card?.type)) { return { canPlay: false }; }
+                if (this.stack > 0 || (card.color != this.currentCard?.color && card.type != this.currentCard?.type)) { return { canPlay: false }; }
                 direction *= UnoConfig.DIRECTION_REVERSE;
                 break;
             case 'BLOCK': //Can put on same color or same type, just skip by 1 more, can be put after stack was taken
-                if (this.stack > 0 || (card.color != this.current_card?.color && card.type != this.current_card?.type)) { return { canPlay: false }; }
+                if (this.stack > 0 || (card.color != this.currentCard?.color && card.type != this.currentCard?.type)) { return { canPlay: false }; }
                 nextBy += 1;
                 break;
             case 'PLUS_TWO': //Cannot put PLUS_TWO on PLUS_FOUR, but can put it on anything else with same color, can be put after stack was taken
-                if ((this.stack > 0 && this.current_card?.type == 'PLUS_FOUR') || (card.color != this.current_card?.color && card.type != this.current_card?.type)) { return { canPlay: false }; }
+                if ((this.stack > 0 && this.currentCard?.type == 'PLUS_FOUR') || (card.color != this.currentCard?.color && card.type != this.currentCard?.type)) { return { canPlay: false }; }
                 stack += 2;
                 break;
             case 'PLUS_FOUR': //PLUS_FOUR can be aplied to everything there is no limits, so no need to check color or type
@@ -879,11 +835,11 @@ export class GameManager extends EventManager {
                 stack += 4;
                 break;
             case 'COLOR_CHANGE': //Cannot be put on PLUS_FOUR and PLUS_TWO, but can put it on anything else with different color, can be put after stack was taken
-                if ((this.stack > 0 && (this.current_card?.type == 'PLUS_FOUR' || this.current_card?.type == 'PLUS_TWO'))) { return { canPlay: false }; }
+                if ((this.stack > 0 && (this.currentCard?.type == 'PLUS_FOUR' || this.currentCard?.type == 'PLUS_TWO'))) { return { canPlay: false }; }
                 shouldPickColor = true;
                 break;
             default:
-                if (this.stack > 0 || ((card.color != this.current_card?.color) && (card.type != this.current_card?.type))) { return { canPlay: false }; }
+                if (this.stack > 0 || ((card.color != this.currentCard?.color) && (card.type != this.currentCard?.type))) { return { canPlay: false }; }
         }
 
         return { canPlay: true, direction: direction, stack: stack, nextBy: nextBy, shouldPickColor: shouldPickColor };

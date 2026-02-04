@@ -114,7 +114,7 @@ export class EventManager extends NetworkManager {
             game.setCurrentPlayerId(player.getPlayerId()); // In case of jump-in
             game.setStack(game.getStack() + (canPlayInfo.stack || 0));
             game.removeCard(payload.getCardId());
-            game.setChoosingId(null);
+            game.setChoosingCardId(null);
             game.broadcastGameState();
             game.startTurnDelay(game.getCurrentPlayerId(), 1);
         });
@@ -146,8 +146,8 @@ export class EventManager extends NetworkManager {
             let player = game.getPeerPlayer(peerId);
             if (!player) { return console.warn(`[EventManager] Received SaveCardPayload from non-player Peer[${peerId}], ignoring.`); }
 
-            // Game must be started, player must be current player, and must be choosing action
-            if (!game.isStarted() || (game.getCurrentPlayerId() != player.getPlayerId()) || !game.getChoosingId()) { return; }
+            // Game must be started, player must be current player, and must be choosing card
+            if (!game.isStarted() || (game.getCurrentPlayerId() != player.getPlayerId()) || !game.getChoosingCardId()) { return; }
 
             // Check if player has the card
             let card = game.getPlayerCard(player.getPlayerId(), payload.getCardId());
@@ -155,7 +155,7 @@ export class EventManager extends NetworkManager {
 
             // The card is already saved for player, player only choosed to play it or not
             game.setCurrentPlayerId(game.getNextPlayerId(player.getPlayerId(), 1)); // Move to next player
-            game.setChoosingId(null);
+            game.setChoosingCardId(null);
             game.startPlayerTimer(); // This also triggers broadcastGameState()
         });
 
@@ -163,9 +163,55 @@ export class EventManager extends NetworkManager {
             if (!this.isHost()) { return console.warn("[EventManager] Received DrawCardPayload on client, ignoring."); }
             let player = game.getPeerPlayer(peerId);
             if (!player) { return console.warn(`[EventManager] Received DrawCardPayload from non-player Peer[${peerId}], ignoring.`); }
-            if (!game.isStarted() || (game.getCurrentPlayerId() != player.getPlayerId())) { return; }
             
-            alert('DrawCardPayload -> Not implemented yet'); // TODO: Implement draw card logic
+            // Game must be started, not choosing color, not in turn delay, not in choosing card state, and must be current player
+            if (!game.isStarted() || game.isChoosingColor() || game.getTurnDelay() || game.getChoosingCardId() || (game.getCurrentPlayerId() != player.getPlayerId())) { return; }
+
+            let cloudPlayCardBefore = Object.values(game.getPlayerCards(player.getPlayerId())).some(card => game.canPlayCard(card).canPlay);
+            let drawCardAmount = (game.getStack() > 0) ? game.getStack() : 1; // If there is a stack, draw the whole stack, otherwise just 1 card
+            let canPlayCardAfter = false; // This will be used to check if player can play any card after drawing, if not and draw to match is enabled, player will keep drawing until they can play or reach max cards
+            let choosableCardId = null;
+
+            console.log(`[EventManager] Player[${player.getPlayerId()}] is drawing ${drawCardAmount} card(s).`);
+
+            // If taking a stack, we don't draw to match, we just take the cards and skip our turn
+            // If draw to match enabled, we take card 1 one by one until we can play it, then we play it or save it
+            // If player already had playable cards, he just takes 1 card and skips his turn
+            // If player ran out of time, and draw to match is enabled, he will keep drawing until he can play
+
+            // I FUCKING HATE MYSELF FOR NOT COMMENTING THIS PEACE OF SHIT, THAT I DONT REMEMBER HOW IT WORKS
+            while ((drawCardAmount != 0) && (player.getCardCount() < game.getMaxCards())) {
+                let [cardId, card] = Object.entries(game.generateCards(player.getPlayerId(), true, 1))[0]; // Generate one card with special cards included
+                if (!canPlayCardAfter) { canPlayCardAfter = game.canPlayCard(card).canPlay; } // Check if player can play this card
+                if (canPlayCardAfter && !choosableCardId) { choosableCardId = cardId; }
+
+                // If player ran out of time and draw to match is enabled, player will take cards until he can play
+                // Should take in count that draw to match has no power if player is taking stack
+                let shouldRepeat = (game.hasRunOutOfTime() && game.drawToMatch() && !(game.getStack() > 0) && !cloudPlayCardBefore && !canPlayCardAfter);
+                if (!shouldRepeat) { drawCardAmount -= 1; } //Decrease amount to take
+            }
+
+            // If player was taking a stack, could played card before or run out if time, we forward turn to next player
+            let playersTurnOver = (game.getStack() > 0) || cloudPlayCardBefore || game.hasRunOutOfTime();
+
+            // If draw to match is enabled, and player could not play after drawing and did not have playable card before, and has reached max cards, end turn his turn
+            playersTurnOver = playersTurnOver || (game.drawToMatch() && (player.getCardCount() >= game.getMaxCards()) && !canPlayCardAfter && !cloudPlayCardBefore);
+
+            // If draw to match is disabled and player cannot play, end turn
+            playersTurnOver = playersTurnOver || (!game.drawToMatch() && !canPlayCardAfter && !cloudPlayCardBefore);
+
+            // If turn is over, move to next player
+            if (playersTurnOver) { game.setCurrentPlayerId(game.getNextPlayerId(player.getPlayerId(), 1)); }
+            if (playersTurnOver) { game.startPlayerTimer(); }
+
+            // If turn is not over, and player can play a card now, ask him to play or save
+            // No need reset current player id, because he is still current player
+            if (!playersTurnOver) { game.setChoosingCardId(canPlayCardAfter ? choosableCardId : null); }
+            console.log(`[EventManager] Player[${player.getPlayerId()}] finished drawing cards. Turn over: ${playersTurnOver}, Can play after draw: ${canPlayCardAfter}, Choosing card ID: ${game.getChoosingCardId()}`);
+
+            // We do not reset player timer, because drawing a card is part of player's turn
+            game.setStack(0); // Reset stack after drawing
+            game.broadcastGameState();
         });
     }
 }

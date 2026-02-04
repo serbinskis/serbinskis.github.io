@@ -19,6 +19,7 @@ export class GameUI {
      * @param {string} name - Filename in resources/sounds/
      */
     static playSound(name) {
+        console.log('Playing sound:', name);
         const audio = new Audio(`${window.location.href}resources/sounds/${name}`);
         audio.volume = 1;
         audio.play().catch(e => console.warn("Audio blocked:", e));
@@ -132,19 +133,28 @@ export class GameUI {
     }
 
     static renderDeck() {
-        $("#UNO_CARD").toggleClass("hidden", GameManager.getInstance().isStarted());
-        let currentCard = GameManager.getInstance().getCurrentCard();
+        let game = GameManager.getInstance();
+        $("#UNO_CARD").toggleClass("hidden", game.isStarted());
+        let currentCard = game.getCurrentCard();
         if (!currentCard) { return; }
+
+        // If player is choosing color, show color chooser
+        GameUI.showColorChoose(game.isChoosingColor() && game.getCurrentPlayerId() == game.getMyPlayer()?.getPlayerId());
+    
+        // If player is choosing card, show choose card container
+        let choosableCardId = game.getChoosingCardId();
+        let choosingCard = game.getCard(choosableCardId);
+        if (game.getCurrentPlayerId() == game.getMyPlayer()?.getPlayerId()) { GameUI.showChooseCard(choosableCardId, choosingCard); }
 
         // If the current card is already shown, do not add another one
         let currentUiCard = $("#cards-desk img").not("#UNO_CARD").last();
-        if (currentUiCard?.attr("src")?.includes(`${currentCard.color}_${currentCard.type}`)) { return; }
+        if (currentUiCard?.attr("cardId")?.includes(String(currentCard?.id))) { return; }
 
         // Add card to desk with animation
         var img = document.createElement("img");
 
         // When animation ends, remove the first card (old one)
-        img.addEventListener('animationend', () => {
+        img.addEventListener("animationend", () => {
             if ($("#cards-desk img").not("#UNO_CARD").length > 1) {
                 $("#cards-desk img").not("#UNO_CARD").first().remove();
             }
@@ -152,6 +162,7 @@ export class GameUI {
 
         // Set image properties
         img.className = "card-desk";
+        img.setAttribute("cardId", String(currentCard?.id));
         img.src = `resources/cards/${currentCard.color}_${currentCard.type}.png`;
         img.draggable = false;
         $('#cards-desk')[0].appendChild(img);
@@ -200,6 +211,8 @@ export class GameUI {
             $('#cards')[0].appendChild(img);
         });
 
+        if (addCards.length > 0) { GameUI.playSound("card_pickup.mp3"); }
+
         // Disable cards if it's not player's turn
         $("#cards .card").toggleClass("disabled", (game.getCurrentPlayerId() != me.getPlayerId()));
 
@@ -214,19 +227,18 @@ export class GameUI {
 
     // Renders the player cover overlay.
     static renderPlayerCover() {
-        // THIS SHOULD ONLY RUN WHEN CURRENT MOVE CHANGES
-        // So ideally we should store currentMoveId and compare it here
-
         const game = GameManager.getInstance();
         if (!game.isStarted()) { return; }
-        let currentMoveId = game.getCurrentMoveId();
-        if (Timer.exists(currentMoveId)) { return; }
 
-        Timer.start(() => {
-            if (currentMoveId !== game.getCurrentMoveId()) { return Timer.stop(currentMoveId); }
-            let playerId = game.getCurrentPlayerId();
-            GameUI.setOverlayText(playerId, String(Number(Timer.getRemaining(currentMoveId))+1));
-        }, 1000, { immediate: true, id: currentMoveId, interval: true, amount: game.getPlayerTime()-1 });
+        // We flip this because timers are shared on host and client, so host timer ID would conflict with client timer ID
+        const playerTimerId = UnoUtils.reverse(game.getPlayerTimer());
+        if (!playerTimerId || Timer.exists(playerTimerId)) { return; }
+
+        Timer.start((timer) => {
+            if (playerTimerId !== UnoUtils.reverse(game.getPlayerTimer())) { return Timer.stop(playerTimerId); }
+            if ((timer?.amount || 0) <= 1) { Timer.change(playerTimerId, 1000, { amount: undefined }); } // If time runs out, continue the timer until the player timer id changes, but don't render number anymore
+            if ((timer?.amount || 0 >= 1)) { GameUI.setOverlayText(game.getCurrentPlayerId(), String(timer?.amount || 0)) }; // This is done so that in timer cannot retsart when turn delay send game state update, because we need Timer.exists(playerTimerId) -> true, until next player's turn starts
+        }, 1000, { immediate: true, id: playerTimerId, interval: true, amount: game.getPlayerTime() });
     }
 
     /** Renders the game UI, updating player list and room ID display. */
@@ -358,7 +370,7 @@ export class GameUI {
 
     /** Shows the choose card container with the specified card or hides it if cardId is null.
      * @param {string|null} cardId - The ID of the card to choose or null to hide the container.
-     * @param {{ color: string; type: string; }} [card] - The card object containing color and type (optional, required if cardId is not null).
+     * @param {{ color: string; type: string; }|null} [card] - The card object containing color and type (optional, required if cardId is not null).
      */
     static showChooseCard(cardId, card) {
         $("#choose-container").toggleClass("hidden", (cardId == null));
@@ -418,7 +430,7 @@ $("#room-id").mousedown(() => {
     copy.select();
     document.execCommand('copy');
     document.body.removeChild(copy);
-    alert('Room id copied.');
+    alert('Room ID Copied.');
 });
 
 // ============================
