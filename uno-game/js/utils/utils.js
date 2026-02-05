@@ -195,4 +195,21 @@ export class UnoUtils {
 
         return UnoConfig.ERROR_CODES['200.0'];
     }
+
+    /**
+     * Preloads all card images (png + gif) defined in UnoConfig.
+     *
+     * @param {string} [basePath='/resources/cards'] - The base path where card images are located.
+     */
+    static preloadAssets(basePath = `${window.location.href}/resources/cards`) {
+        const cards = [...UnoConfig.CARDS.standart, ...UnoConfig.CARDS.special];
+        const normal = cards.map(card => `${basePath}/${card.color}_${card.type}.png`);
+        normal.push(`${basePath}/${UnoConfig.CARDS.cover.type}.png`); // Add cover card
+
+        const animated = UnoConfig.CARDS.special.filter(card => card.color.includes("ANY")).map(card => {
+            return UnoConfig.COLORS.map(color => `${basePath}/gifs/${color}_${card.type}.gif`);
+        }).flat();
+
+        [...normal, ...animated].forEach(url => { new Image().src = url; });
+    }
 };

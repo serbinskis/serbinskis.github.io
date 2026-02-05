@@ -9,11 +9,14 @@ import { GameManager } from '../game.js';
 const $ = (/** @type {any} */(window)).$;
 
 (() => {
-	//Load username and avatar from local storage
+	// Preload assets -> cards
+	UnoUtils.preloadAssets();
+
+	// Load username and avatar from local storage
 	$("#username")[0].value = localStorage["username"] || "";
 	$("#avatar")[0].src = localStorage["avatar"] || "resources/defaultAvatar.png";
 
-	//Load settings
+	// Load settings
 	$("#start-cards").children(".setting-state")[0].innerHTML = localStorage["start_cards"] || UnoConfig.START_CARDS.default;
 	$("#max-players").children(".setting-state")[0].innerHTML = localStorage["max_players"] || UnoConfig.MAX_PLAYERS.default;
 	$("#max-cards").children(".setting-state")[0].innerHTML = localStorage["max_cards"] || UnoConfig.MAX_CARDS.default;
