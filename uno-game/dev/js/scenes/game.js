@@ -244,7 +244,7 @@ export class GameUI {
 
         // This must be after timer, otherwise immediate timer will just replace the current overlay
         GameUI.showBlocked(game.getBlockedId());
-        GameUI.showJumped(game.getWhoGotJumpedId());
+        GameUI.showJumped(game.getWhoJumpedId(), game.getWhoGotJumpedId());
         GameUI.showDrawCower();
     }
 
@@ -356,6 +356,14 @@ export class GameUI {
         $("#game-container #settings-container")[0].style = `transform: translate(-50%, -50%) scale(${enabled ? 1 : 0});`
     }
 
+    /**
+     * Checks whether the settings window is currently open.
+     * @returns {boolean}
+     */
+    static isSettingsOpen() {
+        return $("#game-container #settings-container")[0].style.transform.includes("scale(1)");
+    }
+
     /** Shows block overlay on player's avatar if they are blocked.
      * @param {string|null} blockedId - The ID of the player.
      */
@@ -370,16 +378,22 @@ export class GameUI {
     }
 
     /** Shows jump-in overlay on player's avatar if they got jumped.
-     * @param {string|null} jumpedId - The ID of the player.
+     * @param {string|null} jumpedId - The ID of the player who jumped in.
+     * @param {string|null} gotJumpedId - The ID of the player who got jumped.
      */
-    static showJumped(jumpedId) {
-        // Do not animate again if already jumped, in case if game state update arrives while jumped state not rested
-        if (!jumpedId) { return $(`#players`)[0].jumpedId = null; }
-        if (!$(`#overlay_${jumpedId}`)[0]) { return; }
-        if ($(`#players`)[0].jumpedId == jumpedId) { return; }
-        $(`#players`)[0].jumpedId = jumpedId;
-        GameUI.setOverlay(String(GameManager.getInstance().getCurrentPlayerId()), 'JUMP_IN.png'); // This will show who jumped in, not who got jumped by
-        if (jumpedId == GameManager.getInstance().getMyPlayerId()) { GameUI.setScreenCover("JUMP_IN.png"); } // This this will show overlay for the victim of jump-in
+    static showJumped(jumpedId, gotJumpedId) {
+        // If null it will just update the current value, still condition will not be met to show cover if null
+        if ($(`#players`)[0] && ($(`#players`)[0].gotJumpedId != gotJumpedId)) {
+            $(`#players`)[0].gotJumpedId = gotJumpedId;
+            let myPlayerId = GameManager.getInstance().getMyPlayerId()
+            if (gotJumpedId == myPlayerId) { GameUI.setScreenCover("JUMP_IN.png"); } // This this will show overlay for the victim of jump-in
+        }
+ 
+        // If null this will still be triggered, setOverlay will just ignore null value
+        if ($(`#players`)[0] && ($(`#players`)[0].jumpedId != jumpedId)) {
+            $(`#players`)[0].jumpedId = jumpedId;
+            GameUI.setOverlay(String(jumpedId), 'JUMP_IN.png'); // This will show who jumped in, not who got jumped by
+        }
     }
 
     /** Show draw card overlay for a players who drew a card. */
@@ -454,6 +468,14 @@ export class GameUI {
         if (winnerId && winner) { $(`#winner-avatar`)[0].src = $(`#avatar_${winnerId}`)[0]?.src; }
         if (!winner || Timer.exists(winnerId)) { return; }
 
+        // Give some time for final animations
+        Timer.start(() => {
+            $("#cards-desk img").not("#UNO_CARD").last().remove(); // Remove current card from desk to prevent confusion
+            GameUI.showColorChoose(false); // Also hide color choose if winner wins while choosing color
+            GameUI.showUnoButton(null); // Also hide UNO button if winner wins while someone has 1 card
+            GameUI.setStack(0); // Also reset stack if winner wins while stack is active
+        }, 500);
+
         Timer.start((timer) => { // DONT ASK, GUGU GAGA TIME
             let seconds = Math.round((timer?.amount || 1)/2)-1;
             $(`#winner-timeout`)[0].innerHTML = `Next game will start in ${seconds} seconds.`;
@@ -475,43 +497,67 @@ export class GameUI {
 // ===== SETTINGS WINDOWS =====
 // ============================
 
-//Settings button
+// Settings button
 $("#game-container #settings").click(() => {
-    GameUI.showSettings(true);
+    GameUI.showSettings(!GameUI.isSettingsOpen());
 });
 
-//Close settings
+// Close settings when press escape
+$(document).on("keydown", (/** @type {any} */ e) => {
+    if (e.key !== "Escape") { return; }
+    if (!GameUI.isSettingsOpen()) { return; }
+
+    e.preventDefault();
+    e.stopPropagation();
+    GameUI.showSettings(false);
+});
+
+// Close settings
 $("#game-container #setting-close").click(() => {
     GameUI.showSettings(false);
 });
 
-//Leave game
+// Leave game
 $("#game-container #setting-leave").click(() => {
     location.reload();
 });
 
-//When mouse hovers where is room id, show it
+// When mouse hovers where is room id, show it
 $("#room-id").mouseenter((/** @type {any} */ e) => {
     $(e.target)[0].timer = setTimeout(() => {
         $(e.target)[0].innerText = GameManager.getInstance().getRoomId();
     }, 200);
 });
 
-//When mouse leaves where is room id, hide it
+// When mouse leaves where is room id, hide it
 $("#room-id").mouseleave((/** @type {any} */ e) => {
     if ($(e.target)[0].timer) { clearTimeout($(e.target)[0].timer); }
 	$(e.target)[0].innerText = '*'.repeat(GameManager.getInstance().getRoomId().length);
 });
 
-//Copy room id when pressed
-$("#room-id").mousedown(() => {
-    const /** @type {any} */ copy = document.createElement('textArea');
-    copy.value = GameManager.getInstance().getRoomId();
+// Copy room id when pressed (no alert, floaty text instead)
+$("#room-id").mousedown((/** @type {any} */ e) => {
+    const roomId = GameManager.getInstance().getRoomId();
+
+    // Copy to clipboard
+    const copy = document.createElement("textarea");
+    copy.value = roomId;
     document.body.appendChild(copy);
     copy.select();
-    document.execCommand('copy');
+    document.execCommand("copy");
     document.body.removeChild(copy);
-    alert('Room ID Copied.');
+
+    // Remove existing toast if any
+    $(".room-id-toast").remove();
+
+    // Create floaty "Copied" text
+    const $toast = $("<div>").addClass("room-id-toast").text("Copied");
+    $("body").append($toast);
+
+    const offset = $("#room-id").offset();
+    const width = $("#room-id").outerWidth();
+    $toast.css({ left: offset.left + width / 2, top: offset.top - 10 });
+    $toast.animate({ top: "-=20px", opacity: 0 }, 700, () => $toast.remove()); // Animate up + fade out
 });
 
 // ============================

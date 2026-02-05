@@ -22,6 +22,7 @@ export class GameManager extends EventManager {
     /** @protected @type {string | null} */ unoId = null;
     /** @protected @type {string | null} */ blockedId = null;
     /** @protected @type {string | null} */ whoGotJumpedId = null;
+    /** @protected @type {string | null} */ whoJumpedId = null;
     /** @protected @type {string | null} */ winnerId = null;
     /** @protected @type {{ color: string; type: string, id?: string } | null} */ currentCard = null;
     /** @protected @type {string} */ currentPlayerId = ''; // Player ID of current playing player
@@ -76,7 +77,7 @@ export class GameManager extends EventManager {
     }
 
     async migrateHost() {
-
+        // TODO: Implement host migration
     }
 
     /** Starts the game if the caller is the host. If the game has already started, it will reset the game state if reset is true.
@@ -85,20 +86,34 @@ export class GameManager extends EventManager {
     startGame(reset = false) {
         if (!this.isHost()) { return console.warn("[GameManager] Only host can start the game."); }
         if (this.isStarted() && !reset) { return; } // Prevent restarting an already started game
+
+        this.stopGame(); // Stop any existing timers
         this.setStarted(true);
         this.setDirection(UnoConfig.DIRECTION_FORWARD);
         this.setStack(0);
         this.setUnoId(null);
         this.setWinnerId(null);
+        this.setWhoGotJumpedId(null);
+        this.setWhoJumpedId(null);
+        this.setBlockedId(null);
         this.setChoosingColor(false);
+        this.setChoosingCardId(null);
         this.setRunOutOfTime(false);
 
+        this.cards = {}; // Clear all player cards
         this.setCurrentPlayerId(this.getRandomPlayerId()); // Set random player as starting player
         this.setCurrentCard(GameManager.generateCard(false));
         this.getPlayers().forEach((player) => this.generateCards(player.getPlayerId(), true, this.getStartCards())); // Generate starting cards for each player
         this.startPlayerTimer(); // Start timer for each player turn
 
         this.broadcastGameState();
+    }
+
+    /** Stops the game if the caller is the host. This will remove any active timers. */
+    stopGame() {
+        if (!this.isHost()) { return console.warn("[GameManager] Only host can stop the game."); }
+        this.removeTurnDelay();
+        this.removePlayerTimer();
     }
 
     /** Sends a request to place a card on the current card. The actual card placement will be handled by the host after validating the move.
@@ -150,7 +165,7 @@ export class GameManager extends EventManager {
      */
     static generateCard(/** @type boolean **/ includeSpecial) {
         let cards = (includeSpecial && (UnoUtils.randomRange(1, 2) == 2)) ? UnoConfig.CARDS.special : UnoConfig.CARDS.standart;
-        return { ...cards[UnoUtils.randomRange(0, cards.length-1)] }; // Return a copy of the card object
+        return { ...cards[12] }; // Return a copy of the card object
     }
 
     /** Generates encrypted starting cards for a player
@@ -559,10 +574,10 @@ export class GameManager extends EventManager {
     }
 
     /** Sets the ID of the player who got jumped in the last turn.
-     * @param {string | null} id - The ID of the player who got jumped.
+     * @param {string | null} whoGotJumpedId - The ID of the player who got jumped.
      */
-    setWhoGotJumpedId(id) {
-        this.whoGotJumpedId = id;
+    setWhoGotJumpedId(whoGotJumpedId) {
+        this.whoGotJumpedId = whoGotJumpedId;
     }
 
     /** Gets the ID of the player who got jumped in the last turn.
@@ -572,12 +587,29 @@ export class GameManager extends EventManager {
         return this.whoGotJumpedId;
     }
 
+    /** Sets the ID of the player who jumped in the last turn.
+     * @param {string | null} whoJumpedId - The ID of the player who jumped.
+     */
+    setWhoJumpedId(whoJumpedId) {
+        this.whoJumpedId = whoJumpedId;
+    }
+
+    /** Gets the ID of the player who jumped in the last turn.
+     * @returns {string | null} The ID of the player who jumped, or null if no player jumped.
+     */
+    getWhoJumpedId() {
+        return this.whoJumpedId;
+    }
+
     /**
      * Sets the winner ID of the game.
      * @param {string | null} winnerId - The ID of the winner.
      * @returns {string | null} The winner ID.
      */
     setWinnerId(winnerId) {
+        if (!winnerId) { return (this.winnerId = null); }
+        this.stopGame(); // This will only stop timers
+        Timer.start(() => this.startGame(true), UnoConfig.NEXT_GAME_TIMEOUT * 1000 + 500); // Restart game after n amount of time
         return (this.winnerId = winnerId);
     }
 
@@ -742,13 +774,17 @@ export class GameManager extends EventManager {
         }, UnoConfig.TURN_DELAY));
     }
 
-    /** Removes the turn delay timer and optionally resets the player timer for the current player's turn.
-     * @param {boolean} resetTimer - Whether to reset the player timer after removing the turn delay.
-     */
-    removeTurnDelay(resetTimer) {
+    /** Removes the turn delay timer if it exists. */
+    removeTurnDelay() {
         if (this.turnTimer) { Timer.stop(this.turnTimer); }
         this.turnTimer = null;
-        if (resetTimer) { this.startPlayerTimer(); }
+    }
+
+    /** Removes the player timer for the current player's turn if it exists. */
+    removePlayerTimer() {
+        if (this.playerTimer) { Timer.stop(this.playerTimer); }
+        this.playerTimerCount = 0;
+        this.playerTimer = null;
     }
 
     /** Starts the player timer for the current player's turn.

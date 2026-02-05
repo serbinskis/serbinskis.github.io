@@ -80,7 +80,7 @@ export class EventManager extends NetworkManager {
 
             // Game must be started, not choosing color, player must exist
             let player = game.getPeerPlayer(peerId);
-            if (!game.isStarted() || game.isChoosingColor() || !player) { return; }
+            if (game.getWinnerId() || !game.isStarted() || game.isChoosingColor() || !player) { return; }
 
             // If turn delay is inactive, only current player can play
             if (!game.getTurnDelay() && (game.getCurrentPlayerId() != player.getPlayerId())) { return; }
@@ -102,8 +102,8 @@ export class EventManager extends NetworkManager {
 
             let canPlayInfo = game.canPlayCard(card); // This just physically checks if card can be played, without any rules
             if (!canPlayInfo.canPlay) { return; } // Unecessary check, but just in case, I will keep it here
-            if (isJumpIn) { game.setWhoGotJumpedId(game.getCurrentPlayerId()); } // Set who got jumped for animation purposes
 
+            game.setWhoGotJumpedId(isJumpIn ? game.getCurrentPlayerId() : null); // Set who got jumped for animation purposes
             game.setCurrentCard(card);
             game.setDirection(canPlayInfo.direction || game.getDirection()); // Update direction if card changes it, otherwise keep same direction
             game.setCurrentPlayerId(player.getPlayerId()); // In case of jump-in
@@ -111,6 +111,7 @@ export class EventManager extends NetworkManager {
             game.removeCard(payload.getCardId());
             game.setChoosingCardId(null);
             game.setChoosingColor(canPlayInfo.shouldPickColor || false);
+            game.setWhoJumpedId(isJumpIn ? player.getPlayerId() : null); // Set who jumped for logic purposes in case of color change
 
             if (player.getCardCount() == 0) {
                 game.setWinnerId(player.getPlayerId());
@@ -120,9 +121,9 @@ export class EventManager extends NetworkManager {
             if ((canPlayInfo.nextBy || 0) >= 2) { game.setBlockedId(game.getNextPlayerId(player.getPlayerId(), 1)); } // STUPID VS CODE, IF canPlayInfo IS NOT DEFINED IT WILL NEVER EVEN GET TO THIS PLACE.
             if (player.getCardCount() == 1) { game.setUnoId(player.getPlayerId()); } // Set UNO state if player has 1 card left
             if (!game.isChoosingColor() && !isJumpIn) { game.startTurnDelay(game.getCurrentPlayerId(), Number((canPlayInfo.nextBy || 1))); } // Start turn delay if card does not require color change, otherwise wait for color change before starting turn delay
-            if (game.isChoosingColor() || isJumpIn) { game.removeTurnDelay(isJumpIn); } // If it's a jump-in, we just remove turn delay, because jump-in is basically just playing out of turn, so we don't want to start turn delay for them, but we also want to remove turn delay for current player, because they got interrupted (WTF IS THIS COPILOT)
+            if (game.isChoosingColor() || isJumpIn) { game.removeTurnDelay(); } // If it's a jump-in, we just remove turn delay, because jump-in is basically just playing out of turn, so we don't want to start turn delay for them, but we also want to remove turn delay for current player, because they got interrupted (WTF IS THIS COPILOT)
             if (isJumpIn) { game.startPlayerTimer(); } // After jump-in, we start player timer for the player who jumped in, because they are now the current player, and they should have full time to play their turn, even if they interrupted someone else's turn (WTF ARE THESE LONG ASS COMMENTS)
-            game.broadcastGameState();
+            if (!isJumpIn) { game.broadcastGameState(); } // Remember startPlayerTimer() also triggers broadcast
         });
 
         this.on(ChangeColorPayload, async (peerId, payload, game) => {
@@ -131,18 +132,19 @@ export class EventManager extends NetworkManager {
 
             let player = game.getPeerPlayer(peerId);
             if (!player) { return console.warn(`[EventManager] Received ChangeColorPayload from non-player Peer[${peerId}], ignoring.`); }
-            
+
             // Game must be started, player must be current player, and must be choosing color
-            if (!game.isStarted() || !game.isChoosingColor() || game.getTurnDelay() || (game.getCurrentPlayerId() != player.getPlayerId())) { return; }
-        
+            if (game.getWinnerId() || !game.isStarted() || !game.isChoosingColor() || game.getTurnDelay() || (game.getCurrentPlayerId() != player.getPlayerId())) { return; }
+
             // This also sets choosing color to false, so it also acts as confirmation of color change
             if (!game.changeColor(payload.getColor())) { return; }
 
             // If color change is successful, start next turn with delay
-            // BUG/FEATURE: If player jumped in with a color change card, they won't get a chance to play another card
-            // FIXED, NOTE: game.getWhoGotJumpedId() is reset inside startPlayerTimer()
-            //if (!game.getWhoGotJumpedId()) { game.startTurnDelay(game.getCurrentPlayerId(), 1); }
-            game.startTurnDelay(game.getCurrentPlayerId(), 1);
+            // BUG/FEATURE (FIXED): If player jumped in with a color change card, they won't get a chance to play another card
+            let didJumpIn = Boolean(game.getWhoJumpedId() == player.getPlayerId());
+            if (didJumpIn) { game.setWhoJumpedId(null); } // Clear who got jumped ID after color change
+            if (!didJumpIn) { game.startTurnDelay(game.getCurrentPlayerId(), 1); }
+            // Player timer in this case is already started in PlaceCardEvent, so no need to start it again
 
             // Broadcast game state after color change and turn delay started
             game.broadcastGameState();
@@ -156,7 +158,7 @@ export class EventManager extends NetworkManager {
             if (!player) { return console.warn(`[EventManager] Received SaveCardPayload from non-player Peer[${peerId}], ignoring.`); }
 
             // Game must be started, player must be current player, and must be choosing card
-            if (!game.isStarted() || (game.getCurrentPlayerId() != player.getPlayerId()) || !game.getChoosingCardId()) { return; }
+            if (game.getWinnerId() || !game.isStarted() || (game.getCurrentPlayerId() != player.getPlayerId()) || !game.getChoosingCardId()) { return; }
 
             // Check if player has the card
             let card = game.getPlayerCard(player.getPlayerId(), payload.getCardId());
@@ -164,7 +166,7 @@ export class EventManager extends NetworkManager {
 
             // The card is already saved for player, player only choosed to play it or not
             game.setCurrentPlayerId(game.getNextPlayerId(player.getPlayerId(), 1)); // Move to next player
-            game.setChoosingCardId(null);
+            game.setChoosingCardId(null); // Clear jump-in state after player decides to save card, because if they saved card, it means they decided not to jump in, so we clear jump-in state just in case
             game.startPlayerTimer(); // This also triggers broadcastGameState()
         });
 
@@ -172,9 +174,9 @@ export class EventManager extends NetworkManager {
             if (!this.isHost()) { return console.warn("[EventManager] Received DrawCardPayload on client, ignoring."); }
             let player = game.getPeerPlayer(peerId);
             if (!player) { return console.warn(`[EventManager] Received DrawCardPayload from non-player Peer[${peerId}], ignoring.`); }
-            
+
             // Game must be started, not choosing color, not in turn delay, not in choosing card state, and must be current player
-            if (!game.isStarted() || game.isChoosingColor() || game.getTurnDelay() || game.getChoosingCardId() || (game.getCurrentPlayerId() != player.getPlayerId())) { return; }
+            if (game.getWinnerId() || !game.isStarted() || game.isChoosingColor() || game.getTurnDelay() || game.getChoosingCardId() || (game.getCurrentPlayerId() != player.getPlayerId())) { return; }
 
             let cloudPlayCardBefore = Object.values(game.getPlayerCards(player.getPlayerId())).some(card => game.canPlayCard(card).canPlay);
             let drawCardAmount = (game.getStack() > 0) ? game.getStack() : 1; // If there is a stack, draw the whole stack, otherwise just 1 card
@@ -220,12 +222,14 @@ export class EventManager extends NetworkManager {
 
             // We do not reset player timer, because drawing a card is part of player's turn
             game.setStack(0); // Reset stack after drawing
+            game.setWhoGotJumpedId(null); // In case if for some reason, the player who jumped in decided to draw a card
+            game.setWhoJumpedId(null);
             game.broadcastGameState();
         });
 
         this.on(UnoPressPayload, async (peerId, payload, game) => {
             // Game must be started and UNO must be active
-            if (!game.isStarted() || !game.getUnoId()) { return; }
+            if (game.getWinnerId() || !game.isStarted() || !game.getUnoId()) { return; }
             let player = game.getPeerPlayer(peerId);
             if (!player) { return console.warn(`[EventManager] Received UnoPressPayload from non-player Peer[${peerId}], ignoring.`); }
 
