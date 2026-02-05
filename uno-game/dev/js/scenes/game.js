@@ -222,8 +222,8 @@ export class GameUI {
         $("#carddeck").toggleClass("disabled", (game.getCurrentPlayerId() != me.getPlayerId()));
 
         // Render playable cards (highlight)
-        $("#cards").removeClass("disabled");
         $(".card").removeClass('jumpin');
+        game.getPlayableCards(game.getMyPlayerId()).forEach(cardId => $(`#${cardId}`).removeClass('disabled'));
         game.getPlayableCards(game.getMyPlayerId()).forEach(cardId => $(`#${cardId}`).addClass('jumpin'));
     }
 
@@ -378,8 +378,8 @@ export class GameUI {
         if (!$(`#overlay_${jumpedId}`)[0]) { return; }
         if ($(`#players`)[0].jumpedId == jumpedId) { return; }
         $(`#players`)[0].jumpedId = jumpedId;
-        GameUI.setOverlay(jumpedId, 'JUMP_IN.png');
-        if (jumpedId == GameManager.getInstance().getMyPlayerId()) { GameUI.setScreenCover("JUMP_IN.png"); }
+        GameUI.setOverlay(String(GameManager.getInstance().getCurrentPlayerId()), 'JUMP_IN.png'); // This will show who jumped in, not who got jumped by
+        if (jumpedId == GameManager.getInstance().getMyPlayerId()) { GameUI.setScreenCover("JUMP_IN.png"); } // This this will show overlay for the victim of jump-in
     }
 
     /** Show draw card overlay for a players who drew a card. */

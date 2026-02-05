@@ -300,6 +300,10 @@
     transform: translateY(-1rem);
 }
 
+.card.disabled {
+    z-index: -1;
+}
+
 .card:hover ~ .card {
     transition: 0.2s;
     transform: translateX(3rem);

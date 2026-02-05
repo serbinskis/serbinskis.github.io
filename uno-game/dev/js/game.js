@@ -742,11 +742,13 @@ export class GameManager extends EventManager {
         }, UnoConfig.TURN_DELAY));
     }
 
-    /** Removes the turn delay timer and starts the player timer immediately. */
-    removeTurnDelay() {
+    /** Removes the turn delay timer and optionally resets the player timer for the current player's turn.
+     * @param {boolean} resetTimer - Whether to reset the player timer after removing the turn delay.
+     */
+    removeTurnDelay(resetTimer) {
         if (this.turnTimer) { Timer.stop(this.turnTimer); }
         this.turnTimer = null;
-        this.startPlayerTimer();
+        if (resetTimer) { this.startPlayerTimer(); }
     }
 
     /** Starts the player timer for the current player's turn.
@@ -771,7 +773,6 @@ export class GameManager extends EventManager {
         //taking cards, so timer by default when taking cards will not work
 
         this.setBlockedId(null); // Clear blocked ID on new turn
-        this.setWhoGotJumpedId(null); // Clear jumped ID on new turn
         if (this.playerTimer) { Timer.stop(this.playerTimer); }
 
         this.playerTimer = String(Timer.start((timer) => {            

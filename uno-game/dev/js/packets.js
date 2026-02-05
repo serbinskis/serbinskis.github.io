@@ -258,6 +258,15 @@ export class PeerDisconnectPayload extends Packet {
 
 export class HostDisconnectPayload extends PeerDisconnectPayload {
     static PACKET = 'HOST_DISCONNECT';
+
+    /** Creates a HostDisconnectPayload payload.
+     * @param {string} peerId - The ID of the disconnected host peer.
+     * @param {string} reason - The reason for disconnection.   
+     */
+    constructor(peerId, reason = 'Host disconnected') {
+        super(peerId, reason);
+        this.packetType = HostDisconnectPayload.PACKET; // Override packet type
+    }
 }
 
 export class PlayerDisconnectPayload extends PeerDisconnectPayload {
@@ -265,11 +274,12 @@ export class PlayerDisconnectPayload extends PeerDisconnectPayload {
 
     /** @type {string} */ playerId = '';
 
-    /** Creates a PlayerDisconnectPayload object.
+    /** Creates a PlayerDisconnectPayload payload.
      * @param {UnoPlayer} player - The ID of the disconnected peer.
      */
     constructor(player) {
-        super(player.getPeerId());
+        super(player.getPeerId(), 'Player disconnected');
+        this.packetType = PlayerDisconnectPayload.PACKET; // Override packet type
         this.playerId = player.getPlayerId();
     }
 
