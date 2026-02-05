@@ -214,10 +214,10 @@ export class GameUI {
         // Enable/disable deck
         $("#carddeck").toggleClass("disabled", (game.getCurrentPlayerId() != me.getPlayerId()));
 
-        //TODO: NOW WE NEED TO RENDER JUMP IN CARDS
-        game.sendWhoCanJumpIn
+        // Render playable cards (highlight)
         $("#cards").removeClass("disabled");
-        $(".card").removeClass('jumpin')
+        $(".card").removeClass('jumpin');
+        game.getPlayableCards().forEach(cardId => $(`#${cardId}`).addClass('jumpin'));
     }
 
     // Renders the player cover overlay.

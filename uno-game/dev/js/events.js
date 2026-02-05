@@ -116,8 +116,8 @@ export class EventManager extends NetworkManager {
             game.setStack(game.getStack() + (canPlayInfo.stack || 0));
             game.removeCard(payload.getCardId());
             game.setChoosingCardId(null);
-            game.broadcastGameState();
             game.startTurnDelay(game.getCurrentPlayerId(), 1);
+            game.broadcastGameState();
         });
 
         this.on(ChangeColorPayload, async (peerId, payload, game) => {

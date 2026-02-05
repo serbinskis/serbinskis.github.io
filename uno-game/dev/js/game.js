@@ -15,12 +15,13 @@ export class GameManager extends EventManager {
     /** @protected @type {GameManager | null} */ static GAME_MANAGER = null;
     /** @protected @type {string} */ roomId = '';
     /** @protected @type {JoinRequestPayload} */ settings = JoinRequestPayload.EMPTY;
-    /** @protected @type {{ [player_id: string]: { [card_id: string]: any; }; }} */ cards = {};
-    /** @protected @type {{ [player_id: string]: UnoPlayer; }} */ players = {};
+    /** @protected @type {{ [playerId: string]: { [cardId: string]: any; }; }} */ cards = {};
+    /** @protected @type {{ [playerId: string]: UnoPlayer; }} */ players = {};
     /** @protected @type {boolean} */ started = false;
     /** @protected @type {number} */ stack = 0;
     /** @protected @type {string | null} */ unoId = null;
-    /** @protected @type {string | null} */ winner_id = null;
+    /** @protected @type {string | null} */ blockedId = null;
+    /** @protected @type {string | null} */ winnerId = null;
     /** @protected @type {{ color: string; type: string, id?: string } | null} */ currentCard = null;
     /** @protected @type {string} */ currentPlayerId = ''; // Player ID of current playing player
     /** @protected @type {number} */ direction = UnoConfig.DIRECTION_FORWARD;
@@ -149,14 +150,14 @@ export class GameManager extends EventManager {
      * @param {string} playerId - The ID of the player to generate cards for.
      * @param {boolean} includeSpecial - Whether to include special cards in the generation.
      * @param {number} amount - The number of cards to generate.
-     * @returns {{ [card_id: string]: { color: string; type: string } }} The generated unencrypted cards mapped by their unique IDs.
+     * @returns {{ [cardId: string]: { color: string; type: string } }} The generated unencrypted cards mapped by their unique IDs.
      */
     generateCards(/** @type string **/ playerId, /** @type boolean **/ includeSpecial, amount = 0) {
         let player = this.getPlayer(playerId);
         if (!player || !player.getPrivateId()) { throw new Error(`[GameManager] generateCards() -> Player[playerId=${playerId}] not found or has no private ID.`); }
         if (!this.cards[playerId]) { this.cards[playerId] = {} }
 
-        /** @type {{ [card_id: string]: { color: string; type: string } }} */
+        /** @type {{ [cardId: string]: { color: string; type: string } }} */
         let generatedCards = {}; // To hold the generated cards to return
 
         // NOW WE HAVE TO ENCRYPT CARDS WITH PLAYER PRIVATE ID TO PREVENT CHEATING
@@ -178,7 +179,7 @@ export class GameManager extends EventManager {
 
     /** Gets the decrypted cards of a player
      * @param {string} playerId - The ID of the player whose cards to retrieve.
-     * @returns {{ [card_id: string]: { color: string; type: string } }} The decrypted cards of the specified player.
+     * @returns {{ [cardId: string]: { color: string; type: string } }} The decrypted cards of the specified player.
      */
     getPlayerCards(playerId) {
         let player = this.getPlayer(playerId);
@@ -274,17 +275,7 @@ export class GameManager extends EventManager {
         // If player is disconnected but not left, just mark as disconnected
         // After n amount of time remove him from game
         if (!player.isLeft()) { player.disconnectPlayer(() => this.removePlayer(playerId)); }
-
-        //If left player is not last and he was owner then select new owner
-        if ((this.getOnline(true) != 0) && (this.owner_id == playerId)) {
-            for (const player of this.getPlayers()) {
-                if (!player.isOnline(true)) { continue; }
-                return (this.owner_id = player.getPlayerId());
-            }
-        }
- 
         this.broadcastGameState(); // Broadcast updated game state and trigger on(GameStatePayload)
-        return this.owner_id;
     }
 
     /** Kicks a player from the game
@@ -508,7 +499,7 @@ export class GameManager extends EventManager {
      * @returns {string | null} The UNO caller ID.
      */
     setUnoId(unoId) {
-        return (this.uno_id = unoId);
+        return (this.unoId = unoId);
     }
 
     /** Gets the UNO caller ID.
@@ -518,13 +509,27 @@ export class GameManager extends EventManager {
         return this.unoId;
     }
 
+    /** Sets the blocked player ID.
+     * @param {string | null} blockedId - The ID of the blocked player.
+     */
+    setBlockedId(blockedId) {
+        this.blockedId = blockedId;
+    }
+
+    /** Gets the blocked player ID.
+     * @returns {string | null} The blocked player ID or null if no player is blocked.
+     */
+    getBlockedId() {
+        return this.blockedId;
+    }
+
     /**
      * Sets the winner ID of the game.
-     * @param {string | null} winner_id - The ID of the winner.
+     * @param {string | null} winnerId - The ID of the winner.
      * @returns {string | null} The winner ID.
      */
-    setWinner(winner_id) {
-        return (this.winner_id = winner_id);
+    setWinner(winnerId) {
+        return (this.winnerId = winnerId);
     }
 
     /**
@@ -532,14 +537,14 @@ export class GameManager extends EventManager {
      * @returns {string | null} The winner ID or null if no winner exists.
      */
     getWinner() {
-        return this.winner_id;
+        return this.winnerId;
     }
 
     /** Checks if there is a winner in the game.
      * @returns {boolean} True if there is a winner, false otherwise.
      */
     isWinner() {
-        return (this.winner_id != null);
+        return (this.winnerId != null);
     }
 
     /** Sets the run out of time status for the current player.
@@ -783,28 +788,37 @@ export class GameManager extends EventManager {
         return activePlayers[UnoUtils.randomRange(0, activePlayers.length-1)].getPlayerId();
     }
 
-    /** Sends information about who can jump in to all eligible players.
-     * @param {string | null} [blocked_id] - The ID of the player to block from receiving the information.
+    /** Gets a list of playable card IDs for the current player based on the game state.
+     * @returns {string[]} An array of playable card IDs.
      */
-    sendWhoCanJumpIn(blocked_id) {
-        for (const player of this.getPlayers()) {
-            //Yes, I know, blocked_id may be undefined, and, WHO CARES
-            if (!player.isOnline(true) || (player.getPlayerId() == blocked_id)) { continue; }
+    getPlayableCards() {
+        // If we are current player and there are no turn delay, just highlight all playable cards
+        // If we are current player and turn delay is active, highlight only stackable cards
+        // If we are not current player and turn delay is active, highlight only jump in cards
 
-            //FUCK if I am current player then this (player.getId() == blocked_id) will prevent
-            //me from getting info
+        let myPlayer = this.getPeerPlayer(this.getPeerId());
+        if (!myPlayer) { return []; }
 
-            //Don't send info to current playing player if stacking is disabled
-            if ((player.getPlayerId() == this.current_player) && !this.canStackCards()) { continue; }
+        // Current player and no turn delay -> all playable cards
+        let rule1 = (myPlayer.getPlayerId() == this.getCurrentPlayerId()) && !this.getTurnDelay();
 
-            var cards = Object.entries(this.getPlayerCards(player.getPlayerId())).filter(([_, card]) => {
-                var card_color = (card.color != 'ANY') ? card.color : this.currentCard?.color;
-                return ((card_color == this.currentCard?.color) && (card.type == this.currentCard?.type));
-            }).map(([card_id, _]) => card_id);
+        // Current player, turn delay active, and stacking enabled -> only stackable cards
+        let rule2 = (myPlayer.getPlayerId() == this.getCurrentPlayerId()) && this.getTurnDelay() && this.canStackCards();
 
-            // @ts-ignore
-            if (cards.length > 0) { player.emit1('can_jump_in', { cards: cards }); }
-        }
+        // Not current player, not blocked, turn delay active, and jump in enabled -> only jump in cards
+        let rule3 = (myPlayer.getPlayerId() != this.getCurrentPlayerId()) && (myPlayer.getPlayerId() != this.getBlockedId()) && this.getTurnDelay() && this.canJumpIn();
+
+        // These are all playable cards, even those that you should not be able to stack or jump in with
+        let cards = Object.fromEntries(Object.entries(this.getPlayerCards(myPlayer.getPlayerId())).filter(([_, card]) => this.canPlayCard(card).canPlay));
+        if (rule1) { return Object.keys(cards); }
+
+        // Filter only stackable or jump in cards
+        cards = !(rule2 || rule3) ? {} : Object.fromEntries(Object.entries(cards).filter(([_, card]) => {
+            var card_color = (card.color != 'ANY') ? card.color : this.currentCard?.color;
+            return ((card_color == this.currentCard?.color) && (card.type == this.currentCard?.type));
+        }));
+
+        return Object.keys(cards);
     }
 
     /** Checks if a card can be played based on the current placed card.
