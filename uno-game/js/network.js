@@ -113,24 +113,26 @@ export class NetworkManager extends EventTarget {
             // ready for becoming a host, therefore we accept connections, and if we become host we then
             // send packet that we are ready for communcation, and after that game continuous
 
+            // NOT TRUE ANYMORE, NOW HOST AND CLIENTS ARE SOMEWHAT SEPARATED, BUT MIGRATION IS STILL POSSIBLE
+
             // This also means that anyone with malicous intent can connect to other players, but they won't be able to
-            // do anything because we won't accept their packets, we only will allow them to be connected
+            // do anything because we won't accept their packets, we only will allow them to be connected (NO WE WONT)
 
             this.peer.on('connection', (/** @type {any} */ conn) => {
                 conn.on('open', () => {
+                    if (!this.isHost()) { return conn.close(); } // Only host will process new connections, clients will ignore them
                     this.connections[conn.peer] = conn;
-                    //TODO: Add ignore case
                     this.handlePacket(conn.peer, new PeerConnectPayload(conn.peer));
                 });
 
                 conn.on('close', () => {
+                    if (!this.isHost()) { return; } // Only host will process new connections, clients will ignore them
                     delete this.connections[conn.peer];
-                    //TODO: Add ignore case
                     this.handlePacket(conn.peer, new PeerDisconnectPayload(conn.peer, 'Connection closed'));
                 });
 
                 conn.on('data', (/** @type {any} */ data) => {
-                    //TODO: Add ignore case
+                    if (!this.isHost()) { return; } // Only host will process new data, clients will ignore them
                     this.handlePacket(conn.peer, data);
                 });
             });
