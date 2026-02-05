@@ -165,7 +165,7 @@ export class GameManager extends EventManager {
      */
     static generateCard(/** @type boolean **/ includeSpecial) {
         let cards = (includeSpecial && (UnoUtils.randomRange(1, 2) == 2)) ? UnoConfig.CARDS.special : UnoConfig.CARDS.standart;
-        return { ...cards[12] }; // Return a copy of the card object
+        return { ...cards[UnoUtils.randomRange(0, Object.keys(cards).length - 1)] }; // Return a copy of the card object
     }
 
     /** Generates encrypted starting cards for a player
