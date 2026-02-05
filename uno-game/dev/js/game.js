@@ -21,6 +21,7 @@ export class GameManager extends EventManager {
     /** @protected @type {number} */ stack = 0;
     /** @protected @type {string | null} */ unoId = null;
     /** @protected @type {string | null} */ blockedId = null;
+    /** @protected @type {string | null} */ whoGotJumpedId = null;
     /** @protected @type {string | null} */ winnerId = null;
     /** @protected @type {{ color: string; type: string, id?: string } | null} */ currentCard = null;
     /** @protected @type {string} */ currentPlayerId = ''; // Player ID of current playing player
@@ -88,7 +89,7 @@ export class GameManager extends EventManager {
         this.setDirection(UnoConfig.DIRECTION_FORWARD);
         this.setStack(0);
         this.setUnoId(null);
-        this.setWinner(null);
+        this.setWinnerId(null);
         this.setChoosingColor(false);
         this.setRunOutOfTime(false);
 
@@ -104,7 +105,8 @@ export class GameManager extends EventManager {
      * @param {string} cardId - The uncrypted ID of the card to place.
     **/
     clientPlaceCard(cardId) {
-        this.handlePacket(this.getPeerId(), new PlaceCardPayload(cardId));
+        if (this.isHost()) { this.handlePacket(this.getPeerId(), new PlaceCardPayload(cardId)); }
+        if (!this.isHost()) { this.send(new PlaceCardPayload(cardId)); }   
     }
 
     /** Sends a request to change the color of the current card. The actual color change will be handled by the host after validating the move.
@@ -112,28 +114,33 @@ export class GameManager extends EventManager {
     */
     clientChangeColor(color) {
         if (!UnoConfig.COLORS.includes(color)) { return alert(`[GameManager] clientChangeColor() -> Invalid color ${color}.`); }
-        this.handlePacket(this.getPeerId(), new ChangeColorPayload(color));
+        if (this.isHost()) { this.handlePacket(this.getPeerId(), new ChangeColorPayload(color)); }
+        if (!this.isHost()) { this.send(new ChangeColorPayload(color)); }
+        
     }
 
     /** Sends a request to save a card for later play. The actual saving will be handled by the host after validating the move.
      * @param {string} cardId - The uncrypted ID of the card to save.
     **/
     clientSaveCard(cardId) {
-        this.handlePacket(this.getPeerId(), new SaveCardPayload(cardId));
+        if (this.isHost()) { this.handlePacket(this.getPeerId(), new SaveCardPayload(cardId)); }
+        if (!this.isHost()) { this.send(new SaveCardPayload(cardId)); }
     }
 
     /** Sends a request to draw a card from the deck. The actual drawing will be handled by the host after validating the move.
      * Remeber this also can be called as host, so we have to handle that as well.
     */
     clientDrawCard() {
-        this.handlePacket(this.getPeerId(), new DrawCardPayload());
+        if (this.isHost()) { this.handlePacket(this.getPeerId(), new DrawCardPayload()); }
+        if (!this.isHost()) { this.send(new DrawCardPayload()); }
     }
 
     /** Sends a request to call UNO. The actual call will be handled by the host after validating the move.
      * Remeber this also can be called as host, so we have to handle that as well.
     */
     clientCallUno() {
-        this.handlePacket(this.getPeerId(), new UnoPressPayload());
+        if (this.isHost()) { this.handlePacket(this.getPeerId(), new UnoPressPayload()); }
+        if (!this.isHost()) { this.send(new UnoPressPayload()); }
     }
 
     /**
@@ -225,6 +232,19 @@ export class GameManager extends EventManager {
         return null;
     }
 
+    /** Gets the owner player of a card by its uncrypted ID
+     * @param {string} cardId - The uncrypted ID of the card to find the owner for.
+     * @returns {UnoPlayer | null} The owner UnoPlayer instance, or null if not found.
+     */
+    getCardOwner(cardId) {
+        for (const playerId in this.cards) {
+            let card = this.getPlayerCard(playerId, cardId);
+            if (card) { return this.getPlayer(playerId); }
+        }
+
+        return null;
+    }
+
     /** Removes a card from a player's hand by its uncrypted ID
      * @param {string} cardId - The uncrypted ID of the card to remove.
      */
@@ -298,11 +318,12 @@ export class GameManager extends EventManager {
     }
 
     /** Gets a player by their ID
-     * @param {string} playerId - The ID of the player to retrieve.
+     * @param {string|null} playerId - The ID of the player to retrieve.
      * @returns {UnoPlayer | null} The UnoPlayer instance corresponding to the given ID, or null if not found.
      */
     getPlayer(playerId) {
-        return this.players[playerId] ? this.players[playerId] : null;
+        // OH NOOOO :(((, CHECKING WITH "null", WHO CARES!!!, IT IS STILL GONNA NOT FIND ANYTHING WITH "null" ID :D
+        return this.players[String(playerId)] ? this.players[String(playerId)] : null;
     }
 
     /** Gets the current playing player instance
@@ -317,6 +338,13 @@ export class GameManager extends EventManager {
      */
     getMyPlayer() {
         return this.getPeerPlayer(this.getPeerId());
+    }
+
+    /** Gets my player ID
+     * @returns {string | null} My player ID, or null if not found.
+     */
+    getMyPlayerId() {
+        return this.getMyPlayer()?.getPlayerId() || null;
     }
 
     /** Gets a player by their peer ID
@@ -484,6 +512,13 @@ export class GameManager extends EventManager {
         return this.currentCard;
     }
 
+    /** Gets the ID of the current card in deck, the id is randomly generated when the card is set as current card, and is used for animation purposes on client side, it has no meaning on server side.
+     * @returns {string | null} The current card ID, or null if there is no current card.
+     */
+    getCurrentCardId() {
+        return this.currentCard?.id || null;
+    }
+
     /**
      * Sets the current card in deck.
      * @param {{ color: string; type: string; }} currentCard - The new current card.
@@ -523,12 +558,26 @@ export class GameManager extends EventManager {
         return this.blockedId;
     }
 
+    /** Sets the ID of the player who got jumped in the last turn.
+     * @param {string | null} id - The ID of the player who got jumped.
+     */
+    setWhoGotJumpedId(id) {
+        this.whoGotJumpedId = id;
+    }
+
+    /** Gets the ID of the player who got jumped in the last turn.
+     * @returns {string | null} The ID of the player who got jumped, or null if no player got jumped.
+     */
+    getWhoGotJumpedId() {
+        return this.whoGotJumpedId;
+    }
+
     /**
      * Sets the winner ID of the game.
      * @param {string | null} winnerId - The ID of the winner.
      * @returns {string | null} The winner ID.
      */
-    setWinner(winnerId) {
+    setWinnerId(winnerId) {
         return (this.winnerId = winnerId);
     }
 
@@ -536,7 +585,7 @@ export class GameManager extends EventManager {
      * Gets the winner ID of the game.
      * @returns {string | null} The winner ID or null if no winner exists.
      */
-    getWinner() {
+    getWinnerId() {
         return this.winnerId;
     }
 
@@ -721,6 +770,8 @@ export class GameManager extends EventManager {
         //when player is stacking the turn dealy is active which prevents
         //taking cards, so timer by default when taking cards will not work
 
+        this.setBlockedId(null); // Clear blocked ID on new turn
+        this.setWhoGotJumpedId(null); // Clear jumped ID on new turn
         if (this.playerTimer) { Timer.stop(this.playerTimer); }
 
         this.playerTimer = String(Timer.start((timer) => {            
@@ -789,14 +840,15 @@ export class GameManager extends EventManager {
     }
 
     /** Gets a list of playable card IDs for the current player based on the game state.
+     * @param {string|null} playerId - The ID of the player to check for playable cards.
      * @returns {string[]} An array of playable card IDs.
      */
-    getPlayableCards() {
+    getPlayableCards(playerId) {
         // If we are current player and there are no turn delay, just highlight all playable cards
         // If we are current player and turn delay is active, highlight only stackable cards
         // If we are not current player and turn delay is active, highlight only jump in cards
 
-        let myPlayer = this.getPeerPlayer(this.getPeerId());
+        let myPlayer = this.getPlayer(playerId);
         if (!myPlayer) { return []; }
 
         // Current player and no turn delay -> all playable cards
@@ -819,6 +871,16 @@ export class GameManager extends EventManager {
         }));
 
         return Object.keys(cards);
+    }
+
+    /** Checks if a specific card can be played by its ID.
+     * @param {string} cardId - The ID of the card to check.
+     * @returns {boolean} True if the card is playable, false otherwise.
+     */
+    isPlayableCard(cardId) {
+        let player = this.getCardOwner(cardId);
+        if (!player) { return false; }
+        return this.getPlayableCards(player.getPlayerId()).includes(cardId);
     }
 
     /** Checks if a card can be played based on the current placed card.

@@ -151,7 +151,7 @@ export class NetworkManager extends EventTarget {
         Object.values(this.connections).forEach(conn => {
             if (!['disconnected', 'failed'].includes(conn.peerConnection.connectionState)) { return; }
             delete this.connections[conn.peer];
-            this.handlePacket(conn.peer, new PeerDisconnectPayload(conn.peer, 'Timed out'));
+            if (this.isHost()) { this.handlePacket(conn.peer, new PeerDisconnectPayload(conn.peer, 'Timed out')); }
             if (!this.isHost()) { this.handlePacket(conn.peer, new HostDisconnectPayload(conn.peer, 'Timed out')); }
         });
     }

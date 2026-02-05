@@ -154,6 +154,13 @@ export class GameUI {
         let currentUiCard = $("#cards-desk img").not("#UNO_CARD").last();
         if (currentUiCard?.attr("cardId")?.includes(String(currentCard?.id))) { return; }
 
+        // If current card is wild and color changed, update the card color with animation and sound
+        if (currentUiCard?.attr("src")?.includes('ANY') && (currentCard?.color != "ANY")) {
+            currentUiCard.attr("src", `resources/cards/gifs/${currentCard.color}_${currentCard.type}.gif`);
+            currentUiCard.attr("cardId", String(currentCard.id));
+            return GameUI.playSound("change_color.mp3");
+        }
+
         // Add card to desk with animation
         var img = document.createElement("img");
 
@@ -202,7 +209,7 @@ export class GameUI {
             img.id = cardId;
             img.src = `resources/cards/${cards[cardId].color}_${cards[cardId].type}.png`;
             img.draggable = false;
-            img.addEventListener("click", () => game.handlePacket(game.getPeerId(), new PlaceCardPayload(cardId)), false);
+            img.addEventListener("click", () => GameManager.getInstance().clientPlaceCard(cardId), false);
             $('#cards')[0].appendChild(img);
         });
 
@@ -217,7 +224,7 @@ export class GameUI {
         // Render playable cards (highlight)
         $("#cards").removeClass("disabled");
         $(".card").removeClass('jumpin');
-        game.getPlayableCards().forEach(cardId => $(`#${cardId}`).addClass('jumpin'));
+        game.getPlayableCards(game.getMyPlayerId()).forEach(cardId => $(`#${cardId}`).addClass('jumpin'));
     }
 
     // Renders the player cover overlay.
@@ -227,13 +234,18 @@ export class GameUI {
 
         // We flip this because timers are shared on host and client, so host timer ID would conflict with client timer ID
         const playerTimerId = UnoUtils.reverse(game.getPlayerTimer());
-        if (!playerTimerId || Timer.exists(playerTimerId)) { return; }
+        if (playerTimerId && !Timer.exists(playerTimerId)) {
+            Timer.start((timer) => {
+                if (playerTimerId !== UnoUtils.reverse(game.getPlayerTimer())) { return Timer.stop(playerTimerId); }
+                if ((timer?.amount || 0) <= 1) { Timer.change(playerTimerId, 1000, { amount: undefined }); } // If time runs out, continue the timer until the player timer id changes, but don't render number anymore
+                if ((timer?.amount || 0 >= 1)) { GameUI.setOverlayText(game.getCurrentPlayerId(), String(timer?.amount || 0)) }; // This is done so that in timer cannot retsart when turn delay send game state update, because we need Timer.exists(playerTimerId) -> true, until next player's turn starts
+            }, 1000, { immediate: true, id: playerTimerId, interval: true, amount: game.getPlayerTime() });
+        }
 
-        Timer.start((timer) => {
-            if (playerTimerId !== UnoUtils.reverse(game.getPlayerTimer())) { return Timer.stop(playerTimerId); }
-            if ((timer?.amount || 0) <= 1) { Timer.change(playerTimerId, 1000, { amount: undefined }); } // If time runs out, continue the timer until the player timer id changes, but don't render number anymore
-            if ((timer?.amount || 0 >= 1)) { GameUI.setOverlayText(game.getCurrentPlayerId(), String(timer?.amount || 0)) }; // This is done so that in timer cannot retsart when turn delay send game state update, because we need Timer.exists(playerTimerId) -> true, until next player's turn starts
-        }, 1000, { immediate: true, id: playerTimerId, interval: true, amount: game.getPlayerTime() });
+        // This must be after timer, otherwise immediate timer will just replace the current overlay
+        GameUI.showBlocked(game.getBlockedId());
+        GameUI.showJumped(game.getWhoGotJumpedId());
+        GameUI.showDrawCower();
     }
 
     /** Renders the game UI, updating player list and room ID display. */
@@ -243,6 +255,7 @@ export class GameUI {
         GameUI.renderDeck();
         GameUI.renderPlayerCover();
         GameUI.setStack(GameManager.getInstance().getStack());
+        GameUI.showWinner(GameManager.getInstance().getWinnerId());
 
         $("#room-id")[0].innerText = '*'.repeat(GameManager.getInstance().getRoomId().length);
         $("#arrow").toggleClass("hidden", !GameManager.getInstance().isStarted());
@@ -258,7 +271,7 @@ export class GameUI {
      */
     static setOverlay(playerId, src) {
         if (!$(`#overlay_${playerId}`)[0]) { return; }
-        $(`#overlay_${playerId}`)[0].src = src;
+        $(`#overlay_${playerId}`)[0].src = src?.includes("data:image") ? src : `resources/overlays/${src}`;
         $(`#overlay_${playerId}`).removeClass("popup");
         void $(`#overlay_${playerId}`)[0].offsetWidth;
         $(`#overlay_${playerId}`).addClass("popup");
@@ -343,6 +356,45 @@ export class GameUI {
         $("#game-container #settings-container")[0].style = `transform: translate(-50%, -50%) scale(${enabled ? 1 : 0});`
     }
 
+    /** Shows block overlay on player's avatar if they are blocked.
+     * @param {string|null} blockedId - The ID of the player.
+     */
+    static showBlocked(blockedId) {
+        // Do not animate again if already blocked, in case if game state update arrives while blocked state not rested
+        if (!blockedId) { return $(`#players`)[0].blockedId = null; }
+        if (!$(`#overlay_${blockedId}`)[0]) { return; }
+        if ($(`#players`)[0].blockedId == blockedId) { return; }
+        $(`#players`)[0].blockedId = blockedId;
+        GameUI.setOverlay(blockedId, 'BLOCK.png');
+        if (blockedId == GameManager.getInstance().getMyPlayerId()) { GameUI.setScreenCover("SKIP.png"); }
+    }
+
+    /** Shows jump-in overlay on player's avatar if they got jumped.
+     * @param {string|null} jumpedId - The ID of the player.
+     */
+    static showJumped(jumpedId) {
+        // Do not animate again if already jumped, in case if game state update arrives while jumped state not rested
+        if (!jumpedId) { return $(`#players`)[0].jumpedId = null; }
+        if (!$(`#overlay_${jumpedId}`)[0]) { return; }
+        if ($(`#players`)[0].jumpedId == jumpedId) { return; }
+        $(`#players`)[0].jumpedId = jumpedId;
+        GameUI.setOverlay(jumpedId, 'JUMP_IN.png');
+        if (jumpedId == GameManager.getInstance().getMyPlayerId()) { GameUI.setScreenCover("JUMP_IN.png"); }
+    }
+
+    /** Show draw card overlay for a players who drew a card. */
+    static showDrawCower() {
+        GameManager.getInstance().getPlayers().forEach(player => {
+            if (!$(`#overlay_${player.getPlayerId()}`)[0]) { return; }
+
+            // We only show overlay if player card amount increased, also for first time we do not animate, only store
+            //if (!$(`#overlay_${playerId}`)[0].cardCount) { return $(`#overlay_${playerId}`)[0].cardCount = player.getCardCount(); }
+            if (Number($(`#overlay_${player.getPlayerId()}`)[0].cardCount) >= player.getCardCount()) { return; }
+            $(`#overlay_${player.getPlayerId()}`)[0].cardCount = player.getCardCount();
+            GameUI.setOverlay(player.getPlayerId(), 'DRAW.png');
+        });
+    }
+
     /** Sets the stack count display and shows/hides the stacking container based on the stack value.
      * @param {number} stack - The current stack count.
      **/
@@ -412,7 +464,7 @@ export class GameUI {
      * @param {string} src - The source URL of the cover image.
      */
     static setScreenCover(src) {
-        $("#cover")[0].src = src;
+        $("#cover")[0].src = `resources/covers/${src}`;
         $("#cover").removeClass("popupCover");
         void $("#cover")[0].offsetWidth;
         $("#cover").addClass("popupCover");

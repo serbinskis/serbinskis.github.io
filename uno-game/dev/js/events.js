@@ -94,29 +94,37 @@ export class EventManager extends NetworkManager {
             // So technically without stacking you can place 2 cards
             // NOTE: You cannot jump-in on yourself
 
-            // Jump-in is only possible if turn delay is active, and not current player's turn
-            let isJumpIn = game.getTurnDelay() && (game.getCurrentPlayerId() != player.getPlayerId());
+            // Jump-in is only possible if turn delay is active, and not current player's turn, and also enabled in settings
+            let isJumpIn = game.canJumpIn() && game.getTurnDelay() && (game.getCurrentPlayerId() != player.getPlayerId());
+            let isStacking = game.canStackCards() && game.getTurnDelay() && (game.getCurrentPlayerId() == player.getPlayerId());
+            let isPlayable = game.isPlayableCard(payload.getCardId()); // This also check for stackable and jump-in cards
+            if (!isPlayable) { return; } // Check if card is playable in current state, this also checks for jump-in and stacking rules, so we don't need to check them separately, but we still need to know if it's jump-in or stacking for later logic
 
-            if (game.getTurnDelay()) {
-                // TODO: Check if stacking or jump-in is allowed
-                //var jump_in = ((room.getCurrentMove() != player.getId()) && room.canJumpIn()); //Check if player can jump in
-                //var card_color = (card.color != 'ANY') ? card.color : room.getCurrentCard().color;
-                //if (!(room.canStackCards() || jump_in) || (card_color != room.getCurrentCard().color) || (card.type != room.getCurrentCard().type)) { return; }
-            }
-
-            if (isJumpIn) {
-                // TODO: Handle jump-in logic (skip current player, etc.)
-            }
-
-            let canPlayInfo = game.canPlayCard(card);
-            if (!canPlayInfo.canPlay) { return; }
+            let canPlayInfo = game.canPlayCard(card); // This just physically checks if card can be played, without any rules
+            if (!canPlayInfo.canPlay) { return; } // Unecessary check, but just in case, I will keep it here
+            if (isJumpIn) { game.setWhoGotJumpedId(player.getPlayerId()); } // Set who got jumped for animation purposes
 
             game.setCurrentCard(card);
+            game.setDirection(canPlayInfo.direction || game.getDirection()); // Update direction if card changes it, otherwise keep same direction
             game.setCurrentPlayerId(player.getPlayerId()); // In case of jump-in
             game.setStack(game.getStack() + (canPlayInfo.stack || 0));
             game.removeCard(payload.getCardId());
             game.setChoosingCardId(null);
-            game.startTurnDelay(game.getCurrentPlayerId(), 1);
+            game.setChoosingColor(canPlayInfo.shouldPickColor || false);
+
+            if (player.getCardCount() == 0) {
+                game.setWinnerId(player.getPlayerId());
+                return game.broadcastGameState();
+            }
+
+            // BUG BLOCKING BLOCKS OURSELF, AND GIVES TURN TO NEXT PLAYER
+            // BUG: CHOOSING COLOR PREVENTS STACKING 
+  
+            if ((canPlayInfo.nextBy || 0) >= 2) { game.setBlockedId(game.getNextPlayerId(player.getPlayerId(), Number(canPlayInfo.nextBy))); } // STUPID VS CODE, IF canPlayInfo IS NOT DEFINED IT WILL NEVER EVEN GET TO THIS PLACE.
+            if (player.getCardCount() == 1) { game.setUnoId(player.getPlayerId()); } // Set UNO state if player has 1 card left
+            if (!game.isChoosingColor() && !isJumpIn) { game.startTurnDelay(game.getCurrentPlayerId(), 1); } // Start turn delay if card does not require color change, otherwise wait for color change before starting turn delay
+            if (isJumpIn) { game.removeTurnDelay(); } // If it's a jump-in, we just remove turn delay, because jump-in is basically just playing out of turn, so we don't want to start turn delay for them, but we also want to remove turn delay for current player, because they got interrupted (WTF IS THIS COPILOT)
+            if (isJumpIn) { game.startPlayerTimer(); } // After jump-in, we start player timer for the player who jumped in, because they are now the current player, and they should have full time to play their turn, even if they interrupted someone else's turn (WTF ARE THESE LONG ASS COMMENTS)
             game.broadcastGameState();
         });
 
