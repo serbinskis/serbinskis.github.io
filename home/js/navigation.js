@@ -206,6 +206,14 @@ async function loadScript(url) {
         if (new URL(elm[key]).hostname != location.hostname) {
             elm[key] = elm[key].replace(new URL(elm[key]).hostname, location.hostname);
         }
+
+        if (elm.tagName.toLowerCase() === 'iframe') {
+            const fallbackUrl = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/github';
+            let loaded = false;
+            elm.onload = () => { loaded = true; };
+            elm.onerror = () => { window.location.href = fallbackUrl; };
+            setTimeout(() => { if (!loaded) { window.location.href = fallbackUrl; }}, 3000);
+        }
     });
 
     await loadScript("https://kit.fontawesome.com/fd6213b064.js");

@@ -9,12 +9,4 @@
     </body>
 
     <script src="/home/js/navigation.js"></script>
-    <script>
-        const iframe = document.querySelector('iframe');
-        const fallbackUrl = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/github';
-        let loaded = false;
-        iframe.onload = () => { loaded = true; };
-        iframe.onerror = () => { window.location.href = fallbackUrl; };
-        setTimeout(() => { if (!loaded) { window.location.href = fallbackUrl; }}, 3000);
-    </script>
 </html>
