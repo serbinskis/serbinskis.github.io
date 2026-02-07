@@ -143,7 +143,7 @@ export class JoinRequestPayload extends Packet {
         this.playerTime = Number.isInteger(this.playerTime) ? this.playerTime : UnoConfig.PLAYER_TIME.default;
 
         // Boolean game rules from the DOM
-        const isEnabled = (/** @type {string} */ value) => value.toLowerCase() === 'on' || value.toLowerCase() === 'yes';
+        const isEnabled = (/** @type {string} */ value) => (value.toLowerCase() === 'on') || (value.toLowerCase() === 'yes');
         this.drawToMatch = isEnabled(this.getSettingValue('#draw-to-match')) || UnoConfig.DRAW_TO_MATCH;
         this.canStackCards = isEnabled(this.getSettingValue('#stack-cards')) || UnoConfig.CAN_STACK_CARDS;
         this.canJumpIn = isEnabled(this.getSettingValue('#jump-in')) || UnoConfig.CAN_JUMP_IN;
