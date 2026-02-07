@@ -266,6 +266,7 @@ export class GameUI {
         GameUI.renderCards();
         GameUI.setStack(GameManager.getInstance().getStack());
         GameUI.showWinner(GameManager.getInstance().getWinnerId());
+        GameUI.showMigratingHost(GameManager.getInstance().isMigrating());
 
         $("#room-id")[0].innerText = '*'.repeat(GameManager.getInstance().getRoomId().length);
         $("#arrow").toggleClass("hidden", !GameManager.getInstance().isStarted());

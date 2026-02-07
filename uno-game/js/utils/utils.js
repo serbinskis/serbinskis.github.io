@@ -19,6 +19,14 @@ export class UnoUtils {
         });
     }
 
+    /** Waits for a specified number of milliseconds.
+     * @param {number} ms - The number of milliseconds to wait.
+     * @returns {Promise<void>} A promise that resolves after the specified time has elapsed.
+     */
+    static async wait(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     /** Reverses a given string.
      * @param {string|null} str - The string to reverse.
      * @returns {string|null} The reversed string.

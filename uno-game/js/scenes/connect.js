@@ -69,7 +69,6 @@ $("#avatar").click(() => {
     input.click();
 });
 
-
 //When click on connect
 $('#connect').click(async () => {
     let username = $('#username')[0].value;
@@ -85,12 +84,10 @@ $('#connect').click(async () => {
 	await GameManager.joinGame(data);
 });
 
-
 //Show settings
 $("#login-container .settings").click(() => {
     $("#login-container #settings-container")[0].style = "transform: translate(-50%, -50%) scale(1);"
 });
-
 
 //Close settings
 $("#login-container #setting-close").click(() => {
@@ -113,7 +110,6 @@ $(document).on("keydown", (/** @type {any} */ e) => {
 	e.stopPropagation();
 	$("#login-container #setting-close").click();
 });
-
 
 //Switch setting to left
 $(".arrow-left").mousedown((/** @type any */ e) => {
@@ -167,7 +163,6 @@ $(".arrow-left").mousedown((/** @type any */ e) => {
 	}, UnoConfig.SETTING_TIMEOUT);
 });
 
-
 $(".arrow-left").mouseup((/** @type any */ e) => {
     if (e.currentTarget._timeout) { clearTimeout(e.currentTarget._timeout); }
     if (e.currentTarget._interval) { clearInterval(e.currentTarget._interval); }
@@ -175,11 +170,9 @@ $(".arrow-left").mouseup((/** @type any */ e) => {
     e.currentTarget._interval = null;
 });
 
-
 $(".arrow-left").mouseleave((/** @type any */ e) => {
 	$(e.currentTarget).trigger('mouseup');
 });
-
 
 //Switch setting to right
 $(".arrow-right").mousedown((/** @type any */ e) => {
@@ -240,7 +233,6 @@ $(".arrow-right").mouseup((/** @type any */ e) => {
     e.currentTarget._timeout = null;
     e.currentTarget._interval = null;
 });
-
 
 $(".arrow-right").mouseleave((/** @type any */ e) => {
 	$(e.currentTarget).trigger('mouseup');

@@ -133,7 +133,7 @@ export class JoinRequestPayload extends Packet {
 
         // Data from Local Storage
         this.avatar = localStorage.getItem("avatar") || null;
-        this.privateId = localStorage.getItem("privateId") || "";
+        this.privateId = sessionStorage.getItem("privateId") || "";
 
         // Game settings from the DOM (with parsing)
         this.startCards = parseInt(this.getSettingValue('#start-cards'), 10) || UnoConfig.START_CARDS.default;

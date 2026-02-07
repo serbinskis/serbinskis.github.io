@@ -27,9 +27,9 @@ export class EventManager extends NetworkManager {
         });
 
         this.on(HostDisconnectPayload, async (peerId, payload, game) => {
+            if (!game.getMyPlayer()) { return console.warn("[EventManager] Received HostDisconnectPayload but we are not in game, ignoring."); }
+            if (UnoConfig.CAN_MIGRATE) { return game.migrateHost(); }
             this.handlePacket(this.getPeerId(), new KickPlayerPayload(String(game.getMyPlayerId()), 'Host left the game'));
-
-            //TODO: Migrate host to another player
         });
 
         this.on(JoinRequestPayload, async (peerId, payload, game) => {
@@ -48,13 +48,14 @@ export class EventManager extends NetworkManager {
         // If join failed, show message to user
         this.on(JoinResponsePayload, async (peerId, payload, game) => {
             if (this.isHost()) { return console.warn("[EventManager] Received JoinResponsePayload on host, ignoring."); }
+            this.disconnectPeer();
             if (payload?.getResponse()?.message) { alert(`${payload.getResponse().message}`); }
         });
 
         // Malicious clients also can send this to host, so only non-hosts should process it
         this.on(GameStatePayload, async (peerId, payload, game) => {
             if (!this.isHost()) { game.fromPacket(payload); }
-            if (!this.isHost()) { localStorage.setItem('privateId', String(game.getPrivateId(game.getPeerId()))); } // Yes this can be null, but I DONT CARE
+            if (!this.isHost()) { sessionStorage.setItem('privateId', String(game.getPrivateId(game.getPeerId()))); } // Yes this can be null, but I DONT CARE
             if (!this.isHost() || (peerId == game.getPeerId())) { GameUI.showGameScene(); }
             if (!this.isHost() || (peerId == game.getPeerId())) { GameUI.render(); }
         });
@@ -67,7 +68,7 @@ export class EventManager extends NetworkManager {
                 if (!player) { return console.warn(`[EventManager] Host received KickPlayerPayload for non-existing player ID ${payload.getPlayerId()}`); }
                 game.removePlayer(player.getPlayerId());
             } else {
-                if ((peerId != game.getOwnerId()) && (peerId != this.getPeerId())) { return } // Only accept kick from owner and self
+                if ((peerId != game.getOwnerPeerId()) && (peerId != this.getPeerId())) { return } // Only accept kick from owner and self
                 if (payload.getPlayerId() !== game.getPeerPlayer(game.getPeerId())?.getPlayerId()) { return; } // Check if this kick is for us
                 alert(`You have been kicked from the game. Reason: ${payload.getReason()}`);
                 location.reload();
@@ -80,7 +81,7 @@ export class EventManager extends NetworkManager {
 
             // Game must be started, not choosing color, player must exist
             let player = game.getPeerPlayer(peerId);
-            if (game.getWinnerId() || !game.isStarted() || game.isChoosingColor() || !player) { return; }
+            if (game.getWinnerId() || !game.isStarted() || game.isMigrating() || game.isChoosingColor() || !player) { return; }
 
             // If turn delay is inactive, only current player can play
             if (!game.getTurnDelay() && (game.getCurrentPlayerId() != player.getPlayerId())) { return; }
@@ -134,7 +135,7 @@ export class EventManager extends NetworkManager {
             if (!player) { return console.warn(`[EventManager] Received ChangeColorPayload from non-player Peer[${peerId}], ignoring.`); }
 
             // Game must be started, player must be current player, and must be choosing color
-            if (game.getWinnerId() || !game.isStarted() || !game.isChoosingColor() || game.getTurnDelay() || (game.getCurrentPlayerId() != player.getPlayerId())) { return; }
+            if (game.getWinnerId() || !game.isStarted() || game.isMigrating() || !game.isChoosingColor() || game.getTurnDelay() || (game.getCurrentPlayerId() != player.getPlayerId())) { return; }
 
             // This also sets choosing color to false, so it also acts as confirmation of color change
             if (!game.changeColor(payload.getColor())) { return; }
@@ -176,7 +177,7 @@ export class EventManager extends NetworkManager {
             if (!player) { return console.warn(`[EventManager] Received DrawCardPayload from non-player Peer[${peerId}], ignoring.`); }
 
             // Game must be started, not choosing color, not in turn delay, not in choosing card state, and must be current player
-            if (game.getWinnerId() || !game.isStarted() || game.isChoosingColor() || game.getTurnDelay() || game.getChoosingCardId() || (game.getCurrentPlayerId() != player.getPlayerId())) { return; }
+            if (game.getWinnerId() || !game.isStarted() || game.isMigrating() || game.isChoosingColor() || game.getTurnDelay() || game.getChoosingCardId() || (game.getCurrentPlayerId() != player.getPlayerId())) { return; }
 
             let cloudPlayCardBefore = Object.values(game.getPlayerCards(player.getPlayerId())).some(card => game.canPlayCard(card).canPlay);
             let drawCardAmount = (game.getStack() > 0) ? game.getStack() : 1; // If there is a stack, draw the whole stack, otherwise just 1 card
@@ -229,7 +230,7 @@ export class EventManager extends NetworkManager {
 
         this.on(UnoPressPayload, async (peerId, payload, game) => {
             // Game must be started and UNO must be active
-            if (game.getWinnerId() || !game.isStarted() || !game.getUnoId()) { return; }
+            if (game.getWinnerId() || !game.isStarted() || game.isMigrating() || !game.getUnoId()) { return; }
             let player = game.getPeerPlayer(peerId);
             if (!player) { return console.warn(`[EventManager] Received UnoPressPayload from non-player Peer[${peerId}], ignoring.`); }
 

@@ -18,6 +18,7 @@ export class GameManager extends EventManager {
     /** @protected @type {{ [playerId: string]: { [cardId: string]: any; }; }} */ cards = {};
     /** @protected @type {{ [playerId: string]: UnoPlayer; }} */ players = {};
     /** @protected @type {boolean} */ started = false;
+    /** @protected @type {boolean} */ migrating = false;
     /** @protected @type {number} */ stack = 0;
     /** @protected @type {string | null} */ unoId = null;
     /** @protected @type {string | null} */ blockedId = null;
@@ -74,11 +75,53 @@ export class GameManager extends EventManager {
         if (!id) { return GameManager.GAME_MANAGER = null; }
         console.log('Joined game');
         instance.send(settings);
-        instance.roomId = settings.invite;
     }
 
     async migrateHost() {
-        // TODO: Implement host migration
+        this.setMigrating(true);
+        this.broadcastGameStateSelf(false); // This will only notify us about the change, to show migrating screen
+
+        // Now get next player from current owner, and set them as new owner, we also have the check if next player is not disconnected
+        // This will either find someone else who is not disconnected or just stop on us, and then we become a host
+        do {
+            let currentOwnerId = this.getOwner()?.getPlayerId();
+            if (!currentOwnerId) { throw new Error("Current owner ID is null, cannot migrate host."); }
+            let nexOwnerId = this.getNextPlayerId(currentOwnerId, 1)
+            let nextOwnerPeerId = this.getPlayer(nexOwnerId)?.getPeerId();
+            if (!nextOwnerPeerId) { throw new Error("Could not find next owner peer ID"); }
+            this.setOwnerPeerId(nextOwnerPeerId);
+        } while (this.getOwner()?.isDisconnected())
+
+        if (this.getOwnerPeerId() == this.getPeerId()) {
+            this.setHost(true); // This will allow us to accept connections and packets
+            this.stopGame(); // This only stops timers, only resets variables, since clients do not really have any of these timers running
+            this.getPlayers().forEach((player) => player.disconnectPlayer()); // Render all players as disconnected
+            this.getMyPlayer()?.setReconnected(); // Set myself as reconnected
+            this.broadcastGameStateSelf(false); // Render players as discoonected for ourself
+            await UnoUtils.wait(UnoConfig.MIGRATION_TIME); // Wait a bit to let players connect before we start continue game
+            this.setMigrating(false);
+
+            // We as a new host cannot continue game with disconnected players, because if they did not recconect in this small period of time
+            // We have no clue what is their privtate ID, so we cannot nor get their cards, nor add them, so only option is to remove these players
+            let disconnectedPlayers = this.getPlayers().filter(p => p.isDisconnected());
+            disconnectedPlayers.forEach(p => this.removePlayer(p.getPlayerId())); // Now fully remove players who are still disconnected after timeout
+            return this.startPlayerTimer(); // removePlayer() also skips turns if current player is disconnected
+        }
+
+        await UnoUtils.wait(500); // Wait a bit to let new host set up before we start sending packets to them
+        let invite = this.getOwnerPeerId();
+
+        // Theoretically our peerId should not change, because we are already connected to peer server we just changing host peerId
+        for (let i = 1; i <= UnoConfig.MIGRATION_ATTEMPTS; i++) {
+            let id = await this.init(invite, true).catch(() => {});
+            if (!id && (i == UnoConfig.MIGRATION_ATTEMPTS)) { alert("Failed to migrate host after " + UnoConfig.MIGRATION_ATTEMPTS + " attempts, returning to main menu."); location.reload(); }
+            if (id) { break; } else if (i == UnoConfig.MIGRATION_ATTEMPTS) { return; } // If failed to connect to new host after max attempts, just return
+        }
+    
+        // Now we are connected to new host, we just need to send them join request again
+        let myPlayer = this.getMyPlayer();
+        if (!myPlayer) { throw new Error("My player is null, cannot send join request after host migration."); }
+        this.send(new JoinRequestPayload(invite, myPlayer.getUsername()));
     }
 
     /** Starts the game if the caller is the host. If the game has already started, it will reset the game state if reset is true.
@@ -280,18 +323,24 @@ export class GameManager extends EventManager {
     }
 
     /** Adds or updates player to the game
-     * @param {UnoPlayer} packet_player - TODO
+     * @param {UnoPlayer} packetPlayer - The UnoPlayer instance to add or update in the game.
      * @returns {UnoPlayer}
      */
-    addPlayer(packet_player) {
+    addPlayer(packetPlayer) {
         // First check if player with same private ID exists and allow rejoin
-        let privatePlayer = this.getPrivatePlayer(packet_player.getPrivateId());
-        privatePlayer?.setPeerId(packet_player.getPeerId());
+        let privatePlayer = this.getPrivatePlayer(packetPlayer.getPrivateId());
+        privatePlayer?.setPeerId(packetPlayer.getPeerId());
         privatePlayer?.setReconnected();
-        if (privatePlayer) { packet_player = privatePlayer; }
+        let privateId = privatePlayer?.getPrivateId() || packetPlayer.getPrivateId(); // In case if player is migrating, we as new host have no clue what is their private ID, so we take on from packet
+        if (privatePlayer) { packetPlayer = privatePlayer; }
 
-        let player = this.getPlayer(packet_player.getPlayerId());
-        if (!player) { player = this.players[packet_player.getPlayerId()] = packet_player; }
+        // Set secret id for host migration, others don't know player private ID, but they can verify it by using secret ID
+        privatePlayer?.setPrivateId(privateId); // We either set same private ID for rejoining player, or set one for migrating player, in both cases secret ID will be the same
+        if (!packetPlayer.getPrivateId()) { throw new Error(`[GameManager] addPlayer() -> Player[playerId=${packetPlayer.getPlayerId()}] has no private ID.`); }
+        packetPlayer.setSecretId(UnoUtils.encryptString(packetPlayer.getPlayerId(), String(packetPlayer.getPrivateId())));
+
+        let player = this.getPlayer(packetPlayer.getPlayerId());
+        if (!player) { player = this.players[packetPlayer.getPlayerId()] = packetPlayer; }
         this.broadcastGameState(); // Broadcast updated game state and trigger on(GameStatePayload)
         return player;
     }
@@ -383,7 +432,20 @@ export class GameManager extends EventManager {
      * @returns {UnoPlayer | undefined} The UnoPlayer instance corresponding to the given private ID, or null if not found.
      */
     getPrivatePlayer(privateId) {
-        return Object.values(this.players).find(player => player.getPrivateId() == privateId);
+        let player = Object.values(this.players).find(player => player.getPrivateId() == privateId);
+        return player ? player : this.getSecretPlayer(privateId);
+    }
+
+    /** Gets a player by their secret ID (used for host migration)
+     * @param {string | null} privateId - The private ID to match against the decrypted secret IDs of players.
+     * @returns {UnoPlayer | undefined} The UnoPlayer instance corresponding to the given private ID, or null if not found.
+     */
+    getSecretPlayer(privateId) {
+        return Object.values(this.players).find(player => {
+            if (!player.getSecretId()) { return false; }
+            let decryptedSecretId = UnoUtils.decryptString(String(player.getSecretId()), String(privateId));
+            return (decryptedSecretId == player.getPlayerId());
+        });
     }
 
     /** Gets a player's private ID by their peer ID
@@ -420,7 +482,7 @@ export class GameManager extends EventManager {
     /** Gets the owner peer ID of the game. (roomId = ownerId)
      * @returns {string} The owner ID.
      */
-    getOwnerId() {
+    getOwnerPeerId() {
         return this.roomId;
     }
 
@@ -428,17 +490,17 @@ export class GameManager extends EventManager {
      * @returns {UnoPlayer | undefined} The owner player instance or null if owner is not yet added (WHEN JOINING)
      */
     getOwner() {
-        let owner = this.getPeerPlayer(this.getOwnerId());
+        let owner = this.getPeerPlayer(this.getOwnerPeerId());
         //if (!owner) { throw new Error("[GameManager] getOwner() -> Owner player not found."); }
         return owner;
     }
 
     /** Sets the owner ID of the game. (roomId = ownerId)
-     * @param {string} ownerId - The new owner ID.
+     * @param {string} peerId - The new owner ID.
      * @returns {string} The updated owner ID.
      */
-    setOwner(ownerId) {
-        return (this.roomId = ownerId);
+    setOwnerPeerId(peerId) {
+        return (this.roomId = peerId);
     }
 
     /** Checks if the game has started.
@@ -454,6 +516,21 @@ export class GameManager extends EventManager {
      */
     setStarted(started) {
         return (this.started = started);
+    }
+
+    /** Checks if the host migration process is currently ongoing.
+     * @param {boolean} migrating - The new migrating status.
+     * @returns {boolean} True if the host migration process is ongoing, false otherwise.
+     */
+    setMigrating(migrating) {
+        return (this.migrating = migrating);
+    }
+
+    /** Checks if the host migration process is currently ongoing.
+     * @returns {boolean} True if the host migration process is ongoing, false otherwise.
+     */
+    isMigrating() {
+        return this.migrating;
     }
 
     /** Checks if the player is currently choosing a color.
@@ -998,9 +1075,13 @@ export class GameManager extends EventManager {
      */
     broadcastGameState(avatar = true) {
         this.getPlayers().forEach((player) => {
-            this.sendTo(player.getPeerId(), this.toPacket(avatar, player.getPeerId()));
+            this.sendTo(player.getPeerId(), this.toPacket(avatar, player.getPeerId())); // This wont work for US, because OUR connection is not in the list
         });
 
+        this.broadcastGameStateSelf(avatar); // Handle OURSELF, to also see changes
+    }
+
+    broadcastGameStateSelf(avatar = true) {
         this.handlePacket(this.getPeerId(), this.toPacket(avatar, this.getPeerId()), true); // Also handle for self packet, this will trigger events
     }
 }

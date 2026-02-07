@@ -28,28 +28,40 @@ export class NetworkManager extends EventTarget {
      * Initializes the PeerJS connection.
      *
      * @param {string | null} [hostId=null] - The ID to connect to. If null, a new Peer will be created as a host.
+     * @param {boolean} [supressError=false] - Whether to suppress error alerts on connection failure.
      * @returns {Promise<string | null>} A promise that resolves with the client's own Peer ID upon successful connection,
      * or rejects with an error if the connection fails.
      */
-    async init(hostId = null) {
+    async init(hostId = null, supressError = false) {
         this.setHost(!hostId);
-        let id = await this.initPeer();
+        /**@type {string|null} **/ let id = this.getPeerId();
+        if (!this.peer) { id = await this.initPeer(); }
         if (!id) { return null; }
 
-        if (hostId) { await this.connectPeer(hostId); }
+        if (hostId) { await this.connectPeer(hostId, supressError); }
         if (hostId && !this.connection) { return null; }
         this.heartbeat(NetworkManager.HEARTBEAT_INTERVAL);
         return (this.peerId = id);
+    }
+
+    /** Disconnects from the current peer and clears all connections. */
+    disconnectPeer() {
+        if (this.connection) { this.connection.close(); }
+        this.connections = {};
+        this.connection = null;
     }
 
     /**
      * Initializes the PeerJS connection to the host.
      *
      * @param {string} peerId - The ID to connect to. If null, a new Peer will be created as a host.
+     * @param {boolean} [supressError=false] - Whether to suppress error alerts on connection failure.
      * @returns {Promise<boolean>} A promise that resolves with the client's own Peer ID upon successful connection,
      * or rejects with an error if the connection fails.
      */
-    async connectPeer(peerId) {
+    async connectPeer(peerId, supressError = false) {
+        if (this.connection) { this.connection.close(); } // Close connection with old host
+
         return new Promise(async (resolve, reject) => {
             if (!this.peer) { return false; }
             this.connection = this.peer.connect(peerId);
@@ -57,7 +69,7 @@ export class NetworkManager extends EventTarget {
 
             this.connection.on('error', (/** @type {Error} */ err) => {
                 this.connection = null;
-                alert("Network Error: " + err);
+                if (!supressError) { alert("Network Error: " + err); }
                 reject(false);
             });
 
@@ -68,6 +80,7 @@ export class NetworkManager extends EventTarget {
             });
 
             this.connection.on('close', () => {
+                this.connection = null;
                 delete this.connections[peerId];
                 this.handlePacket(peerId, new HostDisconnectPayload(peerId, 'Connection closed'));
             });
@@ -102,6 +115,7 @@ export class NetworkManager extends EventTarget {
             });
 
             this.peer.once('error', (/** @type {Error} */ err) => {
+                this.peer = null;
                 alert("Network Error: " + err);
                 reject(null);
             });

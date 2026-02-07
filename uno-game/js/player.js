@@ -18,6 +18,12 @@ export class UnoPlayer {
     privateId = null;
 
     /**
+     * The secret ID of the player, used for host migration and reconnections.
+     * @type {string | null}
+     */
+    secretId = null;
+
+    /**
      * The unique ID of the player.
      * @type {string}
      */
@@ -182,6 +188,22 @@ export class UnoPlayer {
      */
     setPrivateId(privateId) {
         this.privateId = privateId;
+    }
+
+    /**
+     * Sets the player's secret ID for host migration and reconnections.
+     * @param {string|null} secretId - The new secret ID for the player.
+     */
+    setSecretId(secretId) {
+        this.secretId = secretId;
+    }
+
+    /**
+     * Gets the player's secret ID for host migration and reconnections.
+     * @returns {string | null} The player's secret ID.
+     */
+    getSecretId() {
+        return this.secretId;
     }
 
     /**
