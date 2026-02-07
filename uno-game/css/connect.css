@@ -161,6 +161,12 @@
 #setting-close, #setting-leave {
     color: var(--white) !important;
     border: 3.5px solid var(--white) !important;
+    box-shadow: 0 0 0 2px #000, inset 0 0 0 2px #000 !important;
+    -webkit-text-stroke: 1px #000;
+}
+
+#setting-close:hover, #setting-leave:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
 
 /* [Settings part end] */
