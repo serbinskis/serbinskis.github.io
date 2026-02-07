@@ -101,6 +101,12 @@ export class GameManager extends EventManager {
             await UnoUtils.wait(UnoConfig.MIGRATION_TIME); // Wait a bit to let players connect before we start continue game
             this.setMigrating(false);
 
+            // Before removing diconnected players, we have to check who is current player, if they are disconnected, we have to skip their turn
+            let currentlyDisconnected = this.getPlayer(this.getCurrentPlayerId())?.isDisconnected()
+            if (currentlyDisconnected) { this.setCurrentPlayerId(this.getNextPlayerId(this.getCurrentPlayerId(), 1, true)); }
+            if (currentlyDisconnected && this.getChoosingCardId()) { this.setChoosingCardId(null); }
+            if (currentlyDisconnected && this.isChoosingColor()) { this.changeColor(this.getRanomColor()); }
+
             // We as a new host cannot continue game with disconnected players, because if they did not recconect in this small period of time
             // We have no clue what is their privtate ID, so we cannot nor get their cards, nor add them, so only option is to remove these players
             let disconnectedPlayers = this.getPlayers().filter(p => p.isDisconnected());
@@ -355,6 +361,7 @@ export class GameManager extends EventManager {
 
         // In case if game not yet started or player didn't rejoin in time, remove him fully
         if (!this.isStarted() || player.isDisconnected()) { delete this.players[playerId]; }
+        if (!this.isStarted() || player.isDisconnected()) { delete this.cards[playerId]; }
         if (!this.isStarted() || player.isDisconnected()) { return this.broadcastGameState(); }
 
         // If player is not disconnected we set him as disconnected and start the timer
@@ -831,6 +838,13 @@ export class GameManager extends EventManager {
         return true;
     }
 
+    /** Gets a random color from the available Uno colors.
+     * @returns {string} A random color from the Uno colors.
+     */
+    getRanomColor() {
+        return UnoConfig.COLORS[UnoUtils.randomRange(0, UnoConfig.COLORS.length-1)];
+    }
+
     /** Gets the turn delay timer.
      * @returns {number|null} The turn delay timer.
      */
@@ -876,8 +890,9 @@ export class GameManager extends EventManager {
 
     /** Starts the player timer for the current player's turn.
      * If the timer expires, the player is skipped and a card is drawn automatically.
+     * @param {boolean} broadcast - Whether to broadcast the game state after starting the timer.
      */
-    startPlayerTimer() {
+    startPlayerTimer(broadcast = true) {
         //+ If game finishes, like there is a winner, crash happends
         //game.js:324 -> var socket = this.getPlayer(this.current_move).getSocket();
         //Cannot read properties of null (reading 'getSocket')
@@ -904,7 +919,7 @@ export class GameManager extends EventManager {
             let isChoosingColor = this.isChoosingColor();
             let choosingCardId = this.getChoosingCardId();
 
-            if (isChoosingColor) { this.handlePacket(this.getCurrentPlayer()?.getPeerId() || '', new ChangeColorPayload(UnoConfig.COLORS[UnoUtils.randomRange(0, UnoConfig.COLORS.length-1)])); }
+            if (isChoosingColor) { this.handlePacket(this.getCurrentPlayer()?.getPeerId() || '', new ChangeColorPayload(this.getRanomColor())); }
             if (choosingCardId) { this.handlePacket(this.getPeerId(), new SaveCardPayload(choosingCardId)); }
             if (!isChoosingColor && !choosingCardId) { this.handlePacket(this.getCurrentPlayer()?.getPeerId() || '', new DrawCardPayload()); }
             this.setRunOutOfTime(false);
@@ -922,7 +937,7 @@ export class GameManager extends EventManager {
         if ((this.getPlayerTime() <= 0) && !player?.isDisconnected()) { this.removePlayerTimer(); } // If player time is 0 or less, they have infinite time
 
         // Update game state for all players, so they can see the timer
-        this.broadcastGameState();
+        if (broadcast) { this.broadcastGameState(); }
     }
 
     /** Gets the player timer for the current player's turn.
@@ -937,7 +952,7 @@ export class GameManager extends EventManager {
      * @param {number} by - The number of players to skip.
      * @returns {string} The next player ID or null if not found.
      */
-    getNextPlayerId(playerId, by) {
+    getNextPlayerId(playerId, by, onlyOnline = false) {
         let playerIds = this.getPlayers().map((p) => p.getPlayerId());
         if (playerIds.length == 0) { throw new Error("[GameManager] getNextPlayerId -> No players in game"); }
         let index = playerIds.indexOf(playerId);
@@ -953,7 +968,9 @@ export class GameManager extends EventManager {
         // Return only if last by and player has not left
         // This check is NOW obsolete since fully left players are removed from game
         // But I will leave it here just in case
-        return ((by <= 1) && player?.isOnline(false)) ? playerId : this.getNextPlayerId(playerId, (!player?.isOnline(false) ? by : by-1));
+        let nextPlayerId = ((by <= 1) && player?.isOnline(false)) ? playerId : this.getNextPlayerId(playerId, (!player?.isOnline(false) ? by : by-1));
+        if (this.getPlayer(nextPlayerId)?.isDisconnected()) { return this.getNextPlayerId(nextPlayerId, by); } // Skip disconnected players
+        return nextPlayerId;
     }
 
     /** Gets a list of active players who are online.
