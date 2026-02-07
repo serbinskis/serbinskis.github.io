@@ -106,6 +106,14 @@ $("#login-container #setting-close").click(() => {
 	localStorage["can_rejoin"] = $("#can-rejoin").children(".setting-state")[0].innerHTML;
 });
 
+// Close settings when press escape
+$(document).on("keydown", (/** @type {any} */ e) => {
+	if (e.key !== "Escape") { return; }
+	e.preventDefault();
+	e.stopPropagation();
+	$("#login-container #setting-close").click();
+});
+
 
 //Switch setting to left
 $(".arrow-left").mousedown((/** @type any */ e) => {

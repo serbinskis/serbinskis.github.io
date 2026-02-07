@@ -2,7 +2,6 @@
 
 import { UnoConfig } from '../config.js';
 import { GameManager } from '../game.js';
-import { PlaceCardPayload } from '../packets.js';
 import { UnoPlayer } from '../player.js';
 import { Timer } from '../utils/timers.js';
 import { UnoUtils } from '../utils/utils.js';
@@ -17,10 +16,11 @@ export class GameUI {
 
     /**
      * Plays a sound effect
-     * @param {string} name - Filename in resources/sounds/
+     * @param {string|null} name - Filename in resources/sounds/
      */
     static playSound(name) {
-        console.log('Playing sound:', name);
+        if (!name) { return; }
+        console.warn('Playing sound:', name);
         const audio = new Audio(`${window.location.href}resources/sounds/${name}`);
         audio.volume = 1;
         audio.play().catch(e => console.warn("Audio blocked:", e));
@@ -94,8 +94,8 @@ export class GameUI {
      */
     static removePlayer(playerId) {
         if (!$(`#${playerId}`)[0] || $(`#${playerId}`)[0].classList.contains("remove")) { return; }
-        $(`#${playerId}`).find(`[id*="${playerId}"]`).attr('id', () => crypto.randomUUID());
-        const placeholder = ($(`#${playerId}`)[0].id = crypto.randomUUID()); // Fix renderPlayers()
+        $(`#${playerId}`).find(`[id*="${playerId}"]`).attr('id', () => UnoUtils.randomUUID());
+        const placeholder = ($(`#${playerId}`)[0].id = UnoUtils.randomUUID()); // Fix renderPlayers()
         setTimeout(() => $(`#${placeholder}`).addClass("remove"), 300);
         $(`#${placeholder}`)[0].addEventListener('animationend', () => $(`#${placeholder}`)[0]?.remove(), { once: true });
     }
@@ -135,9 +135,16 @@ export class GameUI {
 
     static renderDeck() {
         let game = GameManager.getInstance();
+        let justStarted = !$("#UNO_CARD").hasClass("hidden"); // The game just started or we just rejoined
         $("#UNO_CARD").toggleClass("hidden", game.isStarted());
         let currentCard = game.getCurrentCard();
         if (!currentCard) { return; }
+
+        // Winner animation removes last card, to prevent any other game state packets putting the removed card back
+        // we just have to check if there currently is a winner and if the card exists, currentUiCard will also be null
+        // when we start the game, and will become null shortly after starting to show the winner animation.
+        let currentUiCard = $("#cards-desk img").not("#UNO_CARD").last();
+        if (!currentUiCard[0] && game.isWinner()) { return; }
 
         // If player is choosing color, show color chooser
         GameUI.showColorChoose(game.isChoosingColor() && (game.getCurrentPlayerId() == game.getMyPlayer()?.getPlayerId()));
@@ -151,7 +158,6 @@ export class GameUI {
         if (game.getCurrentPlayerId() == game.getMyPlayer()?.getPlayerId()) { GameUI.showChooseCard(choosableCardId, choosingCard); }
 
         // If the current card is already shown, do not add another one
-        let currentUiCard = $("#cards-desk img").not("#UNO_CARD").last();
         if (currentUiCard?.attr("cardId")?.includes(String(currentCard?.id))) { return; }
 
         // If current card is wild and color changed, update the card color with animation and sound
@@ -180,10 +186,10 @@ export class GameUI {
 
         // Play sound based on card type
         switch(currentCard.type) {
-            case "REVERSE": GameUI.playSound("reverse.mp3"); break;
-            case "BLOCK": GameUI.playSound("block.mp3"); break;
-            case "PLUS_TWO": GameUI.playSound("plus_two.mp3"); break;
-            case "PLUS_FOUR": GameUI.playSound("plus_four.mp3"); break;
+            case "REVERSE": GameUI.playSound(justStarted ? "card_place.mp3" : "reverse.mp3"); break;
+            case "BLOCK": GameUI.playSound(justStarted ? "card_place.mp3" : "block.mp3"); break;
+            case "PLUS_TWO": GameUI.playSound(justStarted ? "card_place.mp3" : "plus_two.mp3"); break;
+            case "PLUS_FOUR": GameUI.playSound(justStarted ? "card_place.mp3" : "plus_four.mp3"); break;
             default: GameUI.playSound("card_place.mp3");
         }
     }
@@ -232,6 +238,10 @@ export class GameUI {
         const game = GameManager.getInstance();
         if (!game.isStarted()) { return; }
 
+        // If we rejoin, we use current timer count for visual purpose, to sync with host
+        let justStarted = !$("#UNO_CARD").hasClass("hidden"); // The game just started or we just rejoined
+        let amount = justStarted ? game.getPlayerTimerCount() : game.getPlayerTime();
+
         // We flip this because timers are shared on host and client, so host timer ID would conflict with client timer ID
         const playerTimerId = UnoUtils.reverse(game.getPlayerTimer());
         if (playerTimerId && !Timer.exists(playerTimerId)) {
@@ -239,21 +249,21 @@ export class GameUI {
                 if (playerTimerId !== UnoUtils.reverse(game.getPlayerTimer())) { return Timer.stop(playerTimerId); }
                 if ((timer?.amount || 0) <= 1) { Timer.change(playerTimerId, 1000, { amount: undefined }); } // If time runs out, continue the timer until the player timer id changes, but don't render number anymore
                 if ((timer?.amount || 0 >= 1)) { GameUI.setOverlayText(game.getCurrentPlayerId(), String(timer?.amount || 0)) }; // This is done so that in timer cannot retsart when turn delay send game state update, because we need Timer.exists(playerTimerId) -> true, until next player's turn starts
-            }, 1000, { immediate: true, id: playerTimerId, interval: true, amount: game.getPlayerTime() });
+            }, 1000, { immediate: true, id: playerTimerId, interval: true, amount: amount });
         }
 
         // This must be after timer, otherwise immediate timer will just replace the current overlay
-        GameUI.showBlocked(game.getBlockedId());
-        GameUI.showJumped(game.getWhoJumpedId(), game.getWhoGotJumpedId());
-        GameUI.showDrawCower();
+        if (!justStarted) { GameUI.showBlocked(game.getBlockedId()); }
+        if (!justStarted) { GameUI.showJumped(game.getWhoJumpedId(), game.getWhoGotJumpedId()); }
+        if (!justStarted) { GameUI.showDrawCower(); }
     }
 
     /** Renders the game UI, updating player list and room ID display. */
     static render() {
         GameUI.renderPlayers();
-        GameUI.renderCards();
-        GameUI.renderDeck();
         GameUI.renderPlayerCover();
+        GameUI.renderDeck();
+        GameUI.renderCards();
         GameUI.setStack(GameManager.getInstance().getStack());
         GameUI.showWinner(GameManager.getInstance().getWinnerId());
 
@@ -406,6 +416,9 @@ export class GameUI {
             if (Number($(`#overlay_${player.getPlayerId()}`)[0].cardCount) >= player.getCardCount()) { return; }
             $(`#overlay_${player.getPlayerId()}`)[0].cardCount = player.getCardCount();
             GameUI.setOverlay(player.getPlayerId(), 'DRAW.png');
+
+            if (player.getPlayerId() == GameManager.getInstance().getMyPlayerId()) { return; }
+            GameUI.playSound("card_pickup.mp3"); // Yeah we also play this when other player pick up cards
         });
     }
 

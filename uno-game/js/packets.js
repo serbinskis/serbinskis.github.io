@@ -139,7 +139,8 @@ export class JoinRequestPayload extends Packet {
         this.startCards = parseInt(this.getSettingValue('#start-cards'), 10) || UnoConfig.START_CARDS.default;
         this.maxPlayers = parseInt(this.getSettingValue('#max-players'), 10) || UnoConfig.MAX_PLAYERS.default;
         this.maxCards = parseInt(this.getSettingValue('#max-cards'), 10) || UnoConfig.MAX_CARDS.default;
-        this.playerTime = parseInt(this.getSettingValue('#player-time'), 10) || UnoConfig.PLAYER_TIME.default;
+        this.playerTime = parseInt(this.getSettingValue('#player-time'), 10); // This can be 0, means no player time
+        this.playerTime = Number.isInteger(this.playerTime) ? this.playerTime : UnoConfig.PLAYER_TIME.default;
 
         // Boolean game rules from the DOM
         const isEnabled = (/** @type {string} */ value) => value.toLowerCase() === 'on' || value.toLowerCase() === 'yes';

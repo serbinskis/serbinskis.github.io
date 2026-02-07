@@ -114,12 +114,12 @@ export class EventManager extends NetworkManager {
             game.setWhoJumpedId(isJumpIn ? player.getPlayerId() : null); // Set who jumped for logic purposes in case of color change
 
             if (player.getCardCount() == 0) {
-                game.setWinnerId(player.getPlayerId());
+                game.setWinnerId(player.getPlayerId()); // This also stops all game logic timers
                 return game.broadcastGameState();
             }
 
             if ((canPlayInfo.nextBy || 0) >= 2) { game.setBlockedId(game.getNextPlayerId(player.getPlayerId(), 1)); } // STUPID VS CODE, IF canPlayInfo IS NOT DEFINED IT WILL NEVER EVEN GET TO THIS PLACE.
-            if (player.getCardCount() == 1) { game.setUnoId(player.getPlayerId()); } // Set UNO state if player has 1 card left
+            if ((player.getCardCount() == 1) && game.canUno()) { game.setUnoId(player.getPlayerId()); } // Set UNO state if player has 1 card left
             if (!game.isChoosingColor() && !isJumpIn) { game.startTurnDelay(game.getCurrentPlayerId(), Number((canPlayInfo.nextBy || 1))); } // Start turn delay if card does not require color change, otherwise wait for color change before starting turn delay
             if (game.isChoosingColor() || isJumpIn) { game.removeTurnDelay(); } // If it's a jump-in, we just remove turn delay, because jump-in is basically just playing out of turn, so we don't want to start turn delay for them, but we also want to remove turn delay for current player, because they got interrupted (WTF IS THIS COPILOT)
             if (isJumpIn) { game.startPlayerTimer(); } // After jump-in, we start player timer for the player who jumped in, because they are now the current player, and they should have full time to play their turn, even if they interrupted someone else's turn (WTF ARE THESE LONG ASS COMMENTS)

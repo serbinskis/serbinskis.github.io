@@ -32,6 +32,7 @@ export class GameManager extends EventManager {
     /** @protected @type {string|null} */ choosingCardId = null;
     /** @protected @type {string | null} */ playerTimer = null;
     /** @protected @type {number | null} */ turnTimer = null;
+    /** @protected @type {string | null} */ playerTimerCounter = null;
     /** @protected @type {number | null} */ playerTimerCount = null;
 
     /** @protected */ constructor() {
@@ -303,14 +304,21 @@ export class GameManager extends EventManager {
         let player = this.getPlayer(playerId);
         if (!player) { return console.warn(`[GameManager] Tried to remove non-existing player[playerId=${playerId}]`); }
 
-        if (player.isDisconnected()) { player.setLeft(true); } // If player is disconnected and removePlayer is called, mark as left
-        if (!this.isStarted() || !this.canRejoin()) { player.setLeft(true); }
-        if (player.isLeft()) { delete this.players[playerId]; }
+        // In case if game not yet started or player didn't rejoin in time, remove him fully
+        if (!this.isStarted() || player.isDisconnected()) { delete this.players[playerId]; }
+        if (!this.isStarted() || player.isDisconnected()) { return this.broadcastGameState(); }
 
-        // If player is disconnected but not left, just mark as disconnected
-        // After n amount of time remove him from game
-        if (!player.isLeft()) { player.disconnectPlayer(() => this.removePlayer(playerId)); }
-        this.broadcastGameState(); // Broadcast updated game state and trigger on(GameStatePayload)
+        // If player is not disconnected we set him as disconnected and start the timer
+        // If player cannot rejoin timer will not be started and player will be immediately delete later after some game logic
+        // If timer runs out, the player will also just be removed immediately
+        player.disconnectPlayer(this.canRejoin() ? () => this.removePlayer(playerId) : () => {});
+
+        // This is in case if player left while it was his turn
+        if (this.getCurrentPlayerId() != playerId) { this.broadcastGameState(); } // Remember: startPlayerTimer() -> broadcastGameState()
+        if (this.getCurrentPlayerId() == playerId) { this.startPlayerTimer(); } // In case if player is disconnected, this will fire timer inmediately
+
+        if (!this.canRejoin()) { delete this.players[playerId]; } // Have to remove player after startPlayerTimer()
+        if (!this.canRejoin()) { this.broadcastGameState(); } // Yeah double sending message, not good, but who cares
     }
 
     /** Kicks a player from the game
@@ -482,7 +490,7 @@ export class GameManager extends EventManager {
      * @returns {number} The player timer count.
      */
     getPlayerTimerCount() {
-        return this.playerTimerCount || 0;
+        return Math.max((this.playerTimerCount || 0), 0);
     }
 
     /**
@@ -783,8 +791,10 @@ export class GameManager extends EventManager {
     /** Removes the player timer for the current player's turn if it exists. */
     removePlayerTimer() {
         if (this.playerTimer) { Timer.stop(this.playerTimer); }
+        if (this.playerTimerCounter) { Timer.stop(this.playerTimerCounter); }
         this.playerTimerCount = 0;
         this.playerTimer = null;
+        this.playerTimerCounter = null;
     }
 
     /** Starts the player timer for the current player's turn.
@@ -810,8 +820,9 @@ export class GameManager extends EventManager {
 
         this.setBlockedId(null); // Clear blocked ID on new turn
         if (this.playerTimer) { Timer.stop(this.playerTimer); }
+        if (this.playerTimerCounter) { Timer.stop(this.playerTimerCounter); }
 
-        this.playerTimer = String(Timer.start((timer) => {            
+        this.playerTimer = String(Timer.start(() => {            
             this.setRunOutOfTime(true);
             let isChoosingColor = this.isChoosingColor();
             let choosingCardId = this.getChoosingCardId();
@@ -822,9 +833,16 @@ export class GameManager extends EventManager {
             this.setRunOutOfTime(false);
         }, this.getPlayerTime() * 1000 + 500, { id: UnoUtils.randomUUID() })); // Extra 500ms to prevent instant skip due to timer reaching 0
 
+        // Just current second counter for visual purposes, when player rejoins
+        this.playerTimerCount = this.getPlayerTime(); // Goes from playerTime to 0
+        this.playerTimerCounter = String(Timer.start((timer) => {
+            this.playerTimerCount = this.getPlayerTimerCount() - 1;
+        }, 1000, { interval: true }));
+
         let player = this.getCurrentPlayer();
+        if (this.isWinner()) { this.removePlayerTimer(); } // In case if game has a winner, we just don't allow timers, but we do allow broadcast
         if (player?.isDisconnected()) { Timer.finish(this.playerTimer); } // If disconnected players turn arives then finish timer instantly
-        if ((this.getPlayerTime() <= 0) && !player?.isDisconnected()) { Timer.stop(this.playerTimer); }
+        if ((this.getPlayerTime() <= 0) && !player?.isDisconnected()) { this.removePlayerTimer(); } // If player time is 0 or less, they have infinite time
 
         // Update game state for all players, so they can see the timer
         this.broadcastGameState();
