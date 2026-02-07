@@ -15,7 +15,7 @@ export const UnoConfig = {
     UNO_CARD_AMOUNT: 2, // Amount of cards to take when someone presses uno
     REJOIN_TIME: 1000 * 60 * 2, // Time that player has to rejoin
     USERNAME_REGEX: /^.{2,24}$/, // Username regex rules
-    INVITE_REGEX: /^$|^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, //Invite code rules, using UUID v4 format, also allows empty string
+    INVITE_REGEX: /^$|^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, // Invite code rules, using UUID v4 format, also allows empty string
     FRAME_LOCATION: 'resources/frame.png',
 
     AVATAR_REGEX: /^data:image\/(png|jpeg|jpg|gif);base64,[A-Za-z0-9+/=]+$/,
