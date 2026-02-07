@@ -78,9 +78,13 @@ export class GameManager extends EventManager {
     }
 
     async migrateHost() {
-        while (this.isMigrating()) { await UnoUtils.wait(1); } // Wait if another migration is in progress, to prevent multiple migrations at the same time
         this.setMigrating(true);
         this.broadcastGameStateSelf(false); // This will only notify us about the change, to show migrating screen
+
+        // NOTE: If 2 players (HOST and NEXT OWNER) are disconnected one after another in very short time
+        // We will not know it since if HOST is disconnected, we cannot know when other players diconnect
+        // And then we won't be able to connect to NEXT OWNER, and there is honestly not really much we can do about it
+        // Since trying to fix this will bring a lot of other issues
 
         // Now get next player from current owner, and set them as new owner, we also have the check if next player is not disconnected
         // This will either find someone else who is not disconnected or just stop on us, and then we become a host
@@ -130,7 +134,7 @@ export class GameManager extends EventManager {
             if (!id && (i == UnoConfig.MIGRATION_ATTEMPTS)) { alert("Failed to migrate host after " + UnoConfig.MIGRATION_ATTEMPTS + " attempts, returning to main menu."); location.reload(); }
             if (id) { break; } else if (i == UnoConfig.MIGRATION_ATTEMPTS) { return; } // If failed to connect to new host after max attempts, just return
         }
-    
+
         // Now we are connected to new host, we just need to send them join request again
         let myPlayer = this.getMyPlayer();
         if (!myPlayer) { throw new Error("My player is null, cannot send join request after host migration."); }
