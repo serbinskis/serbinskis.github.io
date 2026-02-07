@@ -116,7 +116,7 @@ export class GameManager extends EventManager {
 
             let temp = UnoConfig.NEXT_GAME_TIMEOUT;
             UnoConfig.NEXT_GAME_TIMEOUT = 0; // Shorten time for next game start, since we want to start it as sooner after host migration (BEAUSE WE DON'T KNOW ACTUAL GAME TIME)
-            if (this.isWinner()) { this.setWinnerId(this.getCurrentPlayerId()); } // This will also trigger restart game after timeout
+            if (this.isWinner()) { this.setWinnerId(this.getCurrentPlayerId()); } // This will also trigger restart game after timeout, REMEMBER setWinnerId() adds 500ms
             UnoConfig.NEXT_GAME_TIMEOUT = temp; // Reset next game timeout to default value
 
             // We as a new host cannot continue game with disconnected players, because if they did not recconect in this small period of time
