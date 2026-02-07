@@ -73,9 +73,7 @@ $("#avatar").click(() => {
 $('#connect').click(async () => {
     let username = $('#username')[0].value;
     let invite = $('#invite')[0].value;
-
 	localStorage["username"] = username;
-	localStorage["invite"] = $('#invite')[0].value;
 
 	let data = new JoinRequestPayload(invite, username);
 	let valid = await UnoUtils.isJoinDataValid(data);
