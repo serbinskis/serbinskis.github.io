@@ -115,7 +115,7 @@ export class GameManager extends EventManager {
             if (!this.isWinner() && currentlyDisconnected && this.isChoosingColor()) { this.changeColor(this.getRanomColor()); }
 
             let temp = UnoConfig.NEXT_GAME_TIMEOUT;
-            UnoConfig.NEXT_GAME_TIMEOUT = 0.2; // Shorten time for next game start, since we want to start it as sooner after host migration (BEAUSE WE DON'T KNOW ACTUAL GAME TIME)
+            UnoConfig.NEXT_GAME_TIMEOUT = 0; // Shorten time for next game start, since we want to start it as sooner after host migration (BEAUSE WE DON'T KNOW ACTUAL GAME TIME)
             if (this.isWinner()) { this.setWinnerId(this.getCurrentPlayerId()); } // This will also trigger restart game after timeout
             UnoConfig.NEXT_GAME_TIMEOUT = temp; // Reset next game timeout to default value
 
