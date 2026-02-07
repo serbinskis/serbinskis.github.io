@@ -13,7 +13,6 @@ export const UnoConfig = {
     NEXT_GAME_TIMEOUT: 10, // Time before next game starts (seconds)
     TURN_DELAY: Math.round(2.0 * 1000), // Delay between turns (ms)
     UNO_CARD_AMOUNT: 2, // Amount of cards to take when someone presses uno
-    IMAGE_SAVE_TIME: 1000 * 60 * 60 * 24 * 30, // Maximum time for image saving, default 30 days
     REJOIN_TIME: 1000 * 60 * 2, // Time that player has to rejoin
     USERNAME_REGEX: /^.{2,24}$/, // Username regex rules
     INVITE_REGEX: /^$|^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, //Invite code rules, using UUID v4 format, also allows empty string
