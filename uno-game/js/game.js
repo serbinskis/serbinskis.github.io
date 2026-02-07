@@ -78,6 +78,7 @@ export class GameManager extends EventManager {
     }
 
     async migrateHost() {
+        while (this.isMigrating()) { await UnoUtils.wait(1); } // Wait if another migration is in progress, to prevent multiple migrations at the same time
         this.setMigrating(true);
         this.broadcastGameStateSelf(false); // This will only notify us about the change, to show migrating screen
 
@@ -96,22 +97,28 @@ export class GameManager extends EventManager {
             this.setHost(true); // This will allow us to accept connections and packets
             this.stopGame(); // This only stops timers, only resets variables, since clients do not really have any of these timers running
             this.getPlayers().forEach((player) => player.disconnectPlayer()); // Render all players as disconnected
-            this.getMyPlayer()?.setReconnected(); // Set myself as reconnected
-            this.broadcastGameStateSelf(false); // Render players as discoonected for ourself
-            await UnoUtils.wait(UnoConfig.MIGRATION_TIME); // Wait a bit to let players connect before we start continue game
-            this.setMigrating(false);
+            this.getMyPlayer()?.setReconnected(); // Set ourself as reconnected
+            this.broadcastGameStateSelf(false); // Render players as disconnected for ourself
+            await UnoUtils.wait(UnoConfig.MIGRATION_TIME); // Wait a bit to let players connect before we continue game
 
             // Before removing diconnected players, we have to check who is current player, if they are disconnected, we have to skip their turn
             let currentlyDisconnected = this.getPlayer(this.getCurrentPlayerId())?.isDisconnected()
-            if (currentlyDisconnected) { this.setCurrentPlayerId(this.getNextPlayerId(this.getCurrentPlayerId(), 1, true)); }
-            if (currentlyDisconnected && this.getChoosingCardId()) { this.setChoosingCardId(null); }
-            if (currentlyDisconnected && this.isChoosingColor()) { this.changeColor(this.getRanomColor()); }
+            if (!this.isWinner() && currentlyDisconnected) { this.setCurrentPlayerId(this.getNextPlayerId(this.getCurrentPlayerId(), 1, true)); }
+            if (!this.isWinner() && currentlyDisconnected && this.getChoosingCardId()) { this.setChoosingCardId(null); }
+            if (!this.isWinner() && currentlyDisconnected && this.isChoosingColor()) { this.changeColor(this.getRanomColor()); }
+
+            let temp = UnoConfig.NEXT_GAME_TIMEOUT;
+            UnoConfig.NEXT_GAME_TIMEOUT = 1; // Shorten time for next game start, since we want to start it as sooner after host migration (BEAUSE WE DON'T KNOW ACTUAL GAME TIME)
+            if (this.isWinner()) { this.setWinnerId(this.getCurrentPlayerId()); } // This will also trigger restart game after timeout
+            UnoConfig.NEXT_GAME_TIMEOUT = temp; // Reset next game timeout to default value
 
             // We as a new host cannot continue game with disconnected players, because if they did not recconect in this small period of time
             // We have no clue what is their privtate ID, so we cannot nor get their cards, nor add them, so only option is to remove these players
             let disconnectedPlayers = this.getPlayers().filter(p => p.isDisconnected());
             disconnectedPlayers.forEach(p => this.removePlayer(p.getPlayerId())); // Now fully remove players who are still disconnected after timeout
-            return this.startPlayerTimer(); // removePlayer() also skips turns if current player is disconnected
+            if (!this.isWinner()) { this.startPlayerTimer(false); } // removePlayer() also skips turns if current player is disconnected
+            this.setMigrating(false);
+            return this.broadcastGameState();
         }
 
         await UnoUtils.wait(500); // Wait a bit to let new host set up before we start sending packets to them
