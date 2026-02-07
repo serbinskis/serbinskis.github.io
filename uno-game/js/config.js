@@ -9,7 +9,7 @@ export const UnoConfig = {
     DIRECTION_REVERSE: -1, // Reverse direction, dont change this
     CAN_MIGRATE: true, // If host migration is allowed
     MIGRATION_ATTEMPTS: 3, // Amount of attempts to migrate host before giving up
-    MIGRATION_TIME: 3 * 1000, // Time for host migration in ms, default 5 seconds (NO WAY SOMEONE CANNOT SEND PACKET IN THIS TIME)
+    MIGRATION_TIME: 3 * 1000, // Time for host migration in ms (NO WAY SOMEONE CANNOT SEND PACKET IN THIS TIME)
     NEXT_GAME_TIMEOUT: 10, // Time before next game starts (seconds)
     TURN_DELAY: Math.round(2.0 * 1000), // Delay between turns (ms)
     UNO_CARD_AMOUNT: 2, // Amount of cards to take when someone presses uno
