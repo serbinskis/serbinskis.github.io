@@ -112,6 +112,7 @@ export class GameManager extends EventManager {
             let currentlyDisconnected = this.getPlayer(this.getCurrentPlayerId())?.isDisconnected()
             if (!this.isWinner() && currentlyDisconnected) { this.setCurrentPlayerId(this.getNextPlayerId(this.getCurrentPlayerId(), 1, true)); }
             if (!this.isWinner() && currentlyDisconnected && this.getChoosingCardId()) { this.setChoosingCardId(null); }
+             if (!this.isWinner() && currentlyDisconnected && this.getUnoId()) { this.setUnoId(null); }
             if (!this.isWinner() && currentlyDisconnected && this.isChoosingColor()) { this.changeColor(this.getRanomColor()); }
 
             let temp = UnoConfig.NEXT_GAME_TIMEOUT;
