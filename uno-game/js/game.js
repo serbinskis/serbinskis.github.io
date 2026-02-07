@@ -86,6 +86,9 @@ export class GameManager extends EventManager {
         // And then we won't be able to connect to NEXT OWNER, and there is honestly not really much we can do about it
         // Since trying to fix this will bring a lot of other issues
 
+        //NOTE: If NEW HOST leaves before continuing the game, this really should not matter, since at that point we already should know
+        // Who else in the list can be canditate for being NEXT HOST, and just try to connect to him or become HOST
+
         // Now get next player from current owner, and set them as new owner, we also have the check if next player is not disconnected
         // This will either find someone else who is not disconnected or just stop on us, and then we become a host
         do {
