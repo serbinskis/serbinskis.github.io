@@ -136,7 +136,7 @@ export class GameUI {
     static renderDeck() {
         let game = GameManager.getInstance();
         let justStarted = !$("#UNO_CARD").hasClass("hidden"); // The game just started or we just rejoined
-        $("#UNO_CARD").toggleClass("hidden", game.isStarted());
+        $("#UNO_CARD").toggleClass("hidden", game.isStarted() && !game.isWinner());
         let currentCard = game.getCurrentCard();
         if (!currentCard) { return; }
 
