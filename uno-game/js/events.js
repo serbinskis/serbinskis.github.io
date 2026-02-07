@@ -97,7 +97,7 @@ export class EventManager extends NetworkManager {
 
             // Jump-in is only possible if turn delay is active, and not current player's turn, and also enabled in settings
             let isJumpIn = Boolean(game.canJumpIn() && game.getTurnDelay() && (game.getCurrentPlayerId() != player.getPlayerId()));
-            let isStacking = Boolean(game.canStackCards() && game.getTurnDelay() && (game.getCurrentPlayerId() == player.getPlayerId()));
+            let isStacking = Boolean(game.canStackCards() && game.getTurnDelay() && (game.getCurrentPlayerId() == player.getPlayerId())); // YES, THIS IS NOT USED, BUT I WILL KEEP IT HERE
             let isPlayable = game.isPlayableCard(payload.getCardId()); // This also check for stackable and jump-in cards
             if (!isPlayable) { return; } // Check if card is playable in current state, this also checks for jump-in and stacking rules, so we don't need to check them separately, but we still need to know if it's jump-in or stacking for later logic
 
