@@ -47,11 +47,11 @@ export const UnoConfig = {
         '1002.0': { code: 1002, message: 'Game already started!' },
         '1003.0': { code: 1003, message: 'Max players!' },
         '1004.0': { code: 1004, message: 'Invalid username! Username is too short or too long!' },
-        '1005.0': { code: 1005, message: 'Invalid invite! Keep empty to create room!' },
+        '1005.0': { code: 1005, message: 'Invalid invite! Keep empty to create game!' },
         '1006.0': { code: 1006, message: 'Invalid avatar!' },
         '1007.0': { code: 1007, message: 'File is too big!' },
 
-        '2001.0': { code: 2001, message: 'You have been kicked from this room!' },
+        '2001.0': { code: 2001, message: 'You have been kicked from this game!' },
     },
 
     COLORS: ['BLUE', 'GREEN', 'RED', 'YELLOW'],
