@@ -144,11 +144,11 @@ export class JoinRequestPayload extends Packet {
 
         // Boolean game rules from the DOM
         const isEnabled = (/** @type {string} */ value) => value.toLowerCase() === 'on' || value.toLowerCase() === 'yes';
-        this.drawToMatch = isEnabled(this.getSettingValue('#draw-to-match'));
-        this.canStackCards = isEnabled(this.getSettingValue('#stack-cards'));
-        this.canJumpIn = isEnabled(this.getSettingValue('#jump-in'));
-        this.canUno = isEnabled(this.getSettingValue('#can-uno'));
-        this.canRejoin = isEnabled(this.getSettingValue('#can-rejoin'));
+        this.drawToMatch = isEnabled(this.getSettingValue('#draw-to-match')) || UnoConfig.DRAW_TO_MATCH;
+        this.canStackCards = isEnabled(this.getSettingValue('#stack-cards')) || UnoConfig.CAN_STACK_CARDS;
+        this.canJumpIn = isEnabled(this.getSettingValue('#jump-in')) || UnoConfig.CAN_JUMP_IN;
+        this.canUno = isEnabled(this.getSettingValue('#can-uno')) || UnoConfig.CAN_UNO;
+        this.canRejoin = isEnabled(this.getSettingValue('#can-rejoin')) || UnoConfig.CAN_REJOIN;
     }
 
     /**
