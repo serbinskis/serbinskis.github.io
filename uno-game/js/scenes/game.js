@@ -360,6 +360,16 @@ export class GameUI {
     }
 
     /**
+     * Shows or hides the "migrating host" overlay.
+     * When shown, the screen is darkened and gameplay interaction is visually blocked.
+     *
+     * @param {boolean} show - Whether to display the migrating host overlay.
+     */
+    static showMigratingHost(show) {
+        $("#migrating-host").toggleClass("active", show);
+    }
+
+    /**
      * @param {boolean} enabled - Show or hide settings window
      */
     static showSettings(enabled) {
