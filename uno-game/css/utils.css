@@ -33,6 +33,10 @@ body {
     src: url(../resources/fonts/Uni_Sans_Heavy.otf);
 }
 
+.clickable {
+    cursor: url(../resources/arrow_press.png), auto !important;
+}
+
 .hidden {
     display: none !important;
 }

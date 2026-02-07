@@ -158,4 +158,9 @@
     margin: 0 auto 0 auto;
 }
 
+#setting-close, #setting-leave {
+    color: var(--white) !important;
+    border: 3.5px solid var(--white) !important;
+}
+
 /* [Settings part end] */

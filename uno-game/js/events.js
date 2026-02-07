@@ -66,7 +66,7 @@ export class EventManager extends NetworkManager {
                 if (game.getMyPlayer()?.getPlayerId() === payload.getPlayerId()) { return; } // Host cannot kick self
                 let player = game.getPlayer(payload.getPlayerId()); // Get player to be kicked
                 if (!player) { return console.warn(`[EventManager] Host received KickPlayerPayload for non-existing player ID ${payload.getPlayerId()}`); }
-                game.removePlayer(player.getPlayerId());
+                game.removePlayer(player.getPlayerId(), true);
             } else {
                 if ((peerId != game.getOwnerPeerId()) && (peerId != this.getPeerId())) { return } // Only accept kick from owner and self
                 if (payload.getPlayerId() !== game.getPeerPlayer(game.getPeerId())?.getPlayerId()) { return; } // Check if this kick is for us

@@ -211,7 +211,7 @@ export class GameUI {
         // Add missing cards to UI
         addCards.forEach(cardId => {
             var img = document.createElement("img");
-            img.className = "card";
+            img.className = "card clickable";
             img.id = cardId;
             img.src = `resources/cards/${cards[cardId].color}_${cards[cardId].type}.png`;
             img.draggable = false;
@@ -338,7 +338,7 @@ export class GameUI {
         if (player.isDisconnected()) { usernameElement.className += " disconnected"; }
 
         let kickElement = document.createElement("span");
-        kickElement.className = "button kick";
+        kickElement.className = "button kick clickable";
         kickElement.innerHTML = "Kick";
 
         kickElement.addEventListener("click", () => {

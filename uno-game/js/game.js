@@ -370,9 +370,10 @@ export class GameManager extends EventManager {
      * @param {string} playerId - The ID of the player to remove.
      * @returns {string | void} The new owner ID if the owner left, otherwise the current owner ID.
      */
-    removePlayer(playerId) {
+    removePlayer(playerId, kick = false) {
         let player = this.getPlayer(playerId);
         if (!player) { return console.warn(`[GameManager] Tried to remove non-existing player[playerId=${playerId}]`); }
+        let canRejoin = this.canRejoin() && !kick; // Player can rejoin only if rejoining is allowed and they are not kicked
 
         // In case if game not yet started or player didn't rejoin in time, remove him fully
         if (!this.isStarted() || player.isDisconnected()) { delete this.players[playerId]; }
@@ -382,14 +383,14 @@ export class GameManager extends EventManager {
         // If player is not disconnected we set him as disconnected and start the timer
         // If player cannot rejoin timer will not be started and player will be immediately delete later after some game logic
         // If timer runs out, the player will also just be removed immediately
-        player.disconnectPlayer(this.canRejoin() ? () => this.removePlayer(playerId) : () => {});
+        player.disconnectPlayer(canRejoin ? () => this.removePlayer(playerId) : () => {});
 
         // This is in case if player left while it was his turn
         if (this.getCurrentPlayerId() != playerId) { this.broadcastGameState(); } // Remember: startPlayerTimer() -> broadcastGameState()
         if (this.getCurrentPlayerId() == playerId) { this.startPlayerTimer(); } // In case if player is disconnected, this will fire timer inmediately
 
-        if (!this.canRejoin()) { delete this.players[playerId]; } // Have to remove player after startPlayerTimer()
-        if (!this.canRejoin()) { this.broadcastGameState(); } // Yeah double sending message, not good, but who cares
+        if (!canRejoin) { delete this.players[playerId]; } // Have to remove player after startPlayerTimer()
+        if (!canRejoin) { this.broadcastGameState(); } // Yeah double sending message, not good, but who cares
     }
 
     /** Kicks a player from the game
