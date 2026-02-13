@@ -268,9 +268,11 @@ export class GameUI {
         GameUI.showWinner(GameManager.getInstance().getWinnerId());
         GameUI.showMigratingHost(GameManager.getInstance().isMigrating());
 
-        // This is easier for host migration
+        // This is easier for host migration (Remember: roomId is same as host peerId)
         let roomId = GameManager.getInstance().getRoomId();
-        if (roomId) { localStorage.setItem("invite", roomId); }
+        let myPeerId = GameManager.getInstance().getPeerId();
+        if (roomId == myPeerId) { localStorage.removeItem("invite"); }
+        if (roomId != myPeerId) { localStorage.setItem("invite", roomId); }
 
         $("#room-id")[0].innerText = '*'.repeat(GameManager.getInstance().getRoomId().length);
         $("#arrow").toggleClass("hidden", !GameManager.getInstance().isStarted());
