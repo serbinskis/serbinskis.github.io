@@ -23,7 +23,7 @@ export class UnoUtils {
      * Compares two UNO cards according to standard UNO sorting order.
      *
      * Order rules:
-     *   1. Cards are grouped by color in GameConfig.COLORS order.
+     *   1. Cards are grouped by color in UnoConfig.COLORS order.
      *   2. Within each color:
      *      - Number cards 0–9 come first
      *      - Special cards (REVERSE, BLOCK, PLUS_TWO) come next
