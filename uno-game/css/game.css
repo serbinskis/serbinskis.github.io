@@ -272,8 +272,12 @@
     transform: scale(1, 1);
 }
 
+/* Update #cards to act as the controller */
 #cards {
-    /* border: 2px solid orange; */
+    /* DEFAULT CONFIGURATION */
+    --overlap-amount: -5rem;  /* Starting value */
+    --hover-push: 3rem;       /* How much to push neighbors on hover */
+
     position: absolute;
     width: 50%;
     bottom: 15px;
@@ -285,19 +289,57 @@
     justify-content: center;
 }
 
+/* --- QUANTITY QUERIES (The Logic) --- */
+
+/* If there are n or more cards, tighten overlap slightly */
+#cards:has(.card:nth-child(20)) {
+    --overlap-amount: -6rem;
+    --hover-push: 4.5rem; /* Push harder on hover so we can see the card */
+}
+
+/* If there are n or more cards, tighten overlap slightly */
+#cards:has(.card:nth-child(30)) {
+    --overlap-amount: -7rem;
+    --hover-push: 4.5rem; /* Push harder on hover so we can see the card */
+}
+
+/* If there are n or more cards, tighten overlap slightly */
+#cards:has(.card:nth-child(40)) {
+    --overlap-amount: -8rem;
+    --hover-push: 4.5rem; /* Push harder on hover so we can see the card */
+}
+
+/* If there are n or more cards, tighten overlap slightly */
+#cards:has(.card:nth-child(80)) {
+    --overlap-amount: -8.5rem;
+    --hover-push: 4.5rem; /* Push harder on hover so we can see the card */
+}
+
+/* Update .card to use the variable */
 .card {
-    /* border: 2px solid aqua; */
     width: 90px;
     height: 140px;
     box-shadow: -5px 0px 5px 1px #222;
     border-radius: 9px;
-    margin-left: -5rem;
+    
+    /* USE THE VARIABLE HERE */
+    margin-left: var(--overlap-amount);
+    
     animation: SlideUp 0.1s linear;
+    transition: margin-left 0.3s ease; /* Smooth transition when adding cards */
 }
+
+/* ... keep .card:hover ... */
 
 .card:hover {
     transition: 0.2s;
-    transform: translateY(-1rem);
+    transform: translateY(-1rem); 
+}
+
+/* Update the neighbor push to use the variable */
+.card:hover ~ .card {
+    transition: 0.2s;
+    transform: translateX(var(--hover-push));
 }
 
 .card.disabled {
