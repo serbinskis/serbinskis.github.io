@@ -117,6 +117,9 @@ export class Timer {
     static change(id, gap, opts) {
         if (!this.timers[id]) { return; }
 
+        // Prevent infintie call stack in case of changing the timer while it's executing its callback.
+        delete this.timers[id].options.immediate;
+
         // Combine the old and new options, with the new ones taking precedence.
         const newOptions = { ...this.timers[id].options, ...opts };
 

@@ -210,13 +210,20 @@ export class GameUI {
 
         // Add missing cards to UI
         addCards.forEach(cardId => {
-            var img = document.createElement("img");
+            let img = document.createElement("img");
             img.className = "card clickable";
             img.id = cardId;
             img.src = `resources/cards/${cards[cardId].color}_${cards[cardId].type}.png`;
             img.draggable = false;
             img.addEventListener("click", () => GameManager.getInstance().clientPlaceCard(cardId), false);
-            $('#cards')[0].appendChild(img);
+
+            // Find proper insertion index in UI
+            let uiCardIndex = uiCards.findIndex(c => UnoUtils.compareCards(cards[cardId], cards[c.id]) < 0);
+            if (uiCardIndex >= 0) { uiCards[uiCardIndex].before(img); }
+            if (uiCardIndex >= 0) { return uiCards.splice(uiCardIndex, 0, img); } // update local uiCards array
+
+            $("#cards")[0].appendChild(img);
+            uiCards.push(img);
         });
 
         if (addCards.length > 0) { GameUI.playSound("card_pickup.mp3"); }

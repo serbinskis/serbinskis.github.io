@@ -19,6 +19,29 @@ export class UnoUtils {
         });
     }
 
+    /**
+     * Compares two UNO cards according to standard UNO sorting order.
+     *
+     * Order rules:
+     *   1. Cards are grouped by color in GameConfig.COLORS order.
+     *   2. Within each color:
+     *      - Number cards 0–9 come first
+     *      - Special cards (REVERSE, BLOCK, PLUS_TWO) come next
+     *   3. Wild cards (COLOR_CHANGE, PLUS_FOUR) come last
+     *
+     * @param {{color: string, type: string}} cardA - First card to compare
+     * @param {{color: string, type: string}} cardB - Second card to compare
+     * @returns {number} Negative if cardA comes before cardB, positive if after, 0 if equal
+     */
+    static compareCards(cardA, cardB) {
+        const CARD_ORDERED = UnoConfig.CARD_ORDER();
+        const CARD_INDEX_MAP = new Map(); // Build a lookup map for faster comparison
+        CARD_ORDERED.forEach((card, idx) => CARD_INDEX_MAP.set(`${card.color}-${card.type}`, idx));
+        const indexA = CARD_INDEX_MAP.get(`${cardA.color}-${cardA.type}`) ?? Infinity;
+        const indexB = CARD_INDEX_MAP.get(`${cardB.color}-${cardB.type}`) ?? Infinity;
+        return indexA - indexB;
+    }
+
     /** Waits for a specified number of milliseconds.
      * @param {number} ms - The number of milliseconds to wait.
      * @returns {Promise<void>} A promise that resolves after the specified time has elapsed.

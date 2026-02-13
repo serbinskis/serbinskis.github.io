@@ -3,7 +3,7 @@
 /**
  * Game Configuration and Constants
  */
-export const UnoConfig = {
+const GameConfig = {
     PEER_OPTS: { debug: 1 }, // PeerJS Server Configuration (Free Cloud)
     DIRECTION_FORWARD: 1, // Normal direction, dont change this
     DIRECTION_REVERSE: -1, // Reverse direction, dont change this
@@ -123,6 +123,39 @@ export const UnoConfig = {
         ],
         cover: { color: 'ANY', type: 'UNO_CARD' }
     }
+}
+
+export const UnoConfig = {
+    ...GameConfig,
+
+    /**
+     * Generates the full UNO card order array.
+     *
+     * The order follows standard UNO deck rules:
+     *   1. For each color in UnoConfig.COLORS:
+     *      - All standard number cards (0–9) of that color
+     *      - All special action cards (REVERSE, BLOCK, PLUS_TWO) of that color
+     *   2. All wild cards (COLOR_CHANGE, PLUS_FOUR) last
+     *
+     * @returns {Array<{color: string, type: string}>} An array of card objects ordered for sorting.
+     * Each card object has:
+     *   - color: The card color, one of UnoConfig.COLORS or 'ANY' for wild cards
+     *   - type: The card type, e.g., 'ZERO', 'ONE', 'REVERSE', 'PLUS_FOUR', etc.
+     */
+
+    CARD_ORDER: () => {
+        const CARD_ORDERED = /** @type {Array<{color: string, type: string}>} */([]);
+        GameConfig.COLORS.forEach(color => {
+            // Standard number cards
+            GameConfig.CARDS.standart.filter(c => c.color === color).forEach(c => CARD_ORDERED.push(c));
+
+            // Special action cards for that color
+            GameConfig.CARDS.special.filter(c => c.color === color).forEach(c => CARD_ORDERED.push(c));
+        });
+        // Add wild cards at the end
+        GameConfig.CARDS.special.filter(c => c.color === 'ANY').forEach(c => CARD_ORDERED.push(c));
+        return CARD_ORDERED;
+    },
 }
 
 // @ts-ignore
