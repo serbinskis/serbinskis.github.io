@@ -10,6 +10,11 @@ var navigationItems = [
         icon: "fa-solid fa-dice-six",
     },
     {
+        name: "Audio/Video Transcriber",
+        href: "/transcriber",
+        icon: "fa-solid fa-microphone-alt",
+    },
+    {
         name: "File Hosting",
         href: "/file-hosting",
         icon: "fa-solid fa-cloud",

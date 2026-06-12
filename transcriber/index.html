@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Transcriber (UNDER CONSTRUCTION)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+        let isDarkMode = localStorage.theme === 'light' ? false : true;
+        localStorage.theme = isDarkMode ? 'dark' : 'light';
+        document.documentElement.classList.toggle('dark', isDarkMode);
+    </script>
+
+    <style>
+        .dark ::-webkit-scrollbar { width: 10px; }
+        .dark ::-webkit-scrollbar-track { background: #1f2937; border-radius: 5px;}
+        .dark ::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+            border-radius: 5px;
+            border: 2px solid #1f2937;
+        }
+
+        .dark ::-webkit-scrollbar-thumb:hover { background-color: #6b7280; }
+        .hide-timestamps .timestamp-block { display: none !important; }
+
+        .transcript-line { transition: background-color 0.2s; }
+        .transcript-line:hover { background-color: rgba(59, 130, 246, 0.05); }
+        .dark .transcript-line:hover { background-color: rgba(59, 130, 246, 0.15); }
+
+        .timestamp-btn { cursor: pointer; transition: color 0.2s; }
+        .timestamp-btn:hover { color: #3b82f6; text-decoration: underline; }
+
+        /* Custom Audio Slider styling */
+        input[type=range].audio-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range].audio-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -4px;
+        }
+
+        input[type=range].audio-slider::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #d1d5db;
+            border-radius: 2px;
+        }
+
+        .dark input[type=range].audio-slider::-webkit-slider-runnable-track {
+            background: #4b5563;
+        }
+
+        /* Word Animation Keyframes */
+        @keyframes fadeInWord {
+            0% { opacity: 0; transform: translateY(2px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .word-anim {
+            display: inline-block;
+            opacity: 0;
+            animation: fadeInWord 0.2s forwards;
+            white-space: pre-wrap;
+        }
+
+        /* Toast Animation */
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .toast { animation: slideDown 0.3s ease-out forwards; pointer-events: auto; }
+    </style>
+</head>
+<!-- Changed min-h-screen to h-[100dvh] to lock the app size to the exact viewport window -->
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300 font-sans flex flex-col h-[100dvh] text-gray-800 dark:text-gray-200">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-full max-w-md px-4 pointer-events-none"></div>
+
+    <header class="flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm transition-colors duration-300">
+        <div class="container mx-auto max-w-3xl px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+                Transcriber AI
+            </h1>
+            <div class="flex items-center gap-2">
+                <button id="theme-toggle" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <svg id="theme-icon-light" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                    <svg id="theme-icon-dark" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main acts as the dynamic middle container filling the space -->
+    <main class="container mx-auto max-w-3xl p-4 flex-grow flex flex-col gap-4 min-h-0">
+
+        <!-- Controls Card is set to flex-shrink-0 so it never squishes -->
+        <div id="controls-card" class="flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-all duration-300 flex flex-col gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Model Selection (ONNX)</label>
+                    <select id="model-select" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                        <option value="whisper-tiny">Whisper Tiny</option>
+                        <option value="whisper-base">Whisper Base</option>
+                        <option value="whisper-small">Whisper Small</option>
+                        <option value="whisper-medium">Whisper Medium</option>
+                        <option value="whisper-large">Whisper Large</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Language</label>
+                    <select id="language-select" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"></select>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button id="btn-link" class="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">🔗 Link</button>
+                <button id="btn-file" class="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">📁 File</button>
+                <input type="file" id="file-input" accept="audio/*,video/*" class="hidden">
+                <button id="btn-record" class="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">🎙️ Record</button>
+            </div>
+
+            <div id="progress-container" class="hidden flex flex-col gap-1">
+                <div class="flex justify-between text-sm items-end">
+                    <span id="progress-text" class="text-blue-600 dark:text-blue-400 font-medium">Ready</span>
+                    <div class="flex items-center gap-3">
+                        <span id="progress-percent" class="text-gray-500 font-mono text-xs">0%</span>
+                        <button id="btn-cancel-progress" class="hidden text-xs text-red-500 hover:text-red-600 font-bold underline transition-colors">Cancel</button>
+                    </div>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div id="custom-audio-container" class="hidden w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg py-2 px-4 flex items-center gap-3 shadow-inner">
+                <button id="btn-play-pause" class="w-5 h-5 flex-shrink-0 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg id="icon-play" class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    <svg id="icon-pause" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+                <span id="audio-time-current" class="text-xs font-mono text-blue-600 dark:text-blue-400 w-11 text-right">00:00</span>
+                <input type="range" id="audio-seek" value="0" min="0" max="100" class="audio-slider flex-grow disabled:opacity-50 disabled:cursor-not-allowed">
+                <span id="audio-time-total" class="text-xs font-mono text-gray-500 dark:text-gray-400 w-11 text-left">00:00</span>
+                <audio id="hidden-audio-player" class="hidden"></audio>
+            </div>
+
+            <button id="btn-transcribe" disabled class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors text-base shadow-sm">
+                Transcribe Audio
+            </button>
+        </div>
+
+        <!-- Transcription Card uses flex-grow and min-h-0 to perfectly fill remaining space -->
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-300 flex flex-col flex-grow min-h-0">
+            <!-- Header section inside the card is flex-shrink-0 so it doesn't squash -->
+            <div class="flex-shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-3">
+                <h2 class="text-lg font-bold flex-shrink-0 w-full sm:w-auto text-left">Transcription</h2>
+
+                <div class="flex-1 flex justify-start sm:justify-center w-full sm:w-auto">
+                    <div class="flex gap-2">
+                        <button id="btn-export-json" class="px-3 py-1.5 text-xs font-bold tracking-wider text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">JSON</button>
+                        <button id="btn-export-txt" class="px-3 py-1.5 text-xs font-bold tracking-wider text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">TXT</button>
+                        <button id="btn-export-srt" class="px-3 py-1.5 text-xs font-bold tracking-wider text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">SRT</button>
+                    </div>
+                </div>
+
+                <label class="inline-flex items-center cursor-pointer flex-shrink-0 w-full sm:w-auto sm:justify-end">
+                    <span class="mr-3 text-sm text-gray-600 dark:text-gray-400">Hide Timestamps</span>
+                    <span class="relative">
+                        <input type="checkbox" id="toggle-timestamps" class="sr-only peer disabled:opacity-50 disabled:cursor-not-allowed">
+                        <div class="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    </span>
+                </label>
+            </div>
+
+            <!-- Removed fixed/max heights. Uses flex-grow, min-h-0, and overflow-y-auto to scroll internally -->
+            <div id="transcript-box" class="flex-grow min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 font-mono text-sm break-words flex flex-col gap-1"></div>
+        </div>
+    </main>
+
+    <!-- Smooth Modal -->
+    <div id="link-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 opacity-0 pointer-events-none transition-opacity duration-300 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl transform scale-95 transition-transform duration-300" id="link-modal-content">
+            <h3 class="text-lg font-bold mb-4">Input Audio/Video URL</h3>
+            <input type="url" id="link-input" placeholder="https://example.com/audio.mp3" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg p-2 mb-4 focus:ring-2 focus:ring-blue-500 outline-none">
+            <div class="flex justify-end gap-2">
+                <button id="btn-cancel-link" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors">Cancel</button>
+                <button id="btn-submit-link" class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors">Load URL</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* --- EXPOSE ALL ELEMENTS TO WINDOW --- */
+        window.els = {
+            themeToggle: document.getElementById('theme-toggle'),
+            lightIcon: document.getElementById('theme-icon-light'),
+            darkIcon: document.getElementById('theme-icon-dark'),
+
+            controlsCard: document.getElementById('controls-card'),
+            modelSelect: document.getElementById('model-select'),
+            languageSelect: document.getElementById('language-select'),
+
+            btnLink: document.getElementById('btn-link'),
+            btnFile: document.getElementById('btn-file'),
+            fileInput: document.getElementById('file-input'),
+            btnRecord: document.getElementById('btn-record'),
+
+            progressContainer: document.getElementById('progress-container'),
+            progressBar: document.getElementById('progress-bar'),
+            progressText: document.getElementById('progress-text'),
+            progressPercent: document.getElementById('progress-percent'),
+            btnCancelProgress: document.getElementById('btn-cancel-progress'),
+
+            customAudioContainer: document.getElementById('custom-audio-container'),
+            hiddenAudioPlayer: document.getElementById('hidden-audio-player'),
+            btnPlayPause: document.getElementById('btn-play-pause'),
+            iconPlay: document.getElementById('icon-play'),
+            iconPause: document.getElementById('icon-pause'),
+            audioTimeCurrent: document.getElementById('audio-time-current'),
+            audioTimeTotal: document.getElementById('audio-time-total'),
+            audioSeek: document.getElementById('audio-seek'),
+
+            btnTranscribe: document.getElementById('btn-transcribe'),
+            toggleTimestamps: document.getElementById('toggle-timestamps'),
+            transcriptBox: document.getElementById('transcript-box'),
+
+            linkModal: document.getElementById('link-modal'),
+            linkModalContent: document.getElementById('link-modal-content'),
+            linkInput: document.getElementById('link-input'),
+            btnCancelLink: document.getElementById('btn-cancel-link'),
+            btnSubmitLink: document.getElementById('btn-submit-link'),
+
+            btnExportJson: document.getElementById('btn-export-json'),
+            btnExportTxt: document.getElementById('btn-export-txt'),
+            btnExportSrt: document.getElementById('btn-export-srt')
+        };
+
+        /* --- GLOBAL EXPOSED VARIABLES --- */
+        window.currentAudioFile = null; 
+        window.transcriptData = [];     
+        window.mediaRecorder = null;
+        window.audioChunks = [];
+        window.activeDownload = false;
+        window.downloadAbortController = null;
+
+        window.supportedLanguages = [
+            { code: 'auto', name: 'Auto-detect' },
+            { code: 'en', name: 'English' },
+            { code: 'lv', name: 'Latvian' },
+            { code: 'es', name: 'Spanish' },
+            { code: 'fr', name: 'French' },
+            { code: 'de', name: 'German' }
+        ];
+
+        /* --- NOTIFICATION SYSTEM --- */
+        window.showNotification = function(msg, type = 'error') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const isError = type === 'error';
+            toast.className = `toast px-4 py-3 rounded-lg shadow-lg text-sm font-medium flex justify-between items-center ${isError ? 'bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/50 dark:text-red-200 dark:border-red-800' : 'bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/50 dark:text-green-200 dark:border-green-800'}`;
+            toast.innerHTML = `<span>${msg}</span><button class="ml-4 opacity-70 hover:opacity-100 text-lg leading-none">&times;</button>`;
+            toast.querySelector('button').onclick = () => toast.remove();
+            container.appendChild(toast);
+            setTimeout(() => { if(toast.parentElement) { toast.remove(); } }, 4000);
+        };
+
+        /* --- UI LOCK STATE --- */
+        window.setUILocked = function(locked) {
+            window.els.modelSelect.disabled = locked;
+            window.els.languageSelect.disabled = locked;
+            window.els.btnLink.disabled = locked;
+            window.els.btnFile.disabled = locked;
+            window.els.btnRecord.disabled = locked;
+            window.els.btnTranscribe.disabled = locked ? true : !window.currentAudioFile; 
+            window.els.btnExportJson.disabled = locked;
+            window.els.btnExportTxt.disabled = locked;
+            window.els.btnExportSrt.disabled = locked;
+            window.els.toggleTimestamps.disabled = locked;
+            if (locked) { window.els.controlsCard.classList.add('opacity-80'); }
+            else { window.els.controlsCard.classList.remove('opacity-80'); }    
+        };
+
+        /* --- AUDIO URL DOWNLOAD LOGIC WITH PROGRESS & CANCEL & SIZE CHECK --- */
+        window.downloadAudioFromUrl = async function(url) {
+            if (window.activeDownload) { return; }
+            window.activeDownload = true;
+            window.setUILocked(true);
+            window.els.progressContainer.classList.remove('hidden');
+            window.els.btnCancelProgress.classList.remove('hidden'); // Cancel allowed for audio downloads
+            window.downloadAbortController = new AbortController();
+
+            try {
+                const response = await fetch(url, { signal: window.downloadAbortController.signal });
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                
+                const contentLength = response.headers.get('content-length');
+                const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+                const MAX_BYTES = 200 * 1024 * 1024; // 200 MB limit
+                if (totalBytes > MAX_BYTES) { throw new Error("File exceeds 200MB limit."); }
+
+                let loadedBytes = 0;
+                const reader = response.body.getReader();
+                const chunks = [];
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) { break; }
+
+                    chunks.push(value);
+                    loadedBytes += value.byteLength;
+                    if (loadedBytes > MAX_BYTES) { throw new Error("File exceeds 200MB limit."); }
+                    
+                    const loadedMB = (loadedBytes / (1024 * 1024)).toFixed(1);
+                    if (totalBytes) {
+                        const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+                        const percent = (loadedBytes / totalBytes) * 100;
+                        window.setProgress(percent, `Downloading audio... ${loadedMB} MB / ${totalMB} MB`);
+                    } else {
+                        window.setProgress(100, `Downloading audio... ${loadedMB} MB downloaded`);
+                    }
+                }
+
+                const downloadedBlob = new Blob(chunks);
+                window.currentAudioFile = downloadedBlob;
+                setupAudioPlayer(URL.createObjectURL(downloadedBlob));
+
+                window.setProgress(100, `Download Complete!`);
+                window.showNotification(`Audio downloaded successfully!`, 'success');
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    window.showNotification('Audio download cancelled.', 'error');
+                } else {
+                    window.showNotification(`Failed to download audio: ${error.message}`, 'error');
+                }
+                window.setProgress(0, 'Ready');
+            } finally {
+                window.activeDownload = false;
+                window.downloadAbortController = null;
+                window.els.btnCancelProgress.classList.add('hidden');
+                window.setUILocked(false);
+                setTimeout(() => { if (!window.activeDownload) { window.els.progressContainer.classList.add('hidden'); } }, 2000);
+            }
+        };
+
+        /* --- MODEL DOWNLOAD LOGIC (NO CANCEL ALLOWED) --- */
+        window.downloadModel = async function(url) {
+            if (window.activeDownload) { return; }
+            window.activeDownload = true;
+            window.setUILocked(true);
+            window.els.progressContainer.classList.remove('hidden');
+            window.els.btnCancelProgress.classList.add('hidden'); // Cancel explicitly hidden for models
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) { throw new Error(`HTTP Error: ${response.status}`); }
+
+                const contentLength = response.headers.get('content-length');
+                const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+
+                let loadedBytes = 0;
+                const reader = response.body.getReader();
+                const chunks = [];
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) { break; }
+
+                    chunks.push(value);
+                    loadedBytes += value.byteLength;
+
+                    const loadedMB = (loadedBytes / (1024 * 1024)).toFixed(1);
+                    if (totalBytes) {
+                        const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+                        const percent = (loadedBytes / totalBytes) * 100;
+                        window.setProgress(percent, `Downloading model... ${loadedMB} MB / ${totalMB} MB`);
+                    } else {
+                        window.setProgress(100, `Downloading model... ${loadedMB} MB downloaded`);
+                    }
+                }
+
+                window.downloadedModelFile = new Blob(chunks); 
+                window.setProgress(100, `Model Download Complete!`);
+                window.showNotification(`Model downloaded successfully!`, 'success');
+            } catch (error) {
+                window.showNotification(`Failed to download model: ${error.message}`, 'error');
+                window.setProgress(0, 'Ready');
+            } finally {
+                window.activeDownload = false;
+                window.setUILocked(false);
+                setTimeout(() => { if (!window.activeDownload) { window.els.progressContainer.classList.add('hidden'); } }, 2000);
+            }
+        };
+
+        // Wire up cancel button explicitly for abortable downloads
+        window.els.btnCancelProgress.addEventListener('click', () => {
+            if (window.activeDownload && window.downloadAbortController) {
+                window.downloadAbortController.abort();
+            }
+        });
+
+        /* --- GLOBAL TRANSCRIPT FUNCTIONS --- */
+        window.loadLanguages = function(languagesArray) {
+            window.els.languageSelect.innerHTML = '';
+
+            languagesArray.forEach(lang => {
+                const opt = document.createElement('option');
+                opt.value = lang.code;
+                opt.textContent = lang.name;
+                window.els.languageSelect.appendChild(opt);
+            });
+
+            const savedLang = localStorage.getItem('whisper_lang');
+            if (savedLang && languagesArray.some(l => l.code === savedLang)) {
+                window.els.languageSelect.value = savedLang;
+            } else if (languagesArray.length > 0) {
+                window.els.languageSelect.value = languagesArray[0].code;
+            }
+        };
+
+        window.setTranscribeState = function(isEnabled) {
+            window.els.btnTranscribe.disabled = !isEnabled;
+        };
+
+        window.setProgress = function(percent, text = '') {
+            window.els.progressContainer.classList.remove('hidden');
+            let clamped = Math.max(0, Math.min(100, percent));
+            window.els.progressBar.style.width = clamped + '%';
+            window.els.progressPercent.innerText = Math.round(clamped) + '%';
+            if (text) { window.els.progressText.innerText = text; }
+        };
+
+        window.clearTranscripts = function() {
+            window.els.transcriptBox.innerHTML = '';
+            window.transcriptData = [];
+        };
+
+        window.addTranscript = function(startTime, endTime, text) {
+            const box = window.els.transcriptBox;
+            const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 15;
+
+            window.transcriptData.push({ start: startTime, end: endTime, text: text });
+            const line = document.createElement('div');
+            line.className = 'transcript-line flex gap-2 py-1 px-2 rounded items-start';
+
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'timestamp-block text-blue-500 dark:text-blue-400 flex-shrink-0 select-none mt-0.5';
+            timestampSpan.innerHTML = `[<span class="timestamp-btn" data-time="${startTime}">${formatTime(startTime)}</span> - <span class="timestamp-btn" data-time="${endTime}">${formatTime(endTime)}</span>]`;
+
+            const textContainerSpan = document.createElement('span');
+            textContainerSpan.className = 'text-gray-800 dark:text-gray-200 break-words flex-grow leading-relaxed';
+
+            const words = text.split(' ');
+            words.forEach((word, index) => {
+                const wSpan = document.createElement('span');
+                wSpan.textContent = word + ' ';
+                wSpan.className = 'word-anim';
+                wSpan.style.animationDelay = `${index * 0.04}s`; 
+                textContainerSpan.appendChild(wSpan);
+            });
+
+            line.appendChild(timestampSpan);
+            line.appendChild(textContainerSpan);
+            box.appendChild(line);
+
+            line.querySelectorAll('.timestamp-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const time = parseFloat(e.target.getAttribute('data-time'));
+                    if (isNaN(time)) { return; }
+                    window.els.hiddenAudioPlayer.currentTime = time;
+                    window.els.hiddenAudioPlayer.play().catch(() => {});
+                });
+            });
+
+            if (isScrolledToBottom) {
+                setTimeout(() => box.scrollTop = box.scrollHeight, 10);
+            }
+        };
+
+        window.exportTranscripts = function(format) {
+            if (window.transcriptData.length === 0) { return window.showNotification('No transcription data to export.', 'error'); }
+            let content = '', mimeType = 'text/plain';
+            let filename = `transcript_${Date.now()}.${format}`;
+
+            if (format === 'json') {
+                content = JSON.stringify(window.transcriptData, null, 2);
+                mimeType = 'application/json';
+            } else if (format === 'txt') {
+                content = window.transcriptData.map(item => 
+                    `[${formatTime(item.start)} - ${formatTime(item.end)}] ${item.text}`
+                ).join('\n');
+            } else if (format === 'srt') {
+                content = window.transcriptData.map((item, index) => {
+                    return `${index + 1}\n${formatSrtTime(item.start)} --> ${formatSrtTime(item.end)}\n${item.text}\n`;
+                }).join('\n');
+            }
+
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.showNotification(`Successfully exported as ${format.toUpperCase()}`, 'success');
+        };
+
+        window.els.btnExportJson.addEventListener('click', () => window.exportTranscripts('json'));
+        window.els.btnExportTxt.addEventListener('click', () => window.exportTranscripts('txt'));
+        window.els.btnExportSrt.addEventListener('click', () => window.exportTranscripts('srt'));
+
+        /* --- INITIALIZATION --- */
+        window.loadLanguages(window.supportedLanguages);
+        if (localStorage.getItem('whisper_model')) { window.els.modelSelect.value = localStorage.getItem('whisper_model'); }
+        window.els.modelSelect.addEventListener('change', (e) => localStorage.setItem('whisper_model', e.target.value));
+        window.els.languageSelect.addEventListener('change', (e) => localStorage.setItem('whisper_lang', e.target.value));
+
+        /* --- THEME TOGGLE --- */
+        function applyTheme(isDark) {
+            document.documentElement.classList.toggle('dark', isDark);
+            window.els.lightIcon.classList.toggle('hidden', isDark);
+            window.els.darkIcon.classList.toggle('hidden', !isDark);
+            localStorage.theme = isDark ? 'dark' : 'light';
+        }
+        applyTheme(localStorage.theme === 'dark');
+        window.els.themeToggle.addEventListener('click', () => applyTheme(localStorage.theme !== 'dark'));
+
+        /* --- AUDIO PLAYER LOGIC --- */
+        let isDraggingAudio = false;
+
+        function setupAudioPlayer(src) {
+            if (src) { window.els.hiddenAudioPlayer.src = src; }
+            window.els.customAudioContainer.classList.remove('hidden');
+            window.setTranscribeState(true);
+            window.els.iconPlay.classList.remove('hidden');
+            window.els.iconPause.classList.add('hidden');
+            window.els.audioSeek.value = 0;
+            window.els.audioTimeCurrent.innerText = "00:00";
+        }
+
+        window.els.btnPlayPause.addEventListener('click', () => {
+            if (window.els.hiddenAudioPlayer.paused) {
+                window.els.hiddenAudioPlayer.play();
+            } else {
+                window.els.hiddenAudioPlayer.pause();
+            }
+        });
+
+        window.els.hiddenAudioPlayer.addEventListener('play', () => {
+            window.els.iconPlay.classList.add('hidden');
+            window.els.iconPause.classList.remove('hidden');
+        });
+
+        window.els.hiddenAudioPlayer.addEventListener('pause', () => {
+            window.els.iconPlay.classList.remove('hidden');
+            window.els.iconPause.classList.add('hidden');
+        });
+
+        window.els.hiddenAudioPlayer.addEventListener('loadedmetadata', () => {
+            const duration = window.els.hiddenAudioPlayer.duration;
+            window.els.audioSeek.max = Math.floor(duration);
+            window.els.audioTimeTotal.innerText = isNaN(duration) ? "00:00" : formatTime(duration);
+        });
+
+        window.els.hiddenAudioPlayer.addEventListener('timeupdate', () => {
+            if (isDraggingAudio) { return; }
+            const currentTime = window.els.hiddenAudioPlayer.currentTime;
+            window.els.audioSeek.value = Math.floor(currentTime);
+            window.els.audioTimeCurrent.innerText = formatTime(currentTime);
+        });
+
+        window.els.audioSeek.addEventListener('input', (e) => {
+            isDraggingAudio = true;
+            window.els.audioTimeCurrent.innerText = formatTime(e.target.value);
+        });
+
+        window.els.audioSeek.addEventListener('change', (e) => {
+            window.els.hiddenAudioPlayer.currentTime = e.target.value;
+            isDraggingAudio = false;
+        });
+
+        /* --- INPUT METHODS --- */
+        window.els.btnFile.addEventListener('click', () => window.els.fileInput.click());
+        window.els.fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) { return; }
+            window.currentAudioFile = file;
+            setupAudioPlayer(URL.createObjectURL(file));
+            e.target.value = ''; 
+        });
+
+        window.els.btnLink.addEventListener('click', () => {
+            window.els.linkModal.classList.remove('pointer-events-none', 'opacity-0');
+            window.els.linkModalContent.classList.remove('scale-95');
+            window.els.linkModalContent.classList.add('scale-100');
+        });
+
+        function closeLinkModal() {
+            window.els.linkModal.classList.add('pointer-events-none', 'opacity-0');
+            window.els.linkModalContent.classList.remove('scale-100');
+            window.els.linkModalContent.classList.add('scale-95');
+            window.els.linkInput.value = '';
+        }
+
+        window.els.btnCancelLink.addEventListener('click', closeLinkModal);
+        window.els.btnSubmitLink.addEventListener('click', () => {
+            const url = window.els.linkInput.value.trim();
+            if (!url) { return; }
+            closeLinkModal();
+            window.downloadAudioFromUrl(url); // Trigger the physical download
+        });
+
+        let isRecording = false;
+        window.els.btnRecord.addEventListener('click', async () => {
+            if (isRecording) {
+                window.mediaRecorder.stop();
+                isRecording = false;
+                window.els.btnRecord.classList.remove('bg-red-100', 'text-red-600', 'dark:bg-red-900', 'dark:text-red-400', 'border-red-400', 'animate-pulse');
+                return window.els.btnRecord.innerHTML = '🎙️ Record';
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                window.mediaRecorder = new MediaRecorder(stream);
+                window.audioChunks = [];
+
+                window.mediaRecorder.ondataavailable = (e) => { 
+                    if (e.data.size > 0) { window.audioChunks.push(e.data); }
+                };
+
+                window.mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(window.audioChunks, { type: 'audio/webm' });
+                    window.currentAudioFile = audioBlob;
+                    setupAudioPlayer(URL.createObjectURL(audioBlob));
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                window.mediaRecorder.start();
+                isRecording = true;
+                window.els.btnRecord.classList.add('bg-red-100', 'text-red-600', 'dark:bg-red-900', 'dark:text-red-400', 'border-red-400', 'animate-pulse');
+                window.els.btnRecord.innerHTML = '⏹️ Stop Recording';
+                window.setTranscribeState(false);
+            } catch (err) {
+                window.showNotification("Microphone access denied or not supported.", "error");
+            }
+        });
+
+        /* --- MOCK DATA FOR TESTING TRANSCRIBE BUTTON --- */
+        window.els.btnTranscribe.addEventListener('click', () => {
+            window.setTranscribeState(false);
+            window.clearTranscripts();
+            window.els.btnCancelProgress.classList.add('hidden');
+            window.setProgress(10, 'Initializing model...');
+
+            setTimeout(() => {
+                window.setProgress(40, 'Transcribing (chunk 1)...');
+                window.addTranscript(0.0, 3.0, "Hello and welcome to the audio transcription interface.");
+            }, 1000);
+
+            setTimeout(() => {
+                window.setProgress(80, 'Transcribing (chunk 2)...');
+                window.addTranscript(3.0, 7.0, "This system supports custom audio players and dark mode. Watch this text animate word by word!");
+            }, 2500);
+
+            setTimeout(() => {
+                window.setProgress(100, 'Complete');
+                window.addTranscript(7.0, 10.0, "You can export this data anytime you like using the buttons above.");
+                window.setTranscribeState(true);
+                setTimeout(() => window.els.progressContainer.classList.add('hidden'), 1500);
+            }, 4500);
+        });
+
+        window.els.toggleTimestamps.addEventListener('change', (e) => {
+            window.els.transcriptBox.classList.toggle('hide-timestamps', e.target.checked);
+        });
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) { return "00:00"; }
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            if (h > 0) { return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; }
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function formatSrtTime(seconds) {
+            const date = new Date((seconds || 0) * 1000);
+            const h = date.getUTCHours().toString().padStart(2, '0');
+            const m = date.getUTCMinutes().toString().padStart(2, '0');
+            const s = date.getUTCSeconds().toString().padStart(2, '0');
+            const ms = date.getUTCMilliseconds().toString().padStart(3, '0');
+            return `${h}:${m}:${s},${ms}`;
+        }
+    </script>
+</body>
+</html>
