@@ -21,14 +21,6 @@ async function decodeAudio(blob) {
         }
     });
 
-    // In a real production app, you'd use a library like 'wavefile' or 'ffmpeg.wasm'
-    // but for Transformers.js, we can leverage the built-in processor helpers 
-    // or simply use the AudioContext-free WebCodecs if the browser supports it.
-    // However, the simplest worker-compatible way for Transformers.js is using 
-    // their internal 'read_audio' utility or passing the buffer directly.
-    
-    // We'll use the buffer directly as Transformers.js v3+ handles 
-    // various inputs if provided with the right options.
     return new Float32Array(arrayBuffer); 
 }
 
