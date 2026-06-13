@@ -10,16 +10,17 @@ self.onmessage = async (e) => {
 
     try {
         if (!workerInstance) { workerInstance = await Tesseract.createWorker(); }
-
+``
         if (currentLangStr !== langStr) {
             await workerInstance.loadLanguage(langStr);
             await workerInstance.initialize(langStr);
+            console.log(`Tesseract worker initialized with language: ${langStr}`);
             currentLangStr = langStr;
         }
 
         if (init) { return self.postMessage({ msgId, result: { status: 'ready' } }); }
         const ret = await workerInstance.recognize(image);
-        
+
         // Instead of returning ret.data.words (which contains massive recursive objects), 
         // we strip it down to raw primitives and filter out bad confidence matches.
         const strippedFragments = [];

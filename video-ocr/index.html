@@ -226,7 +226,7 @@
 
             customExtractsContainer: document.getElementById('custom-extracts-container'),
             timelineExtractsContainer: document.getElementById('timeline-extracts-container'),
-            
+
             linkModal: document.getElementById('link-modal'),
             linkModalContent: document.getElementById('link-modal-content'),
             linkInput: document.getElementById('link-input'),
@@ -245,13 +245,11 @@
         window.defaultInterval = 1.0;
         window.defaultConfidence = 30;
         window.minDrawOverlayInterval = 1; // seconds, only show bounding boxes from OCR data that is within this interval of the current video time to avoid showing irrelevant boxes when seeking
-        window.ocrFormat = { image: 'png', quality: 0.8 }; // image format and quality for frame extraction, quality is only used for jpeg
+        window.ocrFormat = { image: 'jpg', quality: 0.8 }; // image format and quality for frame extraction, quality is only used for jpeg
         window.frameOcrData = {}; // Stores OCR results for each frame, keyed by timestamp
 
         // Latvian set as first item to act as fallback default if no match
         window.supportedLanguages = [
-            { code: ['lav'], name: 'Latvian' },
-            { code: ['lav', 'eng'], name: 'Latvian + English' },
             { code: ['afr'], name: 'Afrikaans' },
             { code: ['amh'], name: 'Amharic' },
             { code: ['ara'], name: 'Arabic' },
@@ -301,6 +299,7 @@
             { code: ['kur'], name: 'Kurdish' },
             { code: ['lao'], name: 'Lao' },
             { code: ['lat'], name: 'Latin' },
+            { code: ['lav'], name: 'Latvian' },
             { code: ['lit'], name: 'Lithuanian' },
             { code: ['mal'], name: 'Malayalam' },
             { code: ['mar'], name: 'Marathi' },
@@ -362,8 +361,8 @@
             //window.els.confidenceInput.disabled = locked;
             window.els.btnLink.disabled = locked && !window.activeDownload;
             window.els.btnFile.disabled = locked;
-            window.els.btnExportJson.disabled = locked;
-            window.els.btnExportTxt.disabled = locked;
+            //window.els.btnExportJson.disabled = locked;
+            //window.els.btnExportTxt.disabled = locked;
             
             const hasVideo = !!window.currentVideoFile;
             window.els.btnExtractFrame.disabled = locked ? true : !hasVideo;
@@ -438,7 +437,7 @@
                 window.els.languageSelect.appendChild(opt);
             });
             // Try to load saved language or default to Latvian (which is index 0)
-            const savedLang = localStorage.getItem('ocr_lang') || JSON.stringify(['lav']);
+            const savedLang = localStorage.getItem('ocr_lang') || JSON.stringify(['eng']); // Default to English if no saved language
             if (languagesArray.some(l => JSON.stringify(l.code) === savedLang)) {
                 window.els.languageSelect.value = savedLang;
             } else {
@@ -801,23 +800,20 @@
             window.els.btnProcess.innerText = "Stop / Cancel";
             window.els.btnProcess.classList.replace('bg-blue-600', 'bg-red-600');
             window.els.btnProcess.classList.replace('hover:bg-blue-700', 'hover:bg-red-700');
-            
             const langArr = JSON.parse(window.els.languageSelect.value);
-            const confThresh = parseFloat(window.els.confidenceInput.value);
+            let confThresh = parseFloat(window.els.confidenceInput.value);
 
             try {
                 window.setProgress(0, "Loading Tesseract OCR Model...");
                 await window.processFrameWorker(null, langArr, confThresh, true);
-
-                if (window.els.videoPlayer.paused) {
-                    window.els.videoPlayer.play().catch(()=>{});
-                }
+                if (window.els.videoPlayer.paused) { window.els.videoPlayer.play().catch(()=>{}); }
 
                 while (window.isProcessing && !window.els.videoPlayer.ended) {
                     const loopStart = performance.now();
                     const currentTime = window.els.videoPlayer.currentTime;
                     const duration = window.els.videoPlayer.duration || 1;
 
+                    confThresh = parseFloat(window.els.confidenceInput.value);
                     window.setProgress((currentTime / duration) * 100, `Processing: ${currentTime.toFixed(1)}s / ${duration.toFixed(1)}s`);
                     const dataUrl = window.getFrameDataUrl();
                     const result = await window.processFrameWorker(dataUrl, langArr, confThresh);
