@@ -200,7 +200,7 @@
             themeToggle: document.getElementById('theme-toggle'),
             lightIcon: document.getElementById('theme-icon-light'),
             darkIcon: document.getElementById('theme-icon-dark'),
-            
+
             videoContainer: document.getElementById('video-container'),
             videoPlayer: document.getElementById('video-player'),
             canvasOverlayContainer: document.getElementById('canvas-overlay-container'),
@@ -371,7 +371,7 @@
             window.els.btnFile.disabled = locked;
             //window.els.btnExportJson.disabled = locked;
             //window.els.btnExportTxt.disabled = locked;
-            
+
             const hasVideo = !!window.currentVideoFile;
             window.els.btnExtractFrame.disabled = locked ? true : !hasVideo;
             window.els.btnProcess.disabled = locked ? true : !hasVideo;
@@ -478,6 +478,7 @@
             window.els.darkIcon.classList.toggle('hidden', !isDark);
             localStorage.theme = isDark ? 'dark' : 'light';
         }
+
         window.applyTheme(localStorage.theme === 'dark');
         window.els.themeToggle.addEventListener('click', () => window.applyTheme(localStorage.theme !== 'dark'));
 
@@ -502,7 +503,7 @@
         });
 
         window.els.btnLink.addEventListener('click', () => {
-            if (window.activeDownload && window.downloadAbortController) return window.downloadAbortController.abort();
+            if (window.activeDownload && window.downloadAbortController) { return window.downloadAbortController.abort(); }
             window.els.linkModal.classList.remove('pointer-events-none', 'opacity-0');
             window.els.linkModalContent.classList.remove('scale-95');
             window.els.linkModalContent.classList.add('scale-100');
@@ -521,9 +522,12 @@
             window.downloadVideoFromUrl(url); 
         });
 
-        /** Function to download video from URL with progress and cancellation support */
+        /**
+         * Function to download video from URL with progress and cancellation support
+         * @param {string} url - The URL of the video to download
+         */
         window.downloadVideoFromUrl = async (url) => {
-            if (window.activeDownload) return;
+            if (window.activeDownload) { return; }
             window.activeDownload = true;
             window.setUILocked(true);
             window.els.btnLink.innerHTML = '❌ Cancel';
@@ -535,7 +539,7 @@
                 if (!response.ok) { throw new Error(`HTTP Error: ${response.status}`); }
 
                 const totalBytes = parseInt(response.headers.get('content-length') || 0, 10);
-                if (totalBytes > 2 * 1024 * 1024 * 1024) throw new Error("File exceeds 2 GB limit.");
+                if (totalBytes > 2 * 1024 * 1024 * 1024) { throw new Error("File exceeds 2 GB limit."); }
 
                 let loadedBytes = 0;
                 const reader = response.body.getReader();
@@ -565,7 +569,9 @@
             }
         };
 
-        /** Function to draw OCR bounding boxes overlay on the video */
+        /**
+         * Function to draw OCR bounding boxes overlay on the video
+        */
         window.drawOverlay = () => {
             const container = window.els.canvasOverlayContainer;
             const video = window.els.videoPlayer;
@@ -654,6 +660,7 @@
                 if (time < childTime) { container.insertBefore(element, children[i]); }
                 if (time < childTime) { inserted = true; break; }
             }
+
             if (!inserted) { container.appendChild(element); }
         };
 
@@ -707,7 +714,7 @@
                 container.remove();
                 window.drawOverlay();
             };
-            
+
             const copyBtn = document.createElement('button');
             copyBtn.textContent = 'Copy';
             copyBtn.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-gray-300 dark:bg-gray-600 rounded hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors opacity-0 group-hover/item:opacity-100';
@@ -734,8 +741,7 @@
             header.onclick = (e) => {
                 if(e.target.tagName === 'SPAN' && e.target.hasAttribute('data-time')) {
                     // Update time, but do NOT force playback
-                    window.els.videoPlayer.currentTime = parseFloat(e.target.getAttribute('data-time'));
-                    return;
+                    return window.els.videoPlayer.currentTime = parseFloat(e.target.getAttribute('data-time'));
                 }
                 const isHidden = body.classList.contains('hidden');
                 body.classList.toggle('hidden');
@@ -804,13 +810,13 @@
             const time = window.els.videoPlayer.currentTime;
             window.setUILocked(true);
             window.setProgress(100, `Extracting current frame...`);
-            
+
             try {
                 const langArr = JSON.parse(window.els.languageSelect.value);
                 const confThresh = parseFloat(window.els.confidenceInput.value);
                 const dataUrl = window.getFrameDataUrl();
                 const result = await window.processFrameWorker(dataUrl, langArr, confThresh);
-                
+
                 if (result.text && result.text.trim().length > 0) {
                     window.frameOcrData[time] = { text: result.text, fragments: result.fragments, isCustom: true };
                     window.renderOcrResultElement(time, result.text, true);
