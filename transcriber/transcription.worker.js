@@ -1,8 +1,17 @@
-import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0';
+
+
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2';
 
 env.useBrowserCache = false;
 env.useCache = false;
 env.allowLocalModels = false;
+env.backends.onnx.wasm.proxy = false;
+env.backends.onnx.wasm.numThreads = navigator.hardwareConcurrency || 4;
+env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2/dist/';
+console.log("SharedArrayBuffer supported:", typeof SharedArrayBuffer !== 'undefined');
+console.log("Cross-Origin Isolated:", self.crossOriginIsolated);
+console.log("Cores available:", env.backends.onnx.wasm.numThreads);
+console.dir(env, { depth: null });
 
 /**
  * Decodes a Blob/File into PCM Float32 data at 16000Hz strictly inside the worker.
