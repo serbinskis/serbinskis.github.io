@@ -342,6 +342,11 @@
             { code: ['yid'], name: 'Yiddish' }
         ];
 
+        /**
+         * Displays a notification message in the UI.
+         * @param {string} msg - The message to display.
+         * @param {string} type - The type of notification ('error' or 'success').
+         */
         window.showNotification = (msg, type = 'error') => {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -353,6 +358,10 @@
             setTimeout(() => { if(toast.parentElement) { toast.remove(); } }, 4000);
         };
 
+        /**
+         * Locks or unlocks the UI elements based on the provided boolean value.
+         * @param {boolean} locked - If true, locks the UI; if false, unlocks it.
+         */
         window.setUILocked = (locked) => {
             window.els.languageSelect.disabled = locked;
             //window.els.intervalSlider.disabled = locked;
@@ -369,6 +378,11 @@
             window.els.btnProcess.disabled = locked ? true : !hasVideo;
         };
 
+        /**
+         * Updates the progress bar and text in the UI.
+         * @param {number} percent - The progress percentage (0-100).
+         * @param {string} [text=''] - Optional text to display alongside the progress.
+         */
         window.setProgress = (percent, text = '') => {
             window.els.progressContainer.classList.remove('hidden');
             let clamped = Math.max(0, Math.min(100, percent));
@@ -377,6 +391,11 @@
             if (text) window.els.progressText.innerText = text;
         };
 
+        /**
+         * Formats a time value in seconds into a string representation of "HH:MM:SS.s" or "MM:SS.s".
+         * @param {number} seconds - The time in seconds to format.
+         * @returns {string} - The formatted time string.
+         */
         window.formatTime = (seconds) => {
             if (isNaN(seconds)) return "00:00";
             const h = Math.floor(seconds / 3600);
@@ -387,6 +406,9 @@
             return `${m.toString().padStart(2, '0')}:${sFormatted}`;
         }
 
+        /**
+         * Clears all OCR data and resets the custom and timeline extraction containers.
+         */
         window.clearOcrData = () => {
             window.frameOcrData = {};
             window.els.customExtractsContainer.innerHTML = '<h3 class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Custom Extractions</h3>';
