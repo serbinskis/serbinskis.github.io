@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video OCR (UNDER CONSTRUCTION)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/home/js/navigation.js"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+        let isDarkMode = localStorage.theme === 'light' ? false : true;
+        localStorage.theme = isDarkMode ? 'dark' : 'light';
+        document.documentElement.classList.toggle('dark', isDarkMode);
+    </script>
+
+    <style>
+        .dark ::-webkit-scrollbar { width: 10px; }
+        .dark ::-webkit-scrollbar-track { background: #1f2937; border-radius: 5px;}
+        .dark ::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+            border-radius: 5px;
+            border: 2px solid #1f2937;
+        }
+
+        .dark ::-webkit-scrollbar-thumb:hover { background-color: #6b7280; }
+        .hide-timestamps .timestamp-block { display: none !important; }
+
+        .transcript-line { transition: background-color 0.2s; }
+        .transcript-line:hover { background-color: rgba(59, 130, 246, 0.05); }
+        .dark .transcript-line:hover { background-color: rgba(59, 130, 246, 0.15); }
+
+        .timestamp-btn { cursor: pointer; transition: color 0.2s; }
+        .timestamp-btn:hover { color: #3b82f6; text-decoration: none; }
+
+        /* Word Animation Keyframes */
+        @keyframes fadeInWord {
+            0% { opacity: 0; transform: translateY(2px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .word-anim {
+            display: inline-block;
+            opacity: 0;
+            animation: fadeInWord 0.2s forwards;
+            white-space: pre-wrap;
+        }
+
+        /* Toast Animation */
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .toast { animation: slideDown 0.3s ease-out forwards; pointer-events: auto; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300 font-sans flex flex-col h-[100dvh] text-gray-800 dark:text-gray-200">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-full max-w-md px-4 pointer-events-none"></div>
+
+    <header class="flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm transition-colors duration-300">
+        <div class="container mx-auto max-w-6xl px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Video OCR
+            </h1>
+            <div class="flex items-center gap-2">
+                <button id="theme-toggle" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <svg id="theme-icon-light" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                    <svg id="theme-icon-dark" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main acts as the dynamic middle container filling the space -->
+    <!-- Changed layout to side-by-side using md:flex-row and expanding max width -->
+    <main class="container mx-auto max-w-6xl p-4 flex-grow flex flex-col md:flex-row gap-4 min-h-0">
+
+        <!-- Controls Card (Left side on desktop) -->
+        <div id="controls-card" class="flex-shrink-0 md:w-80 lg:w-96 h-fit bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-all duration-300 flex flex-col gap-4">
+            <div class="grid grid-cols-1 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">OCR Language(s)</label>
+                    <select id="language-select" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"></select>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button id="btn-link" class="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">🔗 Link</button>
+                <button id="btn-file" class="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">📁 File</button>
+                <input type="file" id="file-input" accept="video/*" class="hidden">
+            </div>
+
+            <div id="progress-container" class="hidden flex flex-col gap-1">
+                <div class="flex justify-between text-sm items-end">
+                    <span id="progress-text" class="text-blue-600 dark:text-blue-400 font-medium">Ready</span>
+                    <div class="flex items-center gap-3">
+                        <span id="progress-percent" class="text-gray-500 font-mono text-xs">0%</span>
+                    </div>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <video id="video-player" controls class="hidden w-full bg-black rounded-lg shadow-inner max-h-64 object-contain"></video>
+
+            <button id="btn-process" disabled class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors text-base shadow-sm">
+                Run Video OCR
+            </button>
+        </div>
+
+        <!-- OCR Results Card (Right side on desktop) -->
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-300 flex flex-col flex-grow min-w-0 min-h-0">
+            <div class="flex-shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-3">
+                <h2 class="text-lg font-bold flex-shrink-0 w-full sm:w-auto text-left">OCR Results</h2>
+
+                <div class="flex-1 flex justify-start sm:justify-center w-full sm:w-auto">
+                    <div class="flex gap-2">
+                        <button id="btn-export-json" class="px-3 py-1.5 text-xs font-bold tracking-wider text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">JSON</button>
+                        <button id="btn-export-txt" class="px-3 py-1.5 text-xs font-bold tracking-wider text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">TXT</button>
+                    </div>
+                </div>
+
+                <label class="inline-flex items-center cursor-pointer flex-shrink-0 w-full sm:w-auto sm:justify-end">
+                    <span class="mr-3 text-sm text-gray-600 dark:text-gray-400">Hide Timestamps</span>
+                    <span class="relative">
+                        <input type="checkbox" id="toggle-timestamps" class="sr-only peer disabled:opacity-50 disabled:cursor-not-allowed">
+                        <div class="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    </span>
+                </label>
+            </div>
+
+            <div id="ocr-box" class="flex-grow min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 font-mono text-sm break-words flex flex-col gap-1"></div>
+        </div>
+    </main>
+
+    <!-- Smooth Modal -->
+    <div id="link-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 opacity-0 pointer-events-none transition-opacity duration-300 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl transform scale-95 transition-transform duration-300" id="link-modal-content">
+            <h3 class="text-lg font-bold mb-1">Input Video URL</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4 font-medium">Supported size: Up to 2 GB</p> 
+            <input type="url" id="link-input" placeholder="https://example.com/video.mp4" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg p-2 mb-4 focus:ring-2 focus:ring-blue-500 outline-none">
+            <div class="flex justify-end gap-2">
+                <button id="btn-cancel-link" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors">Cancel</button>
+                <button id="btn-submit-link" class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors">Load URL</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* --- EXPOSE ALL ELEMENTS TO WINDOW --- */
+        window.els = {
+            themeToggle: document.getElementById('theme-toggle'),
+            lightIcon: document.getElementById('theme-icon-light'),
+            darkIcon: document.getElementById('theme-icon-dark'),
+
+            controlsCard: document.getElementById('controls-card'),
+            languageSelect: document.getElementById('language-select'),
+
+            btnLink: document.getElementById('btn-link'),
+            btnFile: document.getElementById('btn-file'),
+            fileInput: document.getElementById('file-input'),
+
+            progressContainer: document.getElementById('progress-container'),
+            progressBar: document.getElementById('progress-bar'),
+            progressText: document.getElementById('progress-text'),
+            progressPercent: document.getElementById('progress-percent'),
+
+            videoPlayer: document.getElementById('video-player'),
+
+            btnProcess: document.getElementById('btn-process'),
+            toggleTimestamps: document.getElementById('toggle-timestamps'),
+            ocrBox: document.getElementById('ocr-box'),
+
+            linkModal: document.getElementById('link-modal'),
+            linkModalContent: document.getElementById('link-modal-content'),
+            linkInput: document.getElementById('link-input'),
+            btnCancelLink: document.getElementById('btn-cancel-link'),
+            btnSubmitLink: document.getElementById('btn-submit-link'),
+
+            btnExportJson: document.getElementById('btn-export-json'),
+            btnExportTxt: document.getElementById('btn-export-txt')
+        };
+
+        /* --- GLOBAL EXPOSED VARIABLES --- */
+        window.currentVideoFile = null; 
+        window.ocrData = [];     
+        window.activeDownload = false;
+        window.downloadAbortController = null;
+        window.ocrWorker = null;
+        window.isProcessing = false;
+
+        // Languages are now defined using arrays for future-proofing multi-lang models
+        window.supportedLanguages = [
+            { code: ['eng'], name: 'English' },
+            { code: ['spa'], name: 'Spanish' },
+            { code: ['fra'], name: 'French' },
+            { code: ['deu'], name: 'German' },
+            { code: ['lav'], name: 'Latvian' },
+            { code: ['lav', 'eng'], name: 'Latvian + English' }
+        ];
+
+        /**
+         * Displays a toast notification with the given message and type.
+         * @param {string} msg - The message to display.
+         * @param {string} [type='error'] - The type of notification ('error' or 'success').
+         */
+        window.showNotification = (msg, type = 'error') => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const isError = type === 'error';
+            toast.className = `toast px-4 py-3 rounded-lg shadow-lg text-sm font-medium flex justify-between items-center ${isError ? 'bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/50 dark:text-red-200 dark:border-red-800' : 'bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/50 dark:text-green-200 dark:border-green-800'}`;
+            toast.innerHTML = `<span>${msg}</span><button class="ml-4 opacity-70 hover:opacity-100 text-lg leading-none">&times;</button>`;
+            toast.querySelector('button').onclick = () => toast.remove();
+            container.appendChild(toast);
+            setTimeout(() => { if(toast.parentElement) { toast.remove(); } }, 4000);
+        };
+
+        /**
+         * Locks or unlocks the UI elements based on the provided boolean value.
+         * @param {boolean} locked - If true, locks the UI; if false, unlocks it.
+         */
+        window.setUILocked = (locked) => {
+            window.els.languageSelect.disabled = locked;
+            window.els.btnLink.disabled = locked && !window.activeDownload;
+            window.els.btnFile.disabled = locked;
+            window.els.btnProcess.disabled = locked ? true : !window.currentVideoFile; 
+            window.els.btnExportJson.disabled = locked;
+            window.els.btnExportTxt.disabled = locked;
+            window.els.toggleTimestamps.disabled = locked;
+            if (locked) { window.els.controlsCard.classList.add('opacity-80'); }
+            else { window.els.controlsCard.classList.remove('opacity-80'); }    
+        };
+
+        /**
+         * Downloads a video file from the provided URL, with progress tracking and cancellation support.
+         * @param {string} url - The URL of the video file to download.
+         */
+        window.downloadVideoFromUrl = async (url) => {
+            if (window.activeDownload) { return; }
+            window.activeDownload = true;
+            window.setUILocked(true);
+            window.els.btnLink.innerHTML = '❌ Cancel';
+            window.els.btnLink.classList.add('bg-red-50', 'text-red-600', 'border-red-200', 'dark:bg-red-900/30');
+            window.els.progressContainer.classList.remove('hidden');
+            window.downloadAbortController = new AbortController();
+
+            try {
+                const response = await fetch(url, { signal: window.downloadAbortController.signal });
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                
+                const contentLength = response.headers.get('content-length');
+                const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+                const MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB limit
+                if (totalBytes > MAX_BYTES) { throw new Error("File exceeds 2 GB limit."); }
+
+                let loadedBytes = 0;
+                const reader = response.body.getReader();
+                const chunks = [];
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) { break; }
+
+                    chunks.push(value);
+                    loadedBytes += value.byteLength;
+                    if (loadedBytes > MAX_BYTES) { throw new Error("File exceeds 2 GB limit."); }
+                    
+                    const loadedMB = (loadedBytes / (1024 * 1024)).toFixed(1);
+                    if (totalBytes) {
+                        const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+                        const percent = (loadedBytes / totalBytes) * 100;
+                        window.setProgress(percent, `Downloading video... ${loadedMB} MB / ${totalMB} MB`);
+                    } else {
+                        window.setProgress(100, `Downloading video... ${loadedMB} MB downloaded`);
+                    }
+                }
+
+                const downloadedBlob = new Blob(chunks);
+                window.currentVideoFile = downloadedBlob;
+                setupVideoPlayer(URL.createObjectURL(downloadedBlob));
+
+                window.setProgress(100, `Download Complete!`);
+                window.showNotification(`Video downloaded successfully!`, 'success');
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    window.showNotification('Video download cancelled.', 'error');
+                } else {
+                    window.showNotification(`Failed to download video: ${error.message}`, 'error');
+                }
+                window.setProgress(0, 'Ready');
+            } finally {
+                setTimeout(() => {
+                    window.activeDownload = false;
+                    window.downloadAbortController = null;
+                    window.els.btnLink.innerHTML = '🔗 Link';
+                    window.els.btnLink.classList.remove('bg-red-50', 'text-red-600', 'border-red-200', 'dark:bg-red-900/30');
+                    window.els.progressContainer.classList.add('hidden');
+                    window.setUILocked(false);
+                }, 250);
+            }
+        };
+
+        /**
+         * Loads the available languages into the language selection dropdown.
+         * @param {Array} languagesArray - An array of language objects.
+         */
+        window.loadLanguages = (languagesArray) => {
+            window.els.languageSelect.innerHTML = '';
+
+            languagesArray.forEach(lang => {
+                const opt = document.createElement('option');
+                // Store the array as a JSON string to keep things tidy natively inside the select options
+                opt.value = JSON.stringify(lang.code);
+                opt.textContent = lang.name;
+                window.els.languageSelect.appendChild(opt);
+            });
+
+            const savedLang = localStorage.getItem('ocr_lang');
+            let isValid = false;
+            
+            if (savedLang) {
+                isValid = languagesArray.some(l => JSON.stringify(l.code) === savedLang);
+            }
+
+            if (isValid) {
+                window.els.languageSelect.value = savedLang;
+            } else if (languagesArray.length > 0) {
+                window.els.languageSelect.value = JSON.stringify(languagesArray[0].code);
+            }
+        };
+
+        window.setProcessState = (isEnabled) => {
+            window.els.btnProcess.disabled = !isEnabled;
+        };
+
+        window.setProgress = (percent, text = '') => {
+            window.els.progressContainer.classList.remove('hidden');
+            let clamped = Math.max(0, Math.min(100, percent));
+            window.els.progressBar.style.width = clamped + '%';
+            window.els.progressPercent.innerText = Math.round(clamped) + '%';
+            if (text) { window.els.progressText.innerText = text; }
+        };
+
+        window.clearOcrData = () => {
+            window.els.ocrBox.innerHTML = '';
+            window.ocrData = [];
+        };
+
+        window.addOcrResult = (startTime, endTime, text) => {
+            const box = window.els.ocrBox;
+            const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 15;
+
+            window.ocrData.push({ start: startTime, end: endTime, text: text });
+            const line = document.createElement('div');
+            line.className = 'transcript-line flex gap-2 py-1 px-2 rounded items-start';
+
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'timestamp-block text-blue-500 dark:text-blue-400 flex-shrink-0 select-none mt-0.5';
+            timestampSpan.innerHTML = `[<span class="timestamp-btn" data-time="${startTime}">${window.formatTime(startTime)}</span> - <span class="timestamp-btn" data-time="${endTime}">${window.formatTime(endTime)}</span>]`;
+
+            const textContainerSpan = document.createElement('span');
+            textContainerSpan.className = 'text-gray-800 dark:text-gray-200 break-words flex-grow leading-relaxed';
+
+            const words = text.split(' ');
+            words.forEach((word, index) => {
+                const wSpan = document.createElement('span');
+                wSpan.textContent = word + ' ';
+                wSpan.className = 'word-anim';
+                wSpan.style.animationDelay = `${index * 0.04}s`; 
+                textContainerSpan.appendChild(wSpan);
+            });
+
+            line.appendChild(timestampSpan);
+            line.appendChild(textContainerSpan);
+            box.appendChild(line);
+
+            line.querySelectorAll('.timestamp-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const time = parseFloat(e.target.getAttribute('data-time'));
+                    if (isNaN(time)) { return; }
+                    window.els.videoPlayer.currentTime = time;
+                    window.els.videoPlayer.play().catch(() => {});
+                });
+            });
+
+            if (isScrolledToBottom) {
+                setTimeout(() => box.scrollTop = box.scrollHeight, 10);
+            }
+        };
+
+        window.exportOcrData = (format) => {
+            if (window.ocrData.length === 0) { return window.showNotification('No OCR data to export.', 'error'); }
+            let content = '', mimeType = 'text/plain';
+            let filename = `ocr_${Date.now()}.${format}`;
+
+            if (format === 'json') {
+                content = JSON.stringify(window.ocrData, null, 2);
+                mimeType = 'application/json';
+            } else if (format === 'txt') {
+                content = window.ocrData.map(item => 
+                    `[${window.formatTime(item.start)} - ${window.formatTime(item.end)}] ${item.text}`
+                ).join('\n');
+            }
+
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.showNotification(`Successfully exported as ${format.toUpperCase()}`, 'success');
+        };
+
+        window.els.btnExportJson.addEventListener('click', () => window.exportOcrData('json'));
+        window.els.btnExportTxt.addEventListener('click', () => window.exportOcrData('txt'));
+
+        /* --- INITIALIZATION --- */
+        window.loadLanguages(window.supportedLanguages);
+        window.els.languageSelect.addEventListener('change', (e) => localStorage.setItem('ocr_lang', e.target.value));
+
+        /* --- THEME TOGGLE --- */
+        function applyTheme(isDark) {
+            document.documentElement.classList.toggle('dark', isDark);
+            window.els.lightIcon.classList.toggle('hidden', isDark);
+            window.els.darkIcon.classList.toggle('hidden', !isDark);
+            localStorage.theme = isDark ? 'dark' : 'light';
+        }
+        applyTheme(localStorage.theme === 'dark');
+        window.els.themeToggle.addEventListener('click', () => applyTheme(localStorage.theme !== 'dark'));
+
+        /* --- VIDEO PLAYER LOGIC --- */
+        function setupVideoPlayer(src) {
+            if (src) { window.els.videoPlayer.src = src; }
+            window.els.videoPlayer.classList.remove('hidden');
+            window.setProcessState(true);
+        }
+
+        /* --- INPUT METHODS --- */
+        window.els.btnFile.addEventListener('click', () => window.els.fileInput.click());
+        window.els.fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) { return; }
+            window.currentVideoFile = file;
+            setupVideoPlayer(URL.createObjectURL(file));
+            e.target.value = ''; 
+        });
+
+        window.els.btnLink.addEventListener('click', () => {
+            if (window.activeDownload && window.downloadAbortController) { return window.downloadAbortController.abort(); }
+            window.els.linkModal.classList.remove('pointer-events-none', 'opacity-0');
+            window.els.linkModalContent.classList.remove('scale-95');
+            window.els.linkModalContent.classList.add('scale-100');
+        });
+
+        function closeLinkModal() {
+            window.els.linkModal.classList.add('pointer-events-none', 'opacity-0');
+            window.els.linkModalContent.classList.remove('scale-100');
+            window.els.linkModalContent.classList.add('scale-95');
+            window.els.linkInput.value = '';
+        }
+
+        window.els.btnCancelLink.addEventListener('click', closeLinkModal);
+        window.els.btnSubmitLink.addEventListener('click', () => {
+            const url = window.els.linkInput.value.trim();
+            if (!url) { return; }
+            closeLinkModal();
+            window.downloadVideoFromUrl(url); 
+        });
+
+        window.els.btnProcess.addEventListener('click', () => {
+            if (window.isProcessing) {
+                window.stopOcrProcess();
+                window.isProcessing = false;
+                window.setUILocked(false);
+                
+                window.els.btnProcess.innerText = "Run Video OCR";
+                window.els.btnProcess.classList.remove('bg-red-600', 'hover:bg-red-700');
+                window.els.btnProcess.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                window.els.btnProcess.disabled = false; 
+                setTimeout(() => window.els.progressContainer.classList.add('hidden'), 250);
+            } else { 
+                window.isProcessing = true;
+                window.setUILocked(true);
+
+                window.els.btnProcess.disabled = false; 
+                window.els.btnProcess.innerText = "Stop / Cancel";
+                window.els.btnProcess.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                window.els.btnProcess.classList.add('bg-red-600', 'hover:bg-red-700');
+                window.startOcrProcess();
+            }
+        });
+
+        window.els.toggleTimestamps.addEventListener('change', (e) => {
+            window.els.ocrBox.classList.toggle('hide-timestamps', e.target.checked);
+        });
+
+        window.startOcrProcess = () => {
+            const file = window.currentVideoFile;
+            if (!file) { return; }
+
+            if (window.ocrWorker) { window.ocrWorker.terminate(); }
+            window.clearOcrData();
+
+            window.ocrWorker = new Worker('ocr.worker.js', { type: 'module' });
+
+            window.ocrWorker.onmessage = (e) => {
+                const { type, data, msg, progress } = e.data;
+
+                if (type === 'partial') {
+                    window.addOcrResult(data.start, data.end, data.text);
+                } else if (type === 'bar') {
+                    window.setProgress(progress, msg);
+                } else if (type === 'error') {
+                    window.showNotification(msg, "error");
+                    window.els.btnProcess.click(); 
+                }
+            };
+
+            // Parse the stored array from select back into an actual JS Array
+            const languageArray = JSON.parse(window.els.languageSelect.value);
+
+            window.ocrWorker.postMessage({
+                videoData: file,
+                language: languageArray
+            });
+        }
+
+        /** Stops the OCR process by terminating the Web Worker. */
+        window.stopOcrProcess = () => {
+            if (window.ocrWorker) {
+                window.ocrWorker.terminate();
+                window.ocrWorker = null;
+                console.log("Worker terminated and CPU usage stopped.");
+            }
+        }
+
+        /**
+         * Converts a time in seconds to a formatted string.
+         * @param {number} seconds - The time in seconds to format.
+         * @returns {string} The formatted time string.
+         */
+        window.formatTime = (seconds) => {
+            if (isNaN(seconds)) { return "00:00"; }
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = (seconds % 60).toFixed(1);
+            const sFormatted = s.padStart(4, '0');
+            if (h > 0) { return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${sFormatted}`; }
+            return `${m.toString().padStart(2, '0')}:${sFormatted}`;
+        }
+    </script>
+</body>
+</html>

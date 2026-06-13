@@ -10,6 +10,11 @@ var navigationItems = [
         icon: "fa-solid fa-microphone-alt",
     },*/
     {
+        name: "Video OCR",
+        href: "/video-ocr",
+        icon: "fa-solid fa-video",
+    },
+    {
         name: "Text Playground",
         href: "/text-playground",
         icon: "fa-solid fa-flask",
