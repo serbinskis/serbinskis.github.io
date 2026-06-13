@@ -639,6 +639,7 @@
          */
         window.renderOcrResultElement = (time, text, isCustom) => {
             const existing = document.querySelector(`[data-time-box="${time}"]`);
+            if (existing && !isCustom && window.els.videoPlayer.paused) { return; } // If video is paused and there's already an entry for this timestamp, don't add another one since user might be inspecting results around current time
             if (existing) { existing.remove(); } // Remove existing entry for the same timestamp to avoid duplicates
             const container = document.createElement('div');
             container.setAttribute('data-time-box', time); 
@@ -723,6 +724,7 @@
                 container.scrollIntoView({ behavior: 'smooth', block: 'center' });
             } else {
                 window.insertSorted(window.els.timelineExtractsContainer, container, time);
+                if (window.els.videoPlayer.paused) { return; } // Don't scroll if video is paused since user might be trying to inspect results around current time
                 container.scrollIntoView({ behavior: 'smooth', block: 'center' }); // Scroll to the specific item instead of the bottom
             }
         };
