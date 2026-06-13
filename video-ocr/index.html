@@ -245,7 +245,7 @@
         window.defaultInterval = 1.0;
         window.defaultConfidence = 30;
         window.minDrawOverlayInterval = 1; // seconds, only show bounding boxes from OCR data that is within this interval of the current video time to avoid showing irrelevant boxes when seeking
-        window.ocrFormat = { image: 'jpg', quality: 0.8 }; // image format and quality for frame extraction, quality is only used for jpeg
+        window.ocrFormat = { image: 'jpg', quality: 0.8 }; // Image format and quality for frame extraction, quality is only used for jpeg
         window.frameOcrData = {}; // Stores OCR results for each frame, keyed by timestamp
 
         // Latvian set as first item to act as fallback default if no match
@@ -754,8 +754,7 @@
                 const handler = (e) => {
                     if (e.data.msgId === msgId) {
                         window.ocrWorker.removeEventListener('message', handler);
-                        if (e.data.error) { reject(new Error(e.data.error)); }
-                        else { resolve(e.data.result); }
+                        if (e.data.error) { reject(new Error(e.data.error)); } else { resolve(e.data.result); }
                     }
                 };
                 window.ocrWorker.addEventListener('message', handler);
