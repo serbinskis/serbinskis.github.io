@@ -10,11 +10,10 @@ self.onmessage = async (e) => {
 
     try {
         if (!workerInstance) { workerInstance = await Tesseract.createWorker(); }
-``
+
         if (currentLangStr !== langStr) {
-            await workerInstance.loadLanguage(langStr);
-            await workerInstance.initialize(langStr);
-            console.log(`Tesseract worker initialized with language: ${langStr}`);
+            await workerInstance.reinitialize(language);
+            console.log(`Tesseract worker initialized with language: ${language}`);
             currentLangStr = langStr;
         }
 
