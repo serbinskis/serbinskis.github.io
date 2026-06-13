@@ -5,24 +5,9 @@ var navigationItems = [
         icon: "fas fa-home",
     },
     {
-        name: "UNO Game",
-        href: "/uno-game",
-        icon: "fa-solid fa-dice-six",
-    },
-    {
         name: "Audio/Video Transcriber",
         href: "/transcriber",
         icon: "fa-solid fa-microphone-alt",
-    },
-    {
-        name: "File Hosting",
-        href: "/file-hosting",
-        icon: "fa-solid fa-cloud",
-    },
-    {
-        name: "Steam Workshop Download",
-        href: "/steam-workshop-download",
-        icon: "fa-brands fa-steam-symbol",
     },
     {
         name: "Text Playground",
@@ -30,9 +15,24 @@ var navigationItems = [
         icon: "fa-solid fa-flask",
     },
     {
+        name: "UNO Game",
+        href: "/uno-game",
+        icon: "fa-solid fa-dice-six",
+    },
+    {
+        name: "File Hosting",
+        href: "/file-hosting",
+        icon: "fa-solid fa-cloud",
+    },
+    {
         name: "Bad Apple!! MBR",
         href: "/bad-apple-mbr",
         icon: "fas fa-apple-alt",
+    },
+    {
+        name: "Steam Workshop Download",
+        href: "/steam-workshop-download",
+        icon: "fa-brands fa-steam-symbol",
     },
     {
         name: "Lofi Hip Hop",

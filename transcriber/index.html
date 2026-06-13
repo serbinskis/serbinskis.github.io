@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audio Transcriber (UNDER CONSTRUCTION)</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/home/js/navigation.js"></script>
     <script>
         tailwind.config = { darkMode: 'class' };
         let isDarkMode = localStorage.theme === 'light' ? false : true;
@@ -29,17 +30,17 @@
         .dark .transcript-line:hover { background-color: rgba(59, 130, 246, 0.15); }
 
         .timestamp-btn { cursor: pointer; transition: color 0.2s; }
-        .timestamp-btn:hover { color: #3b82f6; text-decoration: underline; }
+        .timestamp-btn:hover { color: #3b82f6; text-decoration: none; }
 
         /* Custom Audio Slider styling */
         input[type=range].audio-slider {
-            -webkit-appearance: none;
+            appearance: none;
             width: 100%;
             background: transparent;
         }
 
         input[type=range].audio-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
+            appearance: none;
             height: 12px;
             width: 12px;
             border-radius: 50%;
@@ -138,7 +139,6 @@
                     <span id="progress-text" class="text-blue-600 dark:text-blue-400 font-medium">Ready</span>
                     <div class="flex items-center gap-3">
                         <span id="progress-percent" class="text-gray-500 font-mono text-xs">0%</span>
-                        <button id="btn-cancel-progress" class="hidden text-xs text-red-500 hover:text-red-600 font-bold underline transition-colors">Cancel</button>
                     </div>
                 </div>
                 <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
@@ -193,7 +193,8 @@
     <!-- Smooth Modal -->
     <div id="link-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 opacity-0 pointer-events-none transition-opacity duration-300 backdrop-blur-sm">
         <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl transform scale-95 transition-transform duration-300" id="link-modal-content">
-            <h3 class="text-lg font-bold mb-4">Input Audio/Video URL</h3>
+            <h3 class="text-lg font-bold mb-1">Input Audio/Video URL</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4 font-medium">Supported size: Up to 200 MB</p> 
             <input type="url" id="link-input" placeholder="https://example.com/audio.mp3" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg p-2 mb-4 focus:ring-2 focus:ring-blue-500 outline-none">
             <div class="flex justify-end gap-2">
                 <button id="btn-cancel-link" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors">Cancel</button>
@@ -222,7 +223,6 @@
             progressBar: document.getElementById('progress-bar'),
             progressText: document.getElementById('progress-text'),
             progressPercent: document.getElementById('progress-percent'),
-            btnCancelProgress: document.getElementById('btn-cancel-progress'),
 
             customAudioContainer: document.getElementById('custom-audio-container'),
             hiddenAudioPlayer: document.getElementById('hidden-audio-player'),
@@ -255,6 +255,17 @@
         window.audioChunks = [];
         window.activeDownload = false;
         window.downloadAbortController = null;
+        window.transcriberWorker = null;
+        window.isProcessing = false;
+
+        window.availableModels = [
+            { id: 'onnx-community/whisper-tiny', name: 'Whisper Tiny', size: '~75MB' },
+            { id: 'onnx-community/whisper-base', name: 'Whisper Base', size: '~145MB' },
+            { id: 'onnx-community/whisper-small', name: 'Whisper Small', size: '~480MB' },
+            //{ id: 'onnx-community/whisper-medium', name: 'Whisper Medium', size: '~1.5GB' },
+            //{ id: 'onnx-community/whisper-large-v3', name: 'Whisper Large v3', size: '~3.1GB' },
+            { id: 'onnx-community/whisper-large-v3-turbo', name: 'Whisper Large v3 Turbo', size: '~1.6GB' }
+        ];
 
         window.supportedLanguages = [
             { code: 'auto', name: 'Auto-detect' },
@@ -265,8 +276,12 @@
             { code: 'de', name: 'German' }
         ];
 
-        /* --- NOTIFICATION SYSTEM --- */
-        window.showNotification = function(msg, type = 'error') {
+        /**
+         * Displays a toast notification with the given message and type.
+         * @param {string} msg - The message to display.
+         * @param {string} [type='error'] - The type of notification ('error' or 'success').
+         */
+        window.showNotification = (msg, type = 'error') => {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             const isError = type === 'error';
@@ -277,11 +292,14 @@
             setTimeout(() => { if(toast.parentElement) { toast.remove(); } }, 4000);
         };
 
-        /* --- UI LOCK STATE --- */
-        window.setUILocked = function(locked) {
+        /**
+         * Locks or unlocks the UI elements based on the provided boolean value.
+         * @param {boolean} locked - If true, locks the UI; if false, unlocks it.
+         */
+        window.setUILocked = (locked) => {
             window.els.modelSelect.disabled = locked;
             window.els.languageSelect.disabled = locked;
-            window.els.btnLink.disabled = locked;
+            window.els.btnLink.disabled = locked && !window.activeDownload;
             window.els.btnFile.disabled = locked;
             window.els.btnRecord.disabled = locked;
             window.els.btnTranscribe.disabled = locked ? true : !window.currentAudioFile; 
@@ -293,13 +311,17 @@
             else { window.els.controlsCard.classList.remove('opacity-80'); }    
         };
 
-        /* --- AUDIO URL DOWNLOAD LOGIC WITH PROGRESS & CANCEL & SIZE CHECK --- */
-        window.downloadAudioFromUrl = async function(url) {
+        /**
+         * Downloads an audio file from the provided URL, with progress tracking and cancellation support.
+         * @param {string} url - The URL of the audio file to download.
+         */
+        window.downloadAudioFromUrl = async (url) => {
             if (window.activeDownload) { return; }
             window.activeDownload = true;
             window.setUILocked(true);
+            window.els.btnLink.innerHTML = '❌ Cancel';
+            window.els.btnLink.classList.add('bg-red-50', 'text-red-600', 'border-red-200', 'dark:bg-red-900/30');
             window.els.progressContainer.classList.remove('hidden');
-            window.els.btnCancelProgress.classList.remove('hidden'); // Cancel allowed for audio downloads
             window.downloadAbortController = new AbortController();
 
             try {
@@ -347,21 +369,26 @@
                 }
                 window.setProgress(0, 'Ready');
             } finally {
-                window.activeDownload = false;
-                window.downloadAbortController = null;
-                window.els.btnCancelProgress.classList.add('hidden');
-                window.setUILocked(false);
-                setTimeout(() => { if (!window.activeDownload) { window.els.progressContainer.classList.add('hidden'); } }, 2000);
+                setTimeout(() => {
+                    window.activeDownload = false;
+                    window.downloadAbortController = null;
+                    window.els.btnLink.innerHTML = '🔗 Link';
+                    window.els.btnLink.classList.remove('bg-red-50', 'text-red-600', 'border-red-200', 'dark:bg-red-900/30');
+                    window.els.progressContainer.classList.add('hidden');
+                    window.setUILocked(false);
+                }, 250);
             }
         };
 
-        /* --- MODEL DOWNLOAD LOGIC (NO CANCEL ALLOWED) --- */
-        window.downloadModel = async function(url) {
+        /**
+         * Downloads a model from the provided URL, with progress tracking.
+         * @param {string} url - The URL of the model to download.
+         */
+        window.downloadModel = async (url) => {
             if (window.activeDownload) { return; }
             window.activeDownload = true;
             window.setUILocked(true);
             window.els.progressContainer.classList.remove('hidden');
-            window.els.btnCancelProgress.classList.add('hidden'); // Cancel explicitly hidden for models
 
             try {
                 const response = await fetch(url);
@@ -380,8 +407,8 @@
 
                     chunks.push(value);
                     loadedBytes += value.byteLength;
-
                     const loadedMB = (loadedBytes / (1024 * 1024)).toFixed(1);
+
                     if (totalBytes) {
                         const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
                         const percent = (loadedBytes / totalBytes) * 100;
@@ -404,15 +431,11 @@
             }
         };
 
-        // Wire up cancel button explicitly for abortable downloads
-        window.els.btnCancelProgress.addEventListener('click', () => {
-            if (window.activeDownload && window.downloadAbortController) {
-                window.downloadAbortController.abort();
-            }
-        });
-
-        /* --- GLOBAL TRANSCRIPT FUNCTIONS --- */
-        window.loadLanguages = function(languagesArray) {
+        /**
+         * Loads the available languages into the language selection dropdown.
+         * @param {Array} languagesArray - An array of language objects.
+         */
+        window.loadLanguages = (languagesArray) => {
             window.els.languageSelect.innerHTML = '';
 
             languagesArray.forEach(lang => {
@@ -430,11 +453,32 @@
             }
         };
 
-        window.setTranscribeState = function(isEnabled) {
+        /**
+         * Loads the available models into the model selection dropdown.
+         * @param {Array} modelsArray - An array of model objects.
+         */
+        window.loadModels = (modelsArray) => {
+            window.els.modelSelect.innerHTML = '';
+
+            modelsArray.forEach(model => {
+                const opt = document.createElement('option');
+                opt.value = model.id;
+                opt.textContent = `${model.name} (${model.size})`;
+                window.els.modelSelect.appendChild(opt);
+            });
+
+            // Restore saved preference if it exists
+            const savedModel = localStorage.getItem('whisper_model');
+            if (savedModel && modelsArray.some(m => m.id === savedModel)) {
+                window.els.modelSelect.value = savedModel;
+            }
+        };
+
+        window.setTranscribeState = (isEnabled) => {
             window.els.btnTranscribe.disabled = !isEnabled;
         };
 
-        window.setProgress = function(percent, text = '') {
+        window.setProgress = (percent, text = '') => {
             window.els.progressContainer.classList.remove('hidden');
             let clamped = Math.max(0, Math.min(100, percent));
             window.els.progressBar.style.width = clamped + '%';
@@ -442,12 +486,12 @@
             if (text) { window.els.progressText.innerText = text; }
         };
 
-        window.clearTranscripts = function() {
+        window.clearTranscripts = () => {
             window.els.transcriptBox.innerHTML = '';
             window.transcriptData = [];
         };
 
-        window.addTranscript = function(startTime, endTime, text) {
+        window.addTranscript = (startTime, endTime, text) => {
             const box = window.els.transcriptBox;
             const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 15;
 
@@ -457,7 +501,7 @@
 
             const timestampSpan = document.createElement('span');
             timestampSpan.className = 'timestamp-block text-blue-500 dark:text-blue-400 flex-shrink-0 select-none mt-0.5';
-            timestampSpan.innerHTML = `[<span class="timestamp-btn" data-time="${startTime}">${formatTime(startTime)}</span> - <span class="timestamp-btn" data-time="${endTime}">${formatTime(endTime)}</span>]`;
+            timestampSpan.innerHTML = `[<span class="timestamp-btn" data-time="${startTime}">${window.formatTime(startTime)}</span> - <span class="timestamp-btn" data-time="${endTime}">${window.formatTime(endTime)}</span>]`;
 
             const textContainerSpan = document.createElement('span');
             textContainerSpan.className = 'text-gray-800 dark:text-gray-200 break-words flex-grow leading-relaxed';
@@ -489,7 +533,7 @@
             }
         };
 
-        window.exportTranscripts = function(format) {
+        window.exportTranscripts = (format) => {
             if (window.transcriptData.length === 0) { return window.showNotification('No transcription data to export.', 'error'); }
             let content = '', mimeType = 'text/plain';
             let filename = `transcript_${Date.now()}.${format}`;
@@ -499,11 +543,11 @@
                 mimeType = 'application/json';
             } else if (format === 'txt') {
                 content = window.transcriptData.map(item => 
-                    `[${formatTime(item.start)} - ${formatTime(item.end)}] ${item.text}`
+                    `[${window.formatTime(item.start)} - ${window.formatTime(item.end)}] ${item.text}`
                 ).join('\n');
             } else if (format === 'srt') {
                 content = window.transcriptData.map((item, index) => {
-                    return `${index + 1}\n${formatSrtTime(item.start)} --> ${formatSrtTime(item.end)}\n${item.text}\n`;
+                    return `${index + 1}\n${window.formatSrtTime(item.start)} --> ${window.formatSrtTime(item.end)}\n${item.text}\n`;
                 }).join('\n');
             }
 
@@ -524,6 +568,7 @@
 
         /* --- INITIALIZATION --- */
         window.loadLanguages(window.supportedLanguages);
+        window.loadModels(window.availableModels);
         if (localStorage.getItem('whisper_model')) { window.els.modelSelect.value = localStorage.getItem('whisper_model'); }
         window.els.modelSelect.addEventListener('change', (e) => localStorage.setItem('whisper_model', e.target.value));
         window.els.languageSelect.addEventListener('change', (e) => localStorage.setItem('whisper_lang', e.target.value));
@@ -572,19 +617,19 @@
         window.els.hiddenAudioPlayer.addEventListener('loadedmetadata', () => {
             const duration = window.els.hiddenAudioPlayer.duration;
             window.els.audioSeek.max = Math.floor(duration);
-            window.els.audioTimeTotal.innerText = isNaN(duration) ? "00:00" : formatTime(duration);
+            window.els.audioTimeTotal.innerText = isNaN(duration) ? "00:00" : window.formatTime(duration);
         });
 
         window.els.hiddenAudioPlayer.addEventListener('timeupdate', () => {
             if (isDraggingAudio) { return; }
             const currentTime = window.els.hiddenAudioPlayer.currentTime;
             window.els.audioSeek.value = Math.floor(currentTime);
-            window.els.audioTimeCurrent.innerText = formatTime(currentTime);
+            window.els.audioTimeCurrent.innerText = window.formatTime(currentTime);
         });
 
         window.els.audioSeek.addEventListener('input', (e) => {
             isDraggingAudio = true;
-            window.els.audioTimeCurrent.innerText = formatTime(e.target.value);
+            window.els.audioTimeCurrent.innerText = window.formatTime(e.target.value);
         });
 
         window.els.audioSeek.addEventListener('change', (e) => {
@@ -603,6 +648,7 @@
         });
 
         window.els.btnLink.addEventListener('click', () => {
+            if (window.activeDownload && window.downloadAbortController) { return window.downloadAbortController.abort(); }
             window.els.linkModal.classList.remove('pointer-events-none', 'opacity-0');
             window.els.linkModalContent.classList.remove('scale-95');
             window.els.linkModalContent.classList.add('scale-100');
@@ -644,8 +690,31 @@
                 window.mediaRecorder.onstop = () => {
                     const audioBlob = new Blob(window.audioChunks, { type: 'audio/webm' });
                     window.currentAudioFile = audioBlob;
-                    setupAudioPlayer(URL.createObjectURL(audioBlob));
+                    const url = URL.createObjectURL(audioBlob);
+                    setupAudioPlayer(url);
                     stream.getTracks().forEach(track => track.stop());
+
+                    // 1. Reference the player
+                    const player = window.els.hiddenAudioPlayer;
+
+                    // 2. The Hack: Seek to a massive number to force the browser to find the end
+                    player.currentTime = 1e101; 
+
+                    // 3. Listen for the moment the player realizes where the end is
+                    player.ontimeupdate = function() {
+                        // Once the player finds the end, it will update the duration
+                        if (player.duration && isFinite(player.duration)) {
+                            // Remove this listener immediately so it doesn't loop
+                            player.ontimeupdate = null;
+                            
+                            // 4. Update your UI with the newly found duration
+                            window.els.audioSeek.max = Math.floor(player.duration);
+                            window.els.audioTimeTotal.innerText = window.formatTime(player.duration);
+                            
+                            // 5. Reset the player to the beginning for the user
+                            player.currentTime = 0;
+                        }
+                    };
                 };
 
                 window.mediaRecorder.start();
@@ -658,45 +727,118 @@
             }
         });
 
-        /* --- MOCK DATA FOR TESTING TRANSCRIBE BUTTON --- */
         window.els.btnTranscribe.addEventListener('click', () => {
-            window.setTranscribeState(false);
-            window.clearTranscripts();
-            window.els.btnCancelProgress.classList.add('hidden');
-            window.setProgress(10, 'Initializing model...');
+            // If already processing, stop the transcription
+            if (window.isProcessing) {
+                window.stopTranscription();
+                window.isProcessing = false;
+                window.setUILocked(false);
+                
+                // Reset Button to Blue
+                window.els.btnTranscribe.innerText = "Transcribe Audio";
+                window.els.btnTranscribe.classList.remove('bg-red-600', 'hover:bg-red-700');
+                window.els.btnTranscribe.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                window.els.btnTranscribe.disabled = false; 
+                setTimeout(() => window.els.progressContainer.classList.add('hidden'), 250);
+            } else { // Start transcription
+                window.isProcessing = true;
+                window.setUILocked(true);
 
-            setTimeout(() => {
-                window.setProgress(40, 'Transcribing (chunk 1)...');
-                window.addTranscript(0.0, 3.0, "Hello and welcome to the audio transcription interface.");
-            }, 1000);
-
-            setTimeout(() => {
-                window.setProgress(80, 'Transcribing (chunk 2)...');
-                window.addTranscript(3.0, 7.0, "This system supports custom audio players and dark mode. Watch this text animate word by word!");
-            }, 2500);
-
-            setTimeout(() => {
-                window.setProgress(100, 'Complete');
-                window.addTranscript(7.0, 10.0, "You can export this data anytime you like using the buttons above.");
-                window.setTranscribeState(true);
-                setTimeout(() => window.els.progressContainer.classList.add('hidden'), 1500);
-            }, 4500);
+                // Change Button to Red "Stop" mode
+                window.els.btnTranscribe.disabled = false; // Re-enable so it can be clicked to stop
+                window.els.btnTranscribe.innerText = "Stop / Cancel";
+                window.els.btnTranscribe.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                window.els.btnTranscribe.classList.add('bg-red-600', 'hover:bg-red-700');
+                window.startTranscription();
+            }
         });
 
         window.els.toggleTimestamps.addEventListener('change', (e) => {
             window.els.transcriptBox.classList.toggle('hide-timestamps', e.target.checked);
         });
 
-        function formatTime(seconds) {
+        window.startTranscription = () => {
+            // This is our File/Blob handle
+            const file = window.currentAudioFile;
+            if (!file) { return; }
+
+            // If a worker is already running, kill it first
+            if (transcriberWorker) { transcriberWorker.terminate(); }
+            window.clearTranscripts();
+            window.modelProgress = {}; // Reset progress tracking
+
+            // Create a new instance of your separate file
+            window.transcriberWorker = new Worker('transcription.worker.js', { type: 'module' });
+            window.maxProgress = 0;
+
+            // Listen for messages
+            window.transcriberWorker.onmessage = (e) => {
+                const { type, data, msg, progress } = e.data;
+
+                if (type === 'progress') {
+                    if (data.progress) { window.modelProgress[data.file] = data.progress; }
+
+                    // Calculate average progress across all files currently downloading
+                    const keys = Object.keys(window.modelProgress);
+                    const sum = keys.reduce((a, b) => a + window.modelProgress[b], 0);
+                    const avg = sum / Math.max(keys.length, 8);
+
+                    if (avg > window.maxProgress) {
+                        window.maxProgress = avg;
+                        window.setProgress(avg, `Loading Model: ${keys.length} file(s) in progress...`);
+                    }
+                } else if (type === 'partial') {
+                    // Real-time update: we only add it if it's new/meaningful
+                    window.addTranscript(data.start, data.end, data.text);
+                } else if (type === 'bar') {
+                    window.setProgress(progress, msg);
+                } else if (type === 'error') {
+                    window.showNotification(msg, "error");
+                    window.els.btnTranscribe.click(); // Cancel the transcription process
+                }
+            };
+
+            // Send the data to start the logic
+            window.transcriberWorker.postMessage({
+                audioData: file,
+                modelName: window.els.modelSelect.value,
+                language: window.els.languageSelect.value
+            });
+        }
+
+        /** Stops the transcription process by terminating the Web Worker. */
+        window.stopTranscription = () => {
+            if (transcriberWorker) {
+                // This kills the thread instantly
+                transcriberWorker.terminate();
+                transcriberWorker = null;
+                console.log("Worker terminated and CPU usage stopped.");
+            }
+        }
+
+        /**
+         * Converts a time in seconds to a formatted string.
+         * If the time is 1 hour or more, it returns HH:MM:SS.s format.
+         * If the time is less than 1 hour, it returns MM:SS.s format.
+         * @param {number} seconds - The time in seconds to format.
+         * @returns {string} The formatted time string.
+         */
+        window.formatTime = (seconds) => {
             if (isNaN(seconds)) { return "00:00"; }
             const h = Math.floor(seconds / 3600);
             const m = Math.floor((seconds % 3600) / 60);
-            const s = Math.floor(seconds % 60);
-            if (h > 0) { return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; }
-            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            const s = (seconds % 60).toFixed(1);
+            const sFormatted = s.padStart(4, '0');
+            if (h > 0) { return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${sFormatted}`; }
+            return `${m.toString().padStart(2, '0')}:${sFormatted}`;
         }
 
-        function formatSrtTime(seconds) {
+        /**
+         * Converts a time in seconds to SRT timestamp format (HH:MM:SS,mmm).
+         * @param {number} seconds - The time in seconds to format.
+         * @returns {string} The formatted SRT time string.
+         */
+        window.formatSrtTime = (seconds) => {
             const date = new Date((seconds || 0) * 1000);
             const h = date.getUTCHours().toString().padStart(2, '0');
             const m = date.getUTCMinutes().toString().padStart(2, '0');

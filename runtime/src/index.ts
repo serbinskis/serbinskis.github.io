@@ -15,11 +15,11 @@ import express from 'express';
         key: await new Promise((resolve) => fs.readFile('./../-(CERTIFICATE)-/private.key', (err, data) => resolve(data))) as Buffer,
     }
 
-    http.createServer(app).listen(8080, null, () => {
+    http.createServer(app).listen(8080, () => {
         console.log(`Listening on 127.0.0.1:8080 (HTTP)`);
     });
 
-    https.createServer(httpsOptions, app).listen(8443, null, () => {
+    https.createServer(httpsOptions, app).listen(8443, () => {
         console.log(`Listening on 127.0.0.1:8443 (HTTPS)`);
     });
 })();
