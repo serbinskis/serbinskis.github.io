@@ -31,15 +31,9 @@ self.onmessage = async (e) => {
                 let lineTextArray = [];
 
                 line.words.forEach(w => {
-                    if (w.confidence >= confThreshold) {
-                        strippedFragments.push({
-                            text: w.text,
-                            confidence: w.confidence,
-                            bbox: w.bbox,
-                            language: w.language
-                        });
-                        lineTextArray.push(w.text);
-                    }
+                    if (w.confidence < confThreshold) { return; } // Skip low confidence words
+                    strippedFragments.push({ text: w.text, confidence: w.confidence, bbox: w.bbox, language: w.language });
+                    lineTextArray.push(w.text);
                 });
 
                 if (lineTextArray.length > 0) {
