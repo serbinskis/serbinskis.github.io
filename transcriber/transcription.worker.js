@@ -1,13 +1,8 @@
-
-
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2';
 
 env.useBrowserCache = false;
 env.useCache = false;
 env.allowLocalModels = false;
-env.backends.onnx.wasm.proxy = false;
-env.backends.onnx.wasm.numThreads = navigator.hardwareConcurrency || 4;
-env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2/dist/';
 console.log("SharedArrayBuffer supported:", typeof SharedArrayBuffer !== 'undefined');
 console.log("Cross-Origin Isolated:", self.crossOriginIsolated);
 console.log("Cores available:", env.backends.onnx.wasm.numThreads);
@@ -50,8 +45,8 @@ self.onmessage = async (e) => {
 
         // Start downloading and loading
         let transcriber = await pipeline('automatic-speech-recognition', modelName, {
-            dtype: 'q8', 
-            device: 'wasm',
+            dtype: 'fp32', 
+            device: 'webgpu',
             progress_callback: (p) => {
                 // Send download/loading progress back to UI
                 self.postMessage({ type: 'progress', data: p });
