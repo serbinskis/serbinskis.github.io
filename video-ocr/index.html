@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video OCR (UNDER CONSTRUCTION)</title>
+    <title>Video OCR</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👁️</text></svg>">
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="/home/js/navigation.js"></script>
     <script>
         tailwind.config = { darkMode: 'class' };
         let isDarkMode = localStorage.theme === 'light' ? false : true;
@@ -21,124 +22,168 @@
             border-radius: 5px;
             border: 2px solid #1f2937;
         }
-
         .dark ::-webkit-scrollbar-thumb:hover { background-color: #6b7280; }
-        .hide-timestamps .timestamp-block { display: none !important; }
 
-        .transcript-line { transition: background-color 0.2s; }
-        .transcript-line:hover { background-color: rgba(59, 130, 246, 0.05); }
-        .dark .transcript-line:hover { background-color: rgba(59, 130, 246, 0.15); }
-
-        .timestamp-btn { cursor: pointer; transition: color 0.2s; }
-        .timestamp-btn:hover { color: #3b82f6; text-decoration: none; }
-
-        /* Word Animation Keyframes */
-        @keyframes fadeInWord {
-            0% { opacity: 0; transform: translateY(2px); }
-            100% { opacity: 1; transform: translateY(0); }
-        }
-
-        .word-anim {
-            display: inline-block;
-            opacity: 0;
-            animation: fadeInWord 0.2s forwards;
-            white-space: pre-wrap;
-        }
-
-        /* Toast Animation */
         @keyframes slideDown {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
         .toast { animation: slideDown 0.3s ease-out forwards; pointer-events: auto; }
+
+        .empty\:hidden:empty { display: none !important; }
+
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] { appearance: textfield; }
+
+        input[type=range] {
+            appearance: none;
+            background: transparent;
+            width: 100%;
+        }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #cbd5e1; 
+            border-radius: 9999px;
+        }
+        .dark input[type=range]::-webkit-slider-runnable-track { background: #475569; }
+        input[type=range]::-webkit-slider-thumb {
+            height: 16px;
+            width: 16px;
+            border-radius: 9999px;
+            background: #2563eb; 
+            cursor: pointer;
+            appearance: none;
+            margin-top: -5px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .dark input[type=range]::-webkit-slider-thumb { background: #3b82f6; }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300 font-sans flex flex-col h-[100dvh] text-gray-800 dark:text-gray-200">
-
-    <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-full max-w-md px-4 pointer-events-none"></div>
 
     <header class="flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm transition-colors duration-300">
-        <div class="container mx-auto max-w-6xl px-4 py-3 flex justify-between items-center">
+        <div class="container mx-auto max-w-[1600px] px-4 py-3 flex justify-between items-center">
             <h1 class="text-xl font-bold flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
                 Video OCR
             </h1>
-            <div class="flex items-center gap-2">
-                <button id="theme-toggle" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                    <svg id="theme-icon-light" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                    <svg id="theme-icon-dark" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-                </button>
-            </div>
+            <button id="theme-toggle" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                <svg id="theme-icon-light" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                <svg id="theme-icon-dark" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+            </button>
         </div>
     </header>
 
-    <!-- Main acts as the dynamic middle container filling the space -->
-    <!-- Changed layout to side-by-side using md:flex-row and expanding max width -->
-    <main class="container mx-auto max-w-6xl p-4 flex-grow flex flex-col md:flex-row gap-4 min-h-0">
+    <main class="container mx-auto max-w-[1600px] p-4 flex-grow flex flex-col xl:flex-row gap-4 min-h-0">
 
-        <!-- Controls Card (Left side on desktop) -->
-        <div id="controls-card" class="flex-shrink-0 md:w-80 lg:w-96 h-fit bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-all duration-300 flex flex-col gap-4">
-            <div class="grid grid-cols-1 gap-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1">OCR Language(s)</label>
-                    <select id="language-select" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"></select>
+        <!-- Left Side: Video & Controls -->
+        <div class="flex flex-col gap-4 w-full xl:w-2/3 h-fit"> 
+            <div id="video-container" class="relative hidden w-full bg-black rounded-lg shadow-md items-center justify-center overflow-hidden min-h-[40vh] xl:min-h-[55vh] border border-gray-200 dark:border-gray-700">
+                <video id="video-player" class="max-w-full max-h-[70vh] outline-none" controls></video>
+                <div id="canvas-overlay-container" class="absolute inset-0 pointer-events-none w-full h-full overflow-hidden"></div>
+            </div>
+
+            <!-- Controls Card -->
+            <div id="controls-card" class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-all duration-300 flex flex-col gap-4">
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium mb-1">OCR Language(s)</label>
+                        <select id="language-select" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"></select>
+                    </div>
+
+                    <div class="flex-1 flex gap-2 items-end">
+                        <button id="btn-link" class="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2 font-medium transition-colors disabled:opacity-50">🔗 Link</button>
+                        <button id="btn-file" class="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2 font-medium transition-colors disabled:opacity-50">📁 File</button>
+                        <input type="file" id="file-input" accept="video/*" class="hidden">
+                    </div>
                 </div>
-            </div>
 
-            <div class="flex gap-2">
-                <button id="btn-link" class="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">🔗 Link</button>
-                <button id="btn-file" class="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">📁 File</button>
-                <input type="file" id="file-input" accept="video/*" class="hidden">
-            </div>
+                <!-- Sliders Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Interval Control -->
+                    <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <label class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 whitespace-nowrap">Interval:</label>
+                        <input type="range" id="interval-slider" min="0.1" max="5.0" step="0.1" value="1.0" class="disabled:opacity-50">
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="interval-input" min="0.1" max="5.0" step="0.1" value="1.0" class="w-12 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50">
+                            <span class="text-xs text-gray-500">sec</span>
+                        </div>
+                    </div>
 
-            <div id="progress-container" class="hidden flex flex-col gap-1">
-                <div class="flex justify-between text-sm items-end">
-                    <span id="progress-text" class="text-blue-600 dark:text-blue-400 font-medium">Ready</span>
-                    <div class="flex items-center gap-3">
+                    <!-- Confidence Control -->
+                    <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <label class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 whitespace-nowrap">Min Conf:</label>
+                        <input type="range" id="confidence-slider" min="0" max="100" step="1" value="0" class="disabled:opacity-50">
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="confidence-input" min="0" max="100" step="1" value="0" class="w-12 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded p-1 text-center text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50">
+                            <span class="text-xs text-gray-500">%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="progress-container" class="hidden flex flex-col gap-1">
+                    <div class="flex justify-between text-sm items-end">
+                        <span id="progress-text" class="text-blue-600 dark:text-blue-400 font-medium">Ready</span>
                         <span id="progress-percent" class="text-gray-500 font-mono text-xs">0%</span>
                     </div>
-                </div>
-                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
-                </div>
-            </div>
-
-            <video id="video-player" controls class="hidden w-full bg-black rounded-lg shadow-inner max-h-64 object-contain"></video>
-
-            <button id="btn-process" disabled class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors text-base shadow-sm">
-                Run Video OCR
-            </button>
-        </div>
-
-        <!-- OCR Results Card (Right side on desktop) -->
-        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-300 flex flex-col flex-grow min-w-0 min-h-0">
-            <div class="flex-shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-3">
-                <h2 class="text-lg font-bold flex-shrink-0 w-full sm:w-auto text-left">OCR Results</h2>
-
-                <div class="flex-1 flex justify-start sm:justify-center w-full sm:w-auto">
-                    <div class="flex gap-2">
-                        <button id="btn-export-json" class="px-3 py-1.5 text-xs font-bold tracking-wider text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">JSON</button>
-                        <button id="btn-export-txt" class="px-3 py-1.5 text-xs font-bold tracking-wider text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">TXT</button>
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
                     </div>
                 </div>
 
-                <label class="inline-flex items-center cursor-pointer flex-shrink-0 w-full sm:w-auto sm:justify-end">
-                    <span class="mr-3 text-sm text-gray-600 dark:text-gray-400">Hide Timestamps</span>
-                    <span class="relative">
-                        <input type="checkbox" id="toggle-timestamps" class="sr-only peer disabled:opacity-50 disabled:cursor-not-allowed">
-                        <div class="w-9 h-5 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                    </span>
-                </label>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button id="btn-extract-frame" disabled class="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 py-2 rounded-lg font-bold hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm">
+                        Extract Current Frame
+                    </button>
+                    <button id="btn-process" disabled class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors shadow-sm">
+                        Run Video OCR
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: OCR Results Box -->
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-300 flex flex-col flex-grow xl:w-1/3 min-w-0 min-h-[400px]">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-bold">OCR Results</h2>
+                <div class="flex items-center gap-3">
+                    <div class="flex gap-2">
+                        <button id="btn-export-json" class="px-2 py-1 text-[10px] font-bold tracking-wider text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed">JSON</button>
+                        <button id="btn-export-txt" class="px-2 py-1 text-[10px] font-bold tracking-wider text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed">TXT</button>
+                    </div>
+
+                    <label class="inline-flex items-center cursor-pointer flex-shrink-0" title="Show selectable bounding boxes on the video">
+                        <span class="mr-1.5 text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Overlay</span>
+                        <span class="relative">
+                            <input type="checkbox" id="toggle-overlay" checked class="sr-only peer disabled:opacity-50 disabled:cursor-not-allowed">
+                            <div class="w-7 h-4 bg-gray-300 dark:bg-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                        </span>
+                    </label>
+                </div>
             </div>
 
-            <div id="ocr-box" class="flex-grow min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 font-mono text-sm break-words flex flex-col gap-1"></div>
+            <div class="flex-grow min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 text-sm flex flex-col gap-4 relative scroll-smooth">
+                <div id="custom-extracts-container" class="flex flex-col gap-2 empty:hidden pb-4 border-b border-gray-300 dark:border-gray-600">
+                    <h3 class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Custom Extractions</h3>
+                </div>
+
+                <div id="timeline-extracts-container" class="flex flex-col gap-2 empty:hidden">
+                    <h3 class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Timeline OCR</h3>
+                </div>
+            </div>
         </div>
     </main>
 
-    <!-- Smooth Modal -->
     <div id="link-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 opacity-0 pointer-events-none transition-opacity duration-300 backdrop-blur-sm">
         <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl transform scale-95 transition-transform duration-300" id="link-modal-content">
             <h3 class="text-lg font-bold mb-1">Input Video URL</h3>
@@ -152,30 +197,36 @@
     </div>
 
     <script>
-        /* --- EXPOSE ALL ELEMENTS TO WINDOW --- */
         window.els = {
             themeToggle: document.getElementById('theme-toggle'),
             lightIcon: document.getElementById('theme-icon-light'),
             darkIcon: document.getElementById('theme-icon-dark'),
+            
+            videoContainer: document.getElementById('video-container'),
+            videoPlayer: document.getElementById('video-player'),
+            canvasOverlayContainer: document.getElementById('canvas-overlay-container'),
+            toggleOverlay: document.getElementById('toggle-overlay'),
 
-            controlsCard: document.getElementById('controls-card'),
             languageSelect: document.getElementById('language-select'),
+            intervalSlider: document.getElementById('interval-slider'),
+            intervalInput: document.getElementById('interval-input'),
+            confidenceSlider: document.getElementById('confidence-slider'),
+            confidenceInput: document.getElementById('confidence-input'),
 
             btnLink: document.getElementById('btn-link'),
             btnFile: document.getElementById('btn-file'),
             fileInput: document.getElementById('file-input'),
+            btnProcess: document.getElementById('btn-process'),
+            btnExtractFrame: document.getElementById('btn-extract-frame'),
 
             progressContainer: document.getElementById('progress-container'),
             progressBar: document.getElementById('progress-bar'),
             progressText: document.getElementById('progress-text'),
             progressPercent: document.getElementById('progress-percent'),
 
-            videoPlayer: document.getElementById('video-player'),
-
-            btnProcess: document.getElementById('btn-process'),
-            toggleTimestamps: document.getElementById('toggle-timestamps'),
-            ocrBox: document.getElementById('ocr-box'),
-
+            customExtractsContainer: document.getElementById('custom-extracts-container'),
+            timelineExtractsContainer: document.getElementById('timeline-extracts-container'),
+            
             linkModal: document.getElementById('link-modal'),
             linkModalContent: document.getElementById('link-modal-content'),
             linkInput: document.getElementById('link-input'),
@@ -186,29 +237,112 @@
             btnExportTxt: document.getElementById('btn-export-txt')
         };
 
-        /* --- GLOBAL EXPOSED VARIABLES --- */
         window.currentVideoFile = null; 
-        window.ocrData = [];     
         window.activeDownload = false;
         window.downloadAbortController = null;
         window.ocrWorker = null;
         window.isProcessing = false;
+        window.defaultInterval = 1.0;
+        window.defaultConfidence = 30;
+        window.minDrawOverlayInterval = 1; // seconds, only show bounding boxes from OCR data that is within this interval of the current video time to avoid showing irrelevant boxes when seeking
+        window.ocrFormat = { image: 'png', quality: 0.8 }; // image format and quality for frame extraction, quality is only used for jpeg
+        window.frameOcrData = {}; // Stores OCR results for each frame, keyed by timestamp
 
-        // Languages are now defined using arrays for future-proofing multi-lang models
+        // Latvian set as first item to act as fallback default if no match
         window.supportedLanguages = [
-            { code: ['eng'], name: 'English' },
-            { code: ['spa'], name: 'Spanish' },
-            { code: ['fra'], name: 'French' },
-            { code: ['deu'], name: 'German' },
             { code: ['lav'], name: 'Latvian' },
-            { code: ['lav', 'eng'], name: 'Latvian + English' }
+            { code: ['lav', 'eng'], name: 'Latvian + English' },
+            { code: ['afr'], name: 'Afrikaans' },
+            { code: ['amh'], name: 'Amharic' },
+            { code: ['ara'], name: 'Arabic' },
+            { code: ['asm'], name: 'Assamese' },
+            { code: ['aze'], name: 'Azerbaijani' },
+            { code: ['bel'], name: 'Belarusian' },
+            { code: ['ben'], name: 'Bengali' },
+            { code: ['bod'], name: 'Tibetan' },
+            { code: ['bos'], name: 'Bosnian' },
+            { code: ['bul'], name: 'Bulgarian' },
+            { code: ['ceb'], name: 'Cebuano' },
+            { code: ['ces'], name: 'Czech' },
+            { code: ['chi_sim'], name: 'Chinese (Simplified)' },
+            { code: ['chi_tra'], name: 'Chinese (Traditional)' },
+            { code: ['chr'], name: 'Cherokee' },
+            { code: ['cym'], name: 'Welsh' },
+            { code: ['dan'], name: 'Danish' },
+            { code: ['deu'], name: 'German' },
+            { code: ['dzo'], name: 'Dzongkha' },
+            { code: ['eng'], name: 'English' },
+            { code: ['epo'], name: 'Esperanto' },
+            { code: ['est'], name: 'Estonian' },
+            { code: ['eus'], name: 'Basque' },
+            { code: ['fas'], name: 'Persian' },
+            { code: ['fin'], name: 'Finnish' },
+            { code: ['fra'], name: 'French' },
+            { code: ['frk'], name: 'Frankish' },
+            { code: ['gle'], name: 'Irish' },
+            { code: ['glg'], name: 'Galician' },
+            { code: ['guj'], name: 'Gujarati' },
+            { code: ['heb'], name: 'Hebrew' },
+            { code: ['hin'], name: 'Hindi' },
+            { code: ['hrv'], name: 'Croatian' },
+            { code: ['hun'], name: 'Hungarian' },
+            { code: ['iku'], name: 'Inuktitut' },
+            { code: ['ind'], name: 'Indonesian' },
+            { code: ['isl'], name: 'Icelandic' },
+            { code: ['ita'], name: 'Italian' },
+            { code: ['jav'], name: 'Javanese' },
+            { code: ['jpn'], name: 'Japanese' },
+            { code: ['kan'], name: 'Kannada' },
+            { code: ['kat'], name: 'Georgian' },
+            { code: ['kaz'], name: 'Kazakh' },
+            { code: ['khm'], name: 'Central Khmer' },
+            { code: ['kir'], name: 'Kirghiz; Kyrgyz' },
+            { code: ['kor'], name: 'Korean' },
+            { code: ['kur'], name: 'Kurdish' },
+            { code: ['lao'], name: 'Lao' },
+            { code: ['lat'], name: 'Latin' },
+            { code: ['lit'], name: 'Lithuanian' },
+            { code: ['mal'], name: 'Malayalam' },
+            { code: ['mar'], name: 'Marathi' },
+            { code: ['mkd'], name: 'Macedonian' },
+            { code: ['mlt'], name: 'Maltese' },
+            { code: ['msa'], name: 'Malay' },
+            { code: ['mya'], name: 'Myanmar; Burmese' },
+            { code: ['nep'], name: 'Nepali' },
+            { code: ['nld'], name: 'Dutch; Flemish' },
+            { code: ['nor'], name: 'Norwegian' },
+            { code: ['ori'], name: 'Oriya' },
+            { code: ['pan'], name: 'Panjabi; Punjabi' },
+            { code: ['pol'], name: 'Polish' },
+            { code: ['por'], name: 'Portuguese' },
+            { code: ['pus'], name: 'Pushto; Pashto' },
+            { code: ['ron'], name: 'Romanian; Moldavian; Moldovan' },
+            { code: ['rus'], name: 'Russian' },
+            { code: ['san'], name: 'Sanskrit' },
+            { code: ['sin'], name: 'Sinhala; Sinhalese' },
+            { code: ['slk'], name: 'Slovak' },
+            { code: ['slv'], name: 'Slovenian' },
+            { code: ['spa'], name: 'Spanish; Castilian' },
+            { code: ['sqi'], name: 'Albanian' },
+            { code: ['srp'], name: 'Serbian' },
+            { code: ['swa'], name: 'Swahili' },
+            { code: ['swe'], name: 'Swedish' },
+            { code: ['syr'], name: 'Syriac' },
+            { code: ['tam'], name: 'Tamil' },
+            { code: ['tel'], name: 'Telugu' },
+            { code: ['tgk'], name: 'Tajik' },
+            { code: ['tgl'], name: 'Tagalog' },
+            { code: ['tha'], name: 'Thai' },
+            { code: ['tir'], name: 'Tigrinya' },
+            { code: ['tur'], name: 'Turkish' },
+            { code: ['uig'], name: 'Uighur; Uyghur' },
+            { code: ['ukr'], name: 'Ukrainian' },
+            { code: ['urd'], name: 'Urdu' },
+            { code: ['uzb'], name: 'Uzbek' },
+            { code: ['vie'], name: 'Vietnamese' },
+            { code: ['yid'], name: 'Yiddish' }
         ];
 
-        /**
-         * Displays a toast notification with the given message and type.
-         * @param {string} msg - The message to display.
-         * @param {string} [type='error'] - The type of notification ('error' or 'success').
-         */
         window.showNotification = (msg, type = 'error') => {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -220,43 +354,163 @@
             setTimeout(() => { if(toast.parentElement) { toast.remove(); } }, 4000);
         };
 
-        /**
-         * Locks or unlocks the UI elements based on the provided boolean value.
-         * @param {boolean} locked - If true, locks the UI; if false, unlocks it.
-         */
         window.setUILocked = (locked) => {
             window.els.languageSelect.disabled = locked;
+            //window.els.intervalSlider.disabled = locked;
+            //window.els.intervalInput.disabled = locked;
+            //window.els.confidenceSlider.disabled = locked;
+            //window.els.confidenceInput.disabled = locked;
             window.els.btnLink.disabled = locked && !window.activeDownload;
             window.els.btnFile.disabled = locked;
-            window.els.btnProcess.disabled = locked ? true : !window.currentVideoFile; 
             window.els.btnExportJson.disabled = locked;
             window.els.btnExportTxt.disabled = locked;
-            window.els.toggleTimestamps.disabled = locked;
-            if (locked) { window.els.controlsCard.classList.add('opacity-80'); }
-            else { window.els.controlsCard.classList.remove('opacity-80'); }    
+            
+            const hasVideo = !!window.currentVideoFile;
+            window.els.btnExtractFrame.disabled = locked ? true : !hasVideo;
+            window.els.btnProcess.disabled = locked ? true : !hasVideo;
+        };
+
+        window.setProgress = (percent, text = '') => {
+            window.els.progressContainer.classList.remove('hidden');
+            let clamped = Math.max(0, Math.min(100, percent));
+            window.els.progressBar.style.width = clamped + '%';
+            window.els.progressPercent.innerText = Math.round(clamped) + '%';
+            if (text) window.els.progressText.innerText = text;
+        };
+
+        window.formatTime = (seconds) => {
+            if (isNaN(seconds)) return "00:00";
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = (seconds % 60).toFixed(1);
+            const sFormatted = s.padStart(4, '0');
+            if (h > 0) { return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${sFormatted}`; }
+            return `${m.toString().padStart(2, '0')}:${sFormatted}`;
+        }
+
+        window.clearOcrData = () => {
+            window.frameOcrData = {};
+            window.els.customExtractsContainer.innerHTML = '<h3 class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Custom Extractions</h3>';
+            window.els.timelineExtractsContainer.innerHTML = '<h3 class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Timeline OCR</h3>';
+            window.drawOverlay();
         };
 
         /**
-         * Downloads a video file from the provided URL, with progress tracking and cancellation support.
-         * @param {string} url - The URL of the video file to download.
+         * Synchronizes a range slider and a number input field.
+         * @param {HTMLElement} slider - The range input element.
+         * @param {HTMLElement} input - The number input element.
+         * @param {number} min - Minimum value for the inputs.
+         * @param {number} max - Maximum value for the inputs.
+         * @param {string} storageKey - The key for storing the value in localStorage.
          */
+        const syncSliderAndInput = (slider, input, min, max, storageKey) => {
+            slider.addEventListener('input', (e) => input.value = e.target.value);
+            slider.addEventListener('input', (e) => localStorage.setItem(storageKey, e.target.value));
+            input.addEventListener('input', (e) => {
+                let val = parseFloat(e.target.value);
+                if (isNaN(val)) return;
+                if (val < min) { val = min; }
+                if (val > max) { val = max; }
+                input.value = slider.value = val;
+                localStorage.setItem(storageKey, val);
+            });
+        };
+
+        window.els.intervalSlider.value = localStorage.getItem('ocr_interval') || window.defaultInterval;
+        window.els.intervalInput.value = localStorage.getItem('ocr_interval') || window.defaultInterval;
+        window.els.confidenceSlider.value = localStorage.getItem('ocr_confidence') || window.defaultConfidence;
+        window.els.confidenceInput.value = localStorage.getItem('ocr_confidence') || window.defaultConfidence;
+
+        // Initialize sliders and inputs with saved values or defaults, and set up synchronization between them
+        syncSliderAndInput(window.els.intervalSlider, window.els.intervalInput, 0.1, 5.0, 'ocr_interval');
+        syncSliderAndInput(window.els.confidenceSlider, window.els.confidenceInput, 0, 100, 'ocr_confidence');
+
+        /**
+         * Load supported languages into the language select dropdown and set the selected language based on saved preference or default.
+         * @param {Array} languagesArray - Array of language objects with 'code' and 'name' properties.
+         */
+        window.loadLanguages = (languagesArray) => {
+            window.els.languageSelect.innerHTML = '';
+            languagesArray.forEach(lang => {
+                const opt = document.createElement('option');
+                opt.value = JSON.stringify(lang.code);
+                opt.textContent = lang.name;
+                window.els.languageSelect.appendChild(opt);
+            });
+            // Try to load saved language or default to Latvian (which is index 0)
+            const savedLang = localStorage.getItem('ocr_lang') || JSON.stringify(['lav']);
+            if (languagesArray.some(l => JSON.stringify(l.code) === savedLang)) {
+                window.els.languageSelect.value = savedLang;
+            } else {
+                window.els.languageSelect.value = JSON.stringify(languagesArray[0].code);
+            }
+        };
+
+        window.loadLanguages(window.supportedLanguages);
+        window.els.languageSelect.addEventListener('change', (e) => localStorage.setItem('ocr_lang', e.target.value));
+
+        function applyTheme(isDark) {
+            document.documentElement.classList.toggle('dark', isDark);
+            window.els.lightIcon.classList.toggle('hidden', isDark);
+            window.els.darkIcon.classList.toggle('hidden', !isDark);
+            localStorage.theme = isDark ? 'dark' : 'light';
+        }
+        applyTheme(localStorage.theme === 'dark');
+        window.els.themeToggle.addEventListener('click', () => applyTheme(localStorage.theme !== 'dark'));
+
+        /* --- VIDEO LOADING --- */
+        function setupVideoPlayer(src) {
+            window.clearOcrData();
+            if (src) { window.els.videoPlayer.src = src; }
+            window.els.videoContainer.classList.remove('hidden');
+            window.els.videoContainer.classList.add('flex');
+            window.setUILocked(false);
+        }
+
+        window.els.btnFile.addEventListener('click', () => window.els.fileInput.click());
+        window.els.fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) { return; }
+            window.currentVideoFile = file;
+            setupVideoPlayer(URL.createObjectURL(file));
+            e.target.value = ''; 
+        });
+
+        window.els.btnLink.addEventListener('click', () => {
+            if (window.activeDownload && window.downloadAbortController) return window.downloadAbortController.abort();
+            window.els.linkModal.classList.remove('pointer-events-none', 'opacity-0');
+            window.els.linkModalContent.classList.remove('scale-95');
+            window.els.linkModalContent.classList.add('scale-100');
+        });
+
+        window.els.btnCancelLink.addEventListener('click', () => {
+            window.els.linkModal.classList.add('pointer-events-none', 'opacity-0');
+            window.els.linkModalContent.classList.remove('scale-100');
+            window.els.linkModalContent.classList.add('scale-95');
+        });
+
+        window.els.btnSubmitLink.addEventListener('click', () => {
+            const url = window.els.linkInput.value.trim();
+            if (!url) { return; }
+            window.els.btnCancelLink.click();
+            window.downloadVideoFromUrl(url); 
+        });
+
+        /** Function to download video from URL with progress and cancellation support */
         window.downloadVideoFromUrl = async (url) => {
-            if (window.activeDownload) { return; }
+            if (window.activeDownload) return;
             window.activeDownload = true;
             window.setUILocked(true);
             window.els.btnLink.innerHTML = '❌ Cancel';
-            window.els.btnLink.classList.add('bg-red-50', 'text-red-600', 'border-red-200', 'dark:bg-red-900/30');
             window.els.progressContainer.classList.remove('hidden');
             window.downloadAbortController = new AbortController();
 
             try {
                 const response = await fetch(url, { signal: window.downloadAbortController.signal });
-                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-                
-                const contentLength = response.headers.get('content-length');
-                const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
-                const MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB limit
-                if (totalBytes > MAX_BYTES) { throw new Error("File exceeds 2 GB limit."); }
+                if (!response.ok) { throw new Error(`HTTP Error: ${response.status}`); }
+
+                const totalBytes = parseInt(response.headers.get('content-length') || 0, 10);
+                if (totalBytes > 2 * 1024 * 1024 * 1024) throw new Error("File exceeds 2 GB limit.");
 
                 let loadedBytes = 0;
                 const reader = response.body.getReader();
@@ -265,146 +519,350 @@
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) { break; }
-
                     chunks.push(value);
                     loadedBytes += value.byteLength;
-                    if (loadedBytes > MAX_BYTES) { throw new Error("File exceeds 2 GB limit."); }
-                    
-                    const loadedMB = (loadedBytes / (1024 * 1024)).toFixed(1);
-                    if (totalBytes) {
-                        const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
-                        const percent = (loadedBytes / totalBytes) * 100;
-                        window.setProgress(percent, `Downloading video... ${loadedMB} MB / ${totalMB} MB`);
-                    } else {
-                        window.setProgress(100, `Downloading video... ${loadedMB} MB downloaded`);
-                    }
+                    const percent = totalBytes ? (loadedBytes / totalBytes) * 100 : 100;
+                    window.setProgress(percent, `Downloading... ${(loadedBytes/1048576).toFixed(1)} MB`);
                 }
 
                 const downloadedBlob = new Blob(chunks);
                 window.currentVideoFile = downloadedBlob;
                 setupVideoPlayer(URL.createObjectURL(downloadedBlob));
-
-                window.setProgress(100, `Download Complete!`);
-                window.showNotification(`Video downloaded successfully!`, 'success');
-            } catch (error) {
-                if (error.name === 'AbortError') {
-                    window.showNotification('Video download cancelled.', 'error');
-                } else {
-                    window.showNotification(`Failed to download video: ${error.message}`, 'error');
-                }
-                window.setProgress(0, 'Ready');
+                window.showNotification(`Video downloaded!`, 'success');
+            } catch (err) {
+                window.showNotification(err.name === 'AbortError' ? 'Download cancelled.' : err.message, 'error');
             } finally {
-                setTimeout(() => {
-                    window.activeDownload = false;
-                    window.downloadAbortController = null;
-                    window.els.btnLink.innerHTML = '🔗 Link';
-                    window.els.btnLink.classList.remove('bg-red-50', 'text-red-600', 'border-red-200', 'dark:bg-red-900/30');
-                    window.els.progressContainer.classList.add('hidden');
-                    window.setUILocked(false);
-                }, 250);
+                window.activeDownload = false;
+                window.downloadAbortController = null;
+                window.els.btnLink.innerHTML = '🔗 Link';
+                window.els.progressContainer.classList.add('hidden');
+                window.setUILocked(false);
+            }
+        };
+
+        /** Function to draw OCR bounding boxes overlay on the video */
+        window.drawOverlay = () => {
+            const container = window.els.canvasOverlayContainer;
+            const video = window.els.videoPlayer;
+            container.innerHTML = '';
+            if (!window.els.toggleOverlay.checked || !window.currentVideoFile || !video.videoWidth || !video.videoHeight) { return; }
+
+            let closestTime = null;
+            let minDiff = window.minDrawOverlayInterval; // Only show boxes from OCR data that is within the specified interval of the current video time to avoid showing irrelevant boxes when seeking
+            const current = video.currentTime;
+
+            // Find the closest OCR data timestamp to the current video time
+            for (const key in window.frameOcrData) {
+                const t = parseFloat(key);
+                const diff = Math.abs(t - current);
+                if (diff <= minDiff) { minDiff = diff; closestTime = key; }
+            }
+
+            if (!closestTime) { return; } // If no OCR data is close enough to the current time, don't show any boxes
+            const data = window.frameOcrData[closestTime];
+            if (!data.fragments || data.fragments.length === 0) { return; }
+
+            const vw = video.videoWidth;
+            const vh = video.videoHeight;
+            const videoRect = video.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            const scale = Math.min(videoRect.width / vw, videoRect.height / vh);
+            const renderedWidth = vw * scale;
+            const renderedHeight = vh * scale;
+
+            const internalOx = (videoRect.width - renderedWidth) / 2;
+            const internalOy = (videoRect.height - renderedHeight) / 2;
+
+            const externalOx = videoRect.left - containerRect.left;
+            const externalOy = videoRect.top - containerRect.top;
+
+            const ox = externalOx + internalOx;
+            const oy = externalOy + internalOy;
+
+            data.fragments.forEach(frag => {
+                const bbox = frag.bbox; 
+                if (!bbox) { return; }
+
+                const div = document.createElement('div');
+                div.className = 'absolute border-[1.5px] border-blue-500/40 bg-blue-500/10 hover:border-blue-400 hover:bg-blue-500/30 cursor-pointer transition-all pointer-events-auto rounded-[2px]';
+
+                const x = ox + (bbox.x0 * scale);
+                const y = oy + (bbox.y0 * scale);
+                const w = (bbox.x1 - bbox.x0) * scale;
+                const h = (bbox.y1 - bbox.y0) * scale;
+ 
+                div.style.left = `${x}px`;
+                div.style.top = `${y}px`;
+                div.style.width = `${w}px`;
+                div.style.height = `${h}px`;
+
+                div.title = `Click to copy: "${frag.text}"`;
+                div.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation(); 
+                    navigator.clipboard.writeText(frag.text);
+                    window.showNotification(`Copied: "${frag.text}"`, 'success');
+                };
+
+                container.appendChild(div);
+            });
+        };
+
+        window.els.videoPlayer.addEventListener('timeupdate', window.drawOverlay);
+        window.addEventListener('resize', window.drawOverlay);
+        window.els.toggleOverlay.addEventListener('change', window.drawOverlay);
+
+        /**
+         * Function to insert OCR result elements into the timeline in sorted order based on their timestamp
+         * @param {HTMLElement} container - The parent element that holds the OCR result entries (e.g., timelineExtractsContainer)
+         * @param {HTMLElement} element - The new OCR result element to be inserted
+         * @param {number} time - The timestamp associated with the OCR result, used for sorting
+        */
+        window.insertSorted = (container, element, time) => {
+            const children = Array.from(container.children).filter(c => c.hasAttribute('data-time-box'));
+            element.setAttribute('data-time-box', time);
+
+            let inserted = false;
+            for (let i = 0; i < children.length; i++) {
+                const childTime = parseFloat(children[i].getAttribute('data-time-box'));
+                if (time < childTime) { container.insertBefore(element, children[i]); }
+                if (time < childTime) { inserted = true; break; }
+            }
+            if (!inserted) { container.appendChild(element); }
+        };
+
+        /**
+         * Function to create and render an OCR result entry in the OCR results sidebar. It handles both timeline-based results and custom user-added results.
+         * @param {number} time - The timestamp of the OCR result, used for timeline
+         * @param {string} text - The OCR extracted text to be displayed
+         * @param {boolean} isCustom - Flag indicating whether this is a custom user-added result (true) or a timeline OCR result (false). Custom results are displayed in a separate section and have a "Custom" badge.
+         */
+        window.renderOcrResultElement = (time, text, isCustom) => {
+            const existing = document.querySelector(`[data-time-box="${time}"]`);
+            if (existing) { existing.remove(); } // Remove existing entry for the same timestamp to avoid duplicates
+            const container = document.createElement('div');
+            container.setAttribute('data-time-box', time); 
+            container.className = 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden flex flex-col group/item';
+
+            const header = document.createElement('div');
+            header.className = 'flex justify-between items-center px-3 py-1 cursor-pointer bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors select-none group';
+
+            const titleBox = document.createElement('div');
+            titleBox.className = 'flex items-center gap-2 flex-grow min-w-0';
+
+            const timeStr = `[${window.formatTime(time)}]`;
+            let badgeHtml = isCustom ? `<span class="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 px-1.5 py-0.5 rounded uppercase font-bold flex-shrink-0">Custom</span>` : '';
+
+            const previewText = text.replace(/[\r\n]+/g, ' ').trim();
+            const previewStr = previewText.length > 50 ? previewText.substring(0, 50) + '...' : previewText;
+
+            titleBox.innerHTML = `
+                <span class="font-bold text-blue-600 dark:text-blue-400 font-mono tracking-tight cursor-pointer flex-shrink-0" data-time="${time}">${timeStr}</span>
+                ${badgeHtml}
+                <span class="text-xs text-gray-500 dark:text-gray-400 truncate w-24 sm:w-48 ml-1 pointer-events-none">${previewStr}</span>
+            `;
+
+            const controlsBox = document.createElement('div');
+            controlsBox.className = 'flex items-center gap-3 flex-shrink-0';
+
+            // Delete Button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>`;
+
+            deleteBtn.className = 'text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 opacity-0 group-hover/item:opacity-100 transition-opacity p-1';
+            deleteBtn.title = "Remove result";
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                delete window.frameOcrData[time];
+                container.remove();
+                window.drawOverlay();
+            };
+            
+            const copyBtn = document.createElement('button');
+            copyBtn.textContent = 'Copy';
+            copyBtn.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-gray-300 dark:bg-gray-600 rounded hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors opacity-0 group-hover/item:opacity-100';
+            copyBtn.onclick = (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(text);
+                window.showNotification('Copied to clipboard!', 'success');
+            };
+
+            const arrowIcon = document.createElement('span');
+            arrowIcon.innerHTML = '▼';
+            arrowIcon.className = 'text-xs text-gray-500 transition-transform duration-200';
+
+            controlsBox.appendChild(deleteBtn);
+            controlsBox.appendChild(copyBtn);
+            controlsBox.appendChild(arrowIcon);
+            header.appendChild(titleBox);
+            header.appendChild(controlsBox);
+
+            const body = document.createElement('div');
+            body.className = 'hidden p-3 text-sm text-gray-800 dark:text-gray-200 border-t border-gray-200 dark:border-gray-700 font-mono whitespace-pre-wrap leading-relaxed break-words';
+            body.textContent = text;
+
+            header.onclick = (e) => {
+                if(e.target.tagName === 'SPAN' && e.target.hasAttribute('data-time')) {
+                    // Update time, but do NOT force playback
+                    window.els.videoPlayer.currentTime = parseFloat(e.target.getAttribute('data-time'));
+                    return;
+                }
+                const isHidden = body.classList.contains('hidden');
+                body.classList.toggle('hidden');
+                arrowIcon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+            };
+
+            container.appendChild(header);
+            container.appendChild(body);
+
+            if (isCustom) {
+                window.els.customExtractsContainer.prepend(container);
+                container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                window.insertSorted(window.els.timelineExtractsContainer, container, time);
+                container.scrollIntoView({ behavior: 'smooth', block: 'center' }); // Scroll to the specific item instead of the bottom
             }
         };
 
         /**
-         * Loads the available languages into the language selection dropdown.
-         * @param {Array} languagesArray - An array of language objects.
+         * Function to capture the current frame of the video as a data URL. It creates an off-screen canvas, draws the current video frame onto it, and then converts it to a JPEG data URL.
+         * @return {string} - A data URL representing the current video frame in JPEG format.
          */
-        window.loadLanguages = (languagesArray) => {
-            window.els.languageSelect.innerHTML = '';
+        window.getFrameDataUrl = () => {
+            const canvas = document.createElement('canvas');
+            const video = window.els.videoPlayer;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL(`image/${window.ocrFormat.image}`, (window.ocrFormat.image === 'jpeg' || window.ocrFormat.image === 'jpg') ? window.ocrFormat.quality : undefined);
+        };
 
-            languagesArray.forEach(lang => {
-                const opt = document.createElement('option');
-                // Store the array as a JSON string to keep things tidy natively inside the select options
-                opt.value = JSON.stringify(lang.code);
-                opt.textContent = lang.name;
-                window.els.languageSelect.appendChild(opt);
+        window.initWorker = () => {
+            if (!window.ocrWorker) { window.ocrWorker = new Worker('tesseract.worker.js'); }
+        };
+
+        window.processFrameWorker = (imageData, langArr, minConfidence, isInit = false) => {
+            return new Promise((resolve, reject) => {
+                window.initWorker();
+                const msgId = Date.now() + Math.random();
+                const handler = (e) => {
+                    if (e.data.msgId === msgId) {
+                        window.ocrWorker.removeEventListener('message', handler);
+                        if (e.data.error) { reject(new Error(e.data.error)); }
+                        else { resolve(e.data.result); }
+                    }
+                };
+                window.ocrWorker.addEventListener('message', handler);
+                window.ocrWorker.postMessage({ msgId, image: imageData, language: langArr, minConfidence: minConfidence, init: isInit });
             });
+        };
 
-            const savedLang = localStorage.getItem('ocr_lang');
-            let isValid = false;
+        // Extract current frame OCR logic
+        window.els.btnExtractFrame.addEventListener('click', async () => {
+            const time = window.els.videoPlayer.currentTime;
+            window.setUILocked(true);
+            window.setProgress(100, `Extracting current frame...`);
             
-            if (savedLang) {
-                isValid = languagesArray.some(l => JSON.stringify(l.code) === savedLang);
+            try {
+                const langArr = JSON.parse(window.els.languageSelect.value);
+                const confThresh = parseFloat(window.els.confidenceInput.value);
+                const dataUrl = window.getFrameDataUrl();
+                const result = await window.processFrameWorker(dataUrl, langArr, confThresh);
+                
+                if (result.text && result.text.trim().length > 0) {
+                    window.frameOcrData[time] = { text: result.text, fragments: result.fragments, isCustom: true };
+                    window.renderOcrResultElement(time, result.text, true);
+                    window.drawOverlay(); 
+                    window.showNotification('Frame extracted!', 'success');
+                } else {
+                    window.showNotification('No text found in frame meeting confidence threshold.', 'error');
+                }
+            } catch (err) {
+                window.showNotification(`Extraction failed: ${err.message}`, 'error');
+            } finally {
+                window.setProgress(0);
+                window.els.progressContainer.classList.add('hidden');
+                window.setUILocked(false);
             }
+        });
 
-            if (isValid) {
-                window.els.languageSelect.value = savedLang;
-            } else if (languagesArray.length > 0) {
-                window.els.languageSelect.value = JSON.stringify(languagesArray[0].code);
+        // Main video OCR processing loop logic
+        window.els.btnProcess.addEventListener('click', async () => {
+            if (window.isProcessing) { return window.isProcessing = false; }
+
+            window.isProcessing = true;
+            window.setUILocked(true);
+            window.els.btnProcess.disabled = false; 
+            window.els.btnProcess.innerText = "Stop / Cancel";
+            window.els.btnProcess.classList.replace('bg-blue-600', 'bg-red-600');
+            window.els.btnProcess.classList.replace('hover:bg-blue-700', 'hover:bg-red-700');
+            
+            const langArr = JSON.parse(window.els.languageSelect.value);
+            const confThresh = parseFloat(window.els.confidenceInput.value);
+
+            try {
+                window.setProgress(0, "Loading Tesseract OCR Model...");
+                await window.processFrameWorker(null, langArr, confThresh, true);
+
+                if (window.els.videoPlayer.paused) {
+                    window.els.videoPlayer.play().catch(()=>{});
+                }
+
+                while (window.isProcessing && !window.els.videoPlayer.ended) {
+                    const loopStart = performance.now();
+                    const currentTime = window.els.videoPlayer.currentTime;
+                    const duration = window.els.videoPlayer.duration || 1;
+
+                    window.setProgress((currentTime / duration) * 100, `Processing: ${currentTime.toFixed(1)}s / ${duration.toFixed(1)}s`);
+                    const dataUrl = window.getFrameDataUrl();
+                    const result = await window.processFrameWorker(dataUrl, langArr, confThresh);
+
+                    if (window.isProcessing && result.text && result.text.trim().length > 0) {
+                        window.frameOcrData[currentTime] = { text: result.text, fragments: result.fragments, isCustom: false };
+                        window.renderOcrResultElement(currentTime, result.text, false);
+                        window.drawOverlay();
+                    }
+
+                    const elapsed = performance.now() - loopStart;
+                    const intervalMs = parseFloat(window.els.intervalInput.value) * 1000;
+                    const waitTime = Math.max(0, intervalMs - elapsed);
+                    if (window.isProcessing) { await new Promise(r => setTimeout(r, waitTime)); }
+                }
+            } catch (err) {
+                window.showNotification(`Process error: ${err.message}`, 'error');
+            } finally {
+                window.isProcessing = false;
+                window.setUILocked(false);
+                window.els.btnProcess.innerText = "Run Video OCR";
+                window.els.btnProcess.classList.replace('bg-red-600', 'bg-blue-600');
+                window.els.btnProcess.classList.replace('hover:bg-red-700', 'hover:bg-blue-700');
+                window.els.progressContainer.classList.add('hidden');
             }
-        };
+        });
 
-        window.setProcessState = (isEnabled) => {
-            window.els.btnProcess.disabled = !isEnabled;
-        };
-
-        window.setProgress = (percent, text = '') => {
-            window.els.progressContainer.classList.remove('hidden');
-            let clamped = Math.max(0, Math.min(100, percent));
-            window.els.progressBar.style.width = clamped + '%';
-            window.els.progressPercent.innerText = Math.round(clamped) + '%';
-            if (text) { window.els.progressText.innerText = text; }
-        };
-
-        window.clearOcrData = () => {
-            window.els.ocrBox.innerHTML = '';
-            window.ocrData = [];
-        };
-
-        window.addOcrResult = (startTime, endTime, text) => {
-            const box = window.els.ocrBox;
-            const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 15;
-
-            window.ocrData.push({ start: startTime, end: endTime, text: text });
-            const line = document.createElement('div');
-            line.className = 'transcript-line flex gap-2 py-1 px-2 rounded items-start';
-
-            const timestampSpan = document.createElement('span');
-            timestampSpan.className = 'timestamp-block text-blue-500 dark:text-blue-400 flex-shrink-0 select-none mt-0.5';
-            timestampSpan.innerHTML = `[<span class="timestamp-btn" data-time="${startTime}">${window.formatTime(startTime)}</span> - <span class="timestamp-btn" data-time="${endTime}">${window.formatTime(endTime)}</span>]`;
-
-            const textContainerSpan = document.createElement('span');
-            textContainerSpan.className = 'text-gray-800 dark:text-gray-200 break-words flex-grow leading-relaxed';
-
-            const words = text.split(' ');
-            words.forEach((word, index) => {
-                const wSpan = document.createElement('span');
-                wSpan.textContent = word + ' ';
-                wSpan.className = 'word-anim';
-                wSpan.style.animationDelay = `${index * 0.04}s`; 
-                textContainerSpan.appendChild(wSpan);
-            });
-
-            line.appendChild(timestampSpan);
-            line.appendChild(textContainerSpan);
-            box.appendChild(line);
-
-            line.querySelectorAll('.timestamp-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const time = parseFloat(e.target.getAttribute('data-time'));
-                    if (isNaN(time)) { return; }
-                    window.els.videoPlayer.currentTime = time;
-                    window.els.videoPlayer.play().catch(() => {});
-                });
-            });
-
-            if (isScrolledToBottom) {
-                setTimeout(() => box.scrollTop = box.scrollHeight, 10);
-            }
-        };
-
+        /**
+         * Export OCR data logic to JSON or TXT format
+         * @param {string} format - The desired export format, either 'json' or 'txt'. The function generates a file containing all OCR results in the specified format and triggers a download in the browser.
+         */
         window.exportOcrData = (format) => {
-            if (window.ocrData.length === 0) { return window.showNotification('No OCR data to export.', 'error'); }
+            const keys = Object.keys(window.frameOcrData).sort((a,b) => parseFloat(a) - parseFloat(b));
+            if (keys.length === 0) { return window.showNotification('No OCR data to export.', 'error'); }
             let content = '', mimeType = 'text/plain';
-            let filename = `ocr_${Date.now()}.${format}`;
+            let filename = `ocr_data_${Date.now()}.${format}`;
 
             if (format === 'json') {
-                content = JSON.stringify(window.ocrData, null, 2);
+                content = JSON.stringify(window.frameOcrData, null, 2);
                 mimeType = 'application/json';
             } else if (format === 'txt') {
-                content = window.ocrData.map(item => 
-                    `[${window.formatTime(item.start)} - ${window.formatTime(item.end)}] ${item.text}`
-                ).join('\n');
+                content = keys.map(k => {
+                    const d = window.frameOcrData[k];
+                    return `[${window.formatTime(k)}]${d.isCustom ? ' (Custom)' : ''}\n${d.text}\n`;
+                }).join('\n');
             }
 
             const blob = new Blob([content], { type: mimeType });
@@ -420,141 +878,6 @@
 
         window.els.btnExportJson.addEventListener('click', () => window.exportOcrData('json'));
         window.els.btnExportTxt.addEventListener('click', () => window.exportOcrData('txt'));
-
-        /* --- INITIALIZATION --- */
-        window.loadLanguages(window.supportedLanguages);
-        window.els.languageSelect.addEventListener('change', (e) => localStorage.setItem('ocr_lang', e.target.value));
-
-        /* --- THEME TOGGLE --- */
-        function applyTheme(isDark) {
-            document.documentElement.classList.toggle('dark', isDark);
-            window.els.lightIcon.classList.toggle('hidden', isDark);
-            window.els.darkIcon.classList.toggle('hidden', !isDark);
-            localStorage.theme = isDark ? 'dark' : 'light';
-        }
-        applyTheme(localStorage.theme === 'dark');
-        window.els.themeToggle.addEventListener('click', () => applyTheme(localStorage.theme !== 'dark'));
-
-        /* --- VIDEO PLAYER LOGIC --- */
-        function setupVideoPlayer(src) {
-            if (src) { window.els.videoPlayer.src = src; }
-            window.els.videoPlayer.classList.remove('hidden');
-            window.setProcessState(true);
-        }
-
-        /* --- INPUT METHODS --- */
-        window.els.btnFile.addEventListener('click', () => window.els.fileInput.click());
-        window.els.fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) { return; }
-            window.currentVideoFile = file;
-            setupVideoPlayer(URL.createObjectURL(file));
-            e.target.value = ''; 
-        });
-
-        window.els.btnLink.addEventListener('click', () => {
-            if (window.activeDownload && window.downloadAbortController) { return window.downloadAbortController.abort(); }
-            window.els.linkModal.classList.remove('pointer-events-none', 'opacity-0');
-            window.els.linkModalContent.classList.remove('scale-95');
-            window.els.linkModalContent.classList.add('scale-100');
-        });
-
-        function closeLinkModal() {
-            window.els.linkModal.classList.add('pointer-events-none', 'opacity-0');
-            window.els.linkModalContent.classList.remove('scale-100');
-            window.els.linkModalContent.classList.add('scale-95');
-            window.els.linkInput.value = '';
-        }
-
-        window.els.btnCancelLink.addEventListener('click', closeLinkModal);
-        window.els.btnSubmitLink.addEventListener('click', () => {
-            const url = window.els.linkInput.value.trim();
-            if (!url) { return; }
-            closeLinkModal();
-            window.downloadVideoFromUrl(url); 
-        });
-
-        window.els.btnProcess.addEventListener('click', () => {
-            if (window.isProcessing) {
-                window.stopOcrProcess();
-                window.isProcessing = false;
-                window.setUILocked(false);
-                
-                window.els.btnProcess.innerText = "Run Video OCR";
-                window.els.btnProcess.classList.remove('bg-red-600', 'hover:bg-red-700');
-                window.els.btnProcess.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                window.els.btnProcess.disabled = false; 
-                setTimeout(() => window.els.progressContainer.classList.add('hidden'), 250);
-            } else { 
-                window.isProcessing = true;
-                window.setUILocked(true);
-
-                window.els.btnProcess.disabled = false; 
-                window.els.btnProcess.innerText = "Stop / Cancel";
-                window.els.btnProcess.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                window.els.btnProcess.classList.add('bg-red-600', 'hover:bg-red-700');
-                window.startOcrProcess();
-            }
-        });
-
-        window.els.toggleTimestamps.addEventListener('change', (e) => {
-            window.els.ocrBox.classList.toggle('hide-timestamps', e.target.checked);
-        });
-
-        window.startOcrProcess = () => {
-            const file = window.currentVideoFile;
-            if (!file) { return; }
-
-            if (window.ocrWorker) { window.ocrWorker.terminate(); }
-            window.clearOcrData();
-
-            window.ocrWorker = new Worker('ocr.worker.js', { type: 'module' });
-
-            window.ocrWorker.onmessage = (e) => {
-                const { type, data, msg, progress } = e.data;
-
-                if (type === 'partial') {
-                    window.addOcrResult(data.start, data.end, data.text);
-                } else if (type === 'bar') {
-                    window.setProgress(progress, msg);
-                } else if (type === 'error') {
-                    window.showNotification(msg, "error");
-                    window.els.btnProcess.click(); 
-                }
-            };
-
-            // Parse the stored array from select back into an actual JS Array
-            const languageArray = JSON.parse(window.els.languageSelect.value);
-
-            window.ocrWorker.postMessage({
-                videoData: file,
-                language: languageArray
-            });
-        }
-
-        /** Stops the OCR process by terminating the Web Worker. */
-        window.stopOcrProcess = () => {
-            if (window.ocrWorker) {
-                window.ocrWorker.terminate();
-                window.ocrWorker = null;
-                console.log("Worker terminated and CPU usage stopped.");
-            }
-        }
-
-        /**
-         * Converts a time in seconds to a formatted string.
-         * @param {number} seconds - The time in seconds to format.
-         * @returns {string} The formatted time string.
-         */
-        window.formatTime = (seconds) => {
-            if (isNaN(seconds)) { return "00:00"; }
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            const s = (seconds % 60).toFixed(1);
-            const sFormatted = s.padStart(4, '0');
-            if (h > 0) { return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${sFormatted}`; }
-            return `${m.toString().padStart(2, '0')}:${sFormatted}`;
-        }
     </script>
 </body>
 </html>
