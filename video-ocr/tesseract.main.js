@@ -633,11 +633,10 @@ window.els.btnProcess.addEventListener('click', async () => {
     window.els.btnProcess.classList.replace('bg-blue-600', 'bg-red-600');
     window.els.btnProcess.classList.replace('hover:bg-blue-700', 'hover:bg-red-700');
     const langArr = JSON.parse(window.els.languageSelect.value);
-    let confThresh = parseFloat(window.els.confidenceInput.value);
+    const workersCount = parseInt(window.els.workersSlider.value, 10);
 
     try {
-        window.setProgress(0, "Loading Tesseract OCR Model...");
-        await window.processFrameWorker(null, langArr, confThresh, true);
+        await TesseractManager.initWorkers(workersCount, langArr, (p) => window.setProgress(p, `Preparing Tesseract OCR... ${p.toFixed(1)}%`));
         if (window.els.videoPlayer.paused) { window.els.videoPlayer.play().catch(()=>{}); }
 
         while (window.isProcessing && !window.els.videoPlayer.ended) {
@@ -645,10 +644,10 @@ window.els.btnProcess.addEventListener('click', async () => {
             const currentTime = window.els.videoPlayer.currentTime;
             const duration = window.els.videoPlayer.duration || 1;
 
-            confThresh = parseFloat(window.els.confidenceInput.value);
             window.setProgress((currentTime / duration) * 100, `Processing: ${currentTime.toFixed(1)}s / ${duration.toFixed(1)}s`);
             const dataUrl = window.getFrameDataUrl();
-            const result = await window.processFrameWorker(dataUrl, langArr, confThresh);
+            const confThresh = parseFloat(window.els.confidenceInput.value);
+            const result = await TesseractManager.recognize(dataUrl, langArr, confThresh);
 
             if (window.isProcessing && result.text && result.text.trim().length > 0) {
                 window.frameOcrData[currentTime] = { text: result.text, fragments: result.fragments, isCustom: false };
@@ -663,7 +662,9 @@ window.els.btnProcess.addEventListener('click', async () => {
         }
     } catch (err) {
         window.showNotification(`Process error: ${err.message}`, 'error');
+        console.error(err);
     } finally {
+        TesseractManager.stopWorkers();
         window.isProcessing = false;
         window.setUILocked(false);
         window.els.btnProcess.innerText = "Run Video OCR";

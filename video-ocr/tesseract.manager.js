@@ -29,7 +29,7 @@ export class TesseractManager {
                 
                 TesseractManager.workers.push(worker);
                 TesseractManager.availableWorkers.push(worker);
-                progressCallback(TesseractManager.workers.length / amount);
+                progressCallback(TesseractManager.workers.length / amount * 100);
                 resolve();
             });
         });
