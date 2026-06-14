@@ -108,7 +108,7 @@
                 </div>
 
                 <!-- Sliders Grid - Updated to 3 columns on large screens -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
                     <!-- Interval Control -->
                     <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
                         <label class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 whitespace-nowrap flex items-center gap-1">
@@ -139,7 +139,7 @@
                     <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
                         <label class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 whitespace-nowrap flex items-center gap-1">
                             Workers:
-                            <span class="cursor-help text-[10px] text-gray-400 hover:text-blue-500 transition-colors" title="Number of parallel CPU threads to use. More workers process frames faster but use significantly more RAM.">(?)</span>
+                            <span class="cursor-help text-[10px] text-gray-400 hover:text-blue-500 transition-colors" title="Number of parallel CPU threads to use. More workers process frames faster but use more RAM.">(?)</span>
                         </label>
                         <input type="range" id="workers-slider" min="1" max="4" step="1" value="1" class="disabled:opacity-50">
                         <div class="flex items-center gap-1">
