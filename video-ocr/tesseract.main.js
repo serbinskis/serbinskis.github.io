@@ -575,7 +575,13 @@ window.renderOcrResultElement = (time, text, isCustom) => {
         container.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
         window.insertSorted(window.els.timelineExtractsContainer, container, time);
-        if (window.els.videoPlayer.paused) { return; } // Don't scroll if video is paused since user might be trying to inspect results around current time
+        const videoTime = window.els.videoPlayer.currentTime;
+        const timeDiff = Math.abs(videoTime - time);
+
+        // Don't scroll if adding the same time. This means the video is paused, so we won't get scrolled away.
+        // This is so the user can inspect the desired entry without getting scrolled away.
+        // Also, don't scroll if the time difference is too large, since the user may seek through the video while older frames are still being processed in the background.
+        if (existing || timeDiff > 30) { return; }
         container.scrollIntoView({ behavior: 'smooth', block: 'center' }); // Scroll to the specific item instead of the bottom
     }
 };
