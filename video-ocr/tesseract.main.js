@@ -184,7 +184,7 @@ window.setUILocked = (locked) => {
     //window.els.btnExportTxt.disabled = locked;
 
     const hasVideo = !!window.currentVideoFile;
-    window.els.btnExtractFrame.disabled = locked ? true : !hasVideo;
+    window.els.btnExtractFrame.disabled = /*locked ? true :*/ !hasVideo;
     window.els.btnProcess.disabled = locked ? true : !hasVideo;
 };
 
@@ -572,7 +572,7 @@ window.renderOcrResultElement = (time, text, isCustom) => {
 
     if (isCustom) {
         window.els.customExtractsContainer.prepend(container);
-        container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (!window.isProcessing || window.els.videoPlayer.paused) { container.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     } else {
         window.insertSorted(window.els.timelineExtractsContainer, container, time);
         const videoTime = window.els.videoPlayer.currentTime;
@@ -603,7 +603,7 @@ window.getFrameDataUrl = () => {
 // Extract current frame OCR logic
 window.els.btnExtractFrame.addEventListener('click', async () => {
     const time = window.els.videoPlayer.currentTime;
-    window.setUILocked(true);
+    if (!window.isProcessing) { window.setUILocked(true); }
     window.setProgress(100, `Extracting current frame...`);
 
     try {
@@ -623,9 +623,9 @@ window.els.btnExtractFrame.addEventListener('click', async () => {
     } catch (err) {
         window.showNotification(`Extraction failed: ${err.message}`, 'error');
     } finally {
-        window.setProgress(0);
-        window.els.progressContainer.classList.add('hidden');
-        window.setUILocked(false);
+        if (!window.isProcessing) { window.setProgress(0); }
+        if (!window.isProcessing) { window.els.progressContainer.classList.add('hidden'); }
+        if (!window.isProcessing) { window.setUILocked(false); }
     }
 });
 
