@@ -4,6 +4,7 @@ export class TesseractManager {
     static availableWorkers = [];
     static stopEventListeners = [];
     static initalizing = false;
+    static hasStopped = false;
 
     /**
      * Initializes the Tesseract workers.
@@ -35,6 +36,7 @@ export class TesseractManager {
         });
 
         await Promise.all(initPromises);
+        TesseractManager.hasStopped = false;
         TesseractManager.initalizing = false;
     }
 
@@ -42,6 +44,7 @@ export class TesseractManager {
      * Stops all Tesseract workers and resets the manager state.
      */
     static stopWorkers() {
+        TesseractManager.hasStopped = true;
         TesseractManager.stopEventListeners.forEach(listener => listener());
         TesseractManager.workers.forEach(worker => worker.terminate());
         TesseractManager.workers = [];
@@ -61,7 +64,7 @@ export class TesseractManager {
      * Waits until at least one worker is free to process a new task.
      */
     static async waitInQueue() {
-        while (TesseractManager.availableWorkers.length == 0) { await new Promise(resolve => setTimeout(resolve, 1)); }
+        while (!TesseractManager.hasStopped && TesseractManager.availableWorkers.length == 0) { await new Promise(resolve => setTimeout(resolve, 1)); }
     }
 
     /**
@@ -93,6 +96,7 @@ export class TesseractManager {
     static async recognize(image, language = ["eng"], minConfidence = -1) {
         await TesseractManager.waitInitialization();
         await TesseractManager.waitInQueue();
+        if (TesseractManager.hasStopped) { return; }
         if (TesseractManager.workers.length === 0) { throw new Error("No Tesseract workers available. Please initialize workers first."); }
 
         const worker = TesseractManager.availableWorkers.pop();
@@ -104,6 +108,22 @@ export class TesseractManager {
         // CHECK: If stopped outside of this function (stopWorkers), we should ensure the worker is NOT RETURNED to the available pool
         if (!hasStopped) { TesseractManager.availableWorkers.push(worker); } else { result = null; } // If stopped, we don't return the worker to the pool and set result to null
         return result instanceof Error ? Promise.reject(result) : result;
+    }
+
+    /**
+     * Recognizes text from an image using Tesseract workers with a callback.
+     * @param {string|Blob|ImageData} image - The image to recognize text from.
+     * @param {string[]} language - The languages to use for recognition.
+     * @param {number} minConfidence - The minimum confidence threshold for recognized words.
+     * @param {Function} callback - A callback function to handle the result or error.
+     */
+    static async recognizeCallback(image, language = ["eng"], minConfidence = -1, callback = (err, result) => {}) {
+        try {
+            const result = await TesseractManager.recognize(image, language, minConfidence);
+            callback(null, result);
+        } catch (err) {
+            callback(err, null);
+        }
     }
 
     /**

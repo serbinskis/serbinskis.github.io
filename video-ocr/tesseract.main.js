@@ -10,6 +10,7 @@ window.els = {
     videoPlayer: document.getElementById('video-player'),
     canvasOverlayContainer: document.getElementById('canvas-overlay-container'),
     toggleOverlay: document.getElementById('toggle-overlay'),
+    btnClearResults: document.getElementById('btn-clear-results'),
 
     languageSelect: document.getElementById('language-select'),
     intervalSlider: document.getElementById('interval-slider'),
@@ -647,13 +648,14 @@ window.els.btnProcess.addEventListener('click', async () => {
             window.setProgress((currentTime / duration) * 100, `Processing: ${currentTime.toFixed(1)}s / ${duration.toFixed(1)}s`);
             const dataUrl = window.getFrameDataUrl();
             const confThresh = parseFloat(window.els.confidenceInput.value);
-            const result = await TesseractManager.recognize(dataUrl, langArr, confThresh);
 
-            if (window.isProcessing && result.text && result.text.trim().length > 0) {
+            await TesseractManager.waitInQueue();
+            TesseractManager.recognizeCallback(dataUrl, langArr, confThresh, (err, result) => {
+                if (!(window.isProcessing && result.text && result.text.trim().length > 0)) { return; }
                 window.frameOcrData[currentTime] = { text: result.text, fragments: result.fragments, isCustom: false };
                 window.renderOcrResultElement(currentTime, result.text, false);
                 window.drawOverlay();
-            }
+            });
 
             const elapsed = performance.now() - loopStart;
             const intervalMs = parseFloat(window.els.intervalInput.value) * 1000;
@@ -672,6 +674,12 @@ window.els.btnProcess.addEventListener('click', async () => {
         window.els.btnProcess.classList.replace('hover:bg-red-700', 'hover:bg-blue-700');
         window.els.progressContainer.classList.add('hidden');
     }
+});
+
+window.els.btnClearResults.addEventListener('click', () => {
+    if (Object.keys(window.frameOcrData).length === 0) { return; }
+    window.clearOcrData();
+    window.showNotification("All results cleared.", "success");
 });
 
 /**
