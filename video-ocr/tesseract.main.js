@@ -46,7 +46,6 @@ window.els = {
 window.currentVideoFile = null; 
 window.activeDownload = false;
 window.downloadAbortController = null;
-window.ocrWorker = null;
 window.isProcessing = false;
 window.defaultInterval = 1.0;
 window.defaultConfidence = 30;
@@ -594,36 +593,6 @@ window.getFrameDataUrl = () => {
     return canvas.toDataURL(`image/${window.ocrFormat.image}`, (window.ocrFormat.image === 'jpeg' || window.ocrFormat.image === 'jpg') ? window.ocrFormat.quality : undefined);
 };
 
-/**
- * Initializes the OCR worker if it hasn't been created yet. This function ensures that the Tesseract worker is only instantiated once, allowing for efficient reuse across multiple frame processing calls.
- */
-window.initWorker = () => {
-    if (!window.ocrWorker) { window.ocrWorker = new Worker('tesseract.worker.js'); }
-};
-
-/**
- * Processes a single video frame using the OCR worker. It sends the image data, language settings, and confidence threshold to the worker and returns a promise that resolves with the OCR result.
- * @param {string} imageData - The data URL of the video frame to be processed.
- * @param {Array} langArr - An array of language codes for OCR processing.
- * @param {number} minConfidence - The minimum confidence threshold for recognized text.
- * @param {boolean} isInit - Flag indicating whether this is an initialization call (true) or a regular frame processing call (false).
- * @return {Promise<Object>} - A promise that resolves with the OCR result object containing recognized text and fragments.
- */
-window.processFrameWorker = (imageData, langArr, minConfidence, isInit = false) => {
-    return new Promise((resolve, reject) => {
-        window.initWorker();
-        const msgId = Date.now() + Math.random();
-        const handler = (e) => {
-            if (e.data.msgId === msgId) {
-                window.ocrWorker.removeEventListener('message', handler);
-                if (e.data.error) { reject(new Error(e.data.error)); } else { resolve(e.data.result); }
-            }
-        };
-        window.ocrWorker.addEventListener('message', handler);
-        window.ocrWorker.postMessage({ msgId, image: imageData, language: langArr, minConfidence: minConfidence, init: isInit });
-    });
-};
-
 // Extract current frame OCR logic
 window.els.btnExtractFrame.addEventListener('click', async () => {
     const time = window.els.videoPlayer.currentTime;
@@ -634,7 +603,7 @@ window.els.btnExtractFrame.addEventListener('click', async () => {
         const langArr = JSON.parse(window.els.languageSelect.value);
         const confThresh = parseFloat(window.els.confidenceInput.value);
         const dataUrl = window.getFrameDataUrl();
-        const result = await window.processFrameWorker(dataUrl, langArr, confThresh);
+        const result = await TesseractManager.recognizeSpecial(dataUrl, langArr, confThresh);
 
         if (result.text && result.text.trim().length > 0) {
             window.frameOcrData[time] = { text: result.text, fragments: result.fragments, isCustom: true };

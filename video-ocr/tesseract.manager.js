@@ -1,8 +1,8 @@
 export class TesseractManager {
     static workers = [];
-    static currentWorkerIndex = 0;
-    static currentAmount = 0;
-    static freeWorkers = 0;
+    static specialWorker = null;
+    static availableWorkers = [];
+    static stopEventListeners = [];
     static initalizing = false;
 
     /**
@@ -28,14 +28,13 @@ export class TesseractManager {
                 await new Promise(r => worker.addEventListener('message', r, { once: true }));
                 
                 TesseractManager.workers.push(worker);
+                TesseractManager.availableWorkers.push(worker);
                 progressCallback(TesseractManager.workers.length / amount);
                 resolve();
             });
         });
 
         await Promise.all(initPromises);
-        TesseractManager.currentAmount = amount;
-        TesseractManager.freeWorkers = amount;
         TesseractManager.initalizing = false;
     }
 
@@ -43,8 +42,11 @@ export class TesseractManager {
      * Stops all Tesseract workers and resets the manager state.
      */
     static stopWorkers() {
+        TesseractManager.stopEventListeners.forEach(listener => listener());
         TesseractManager.workers.forEach(worker => worker.terminate());
         TesseractManager.workers = [];
+        TesseractManager.availableWorkers = [];
+        TesseractManager.stopEventListeners = [];
         TesseractManager.currentWorkerIndex = 0;
     }
 
@@ -59,7 +61,25 @@ export class TesseractManager {
      * Waits until at least one worker is free to process a new task.
      */
     static async waitInQueue() {
-        while (TesseractManager.freeWorkers == 0) { await new Promise(resolve => setTimeout(resolve, 1)); }
+        while (TesseractManager.availableWorkers.length == 0) { await new Promise(resolve => setTimeout(resolve, 1)); }
+    }
+
+    /**
+     * Recognizes text from an image using a specific Tesseract worker.
+     * @param {Worker} worker - The Tesseract worker to use for recognition.
+     * @param {string|Blob|ImageData} image - The image to recognize text from.
+     * @param {string[]} language - The languages to use for recognition.
+     * @param {number} minConfidence - The minimum confidence threshold for recognized words.
+     * @returns {Promise<{text: string, fragments: Array}|Error>} - The recognized text and fragments or an error.
+     */
+    static async recognizeWorker(worker, image, language = ["eng"], minConfidence = -1) {
+        const result = await new Promise((resolve, _) => {
+            const handler = (e) => resolve(e.data.error ? new Error(e.data.error) : e.data.result);
+            worker.addEventListener('message', handler, { once: true });
+            worker.postMessage({ msgId: undefined, image: image, language: language, minConfidence: minConfidence, init: false });
+        });
+
+        return result;
     }
 
     /**
@@ -75,17 +95,28 @@ export class TesseractManager {
         await TesseractManager.waitInQueue();
         if (TesseractManager.workers.length === 0) { throw new Error("No Tesseract workers available. Please initialize workers first."); }
 
-        TesseractManager.freeWorkers--;
-        const worker = TesseractManager.workers[TesseractManager.currentWorkerIndex];
-        TesseractManager.currentWorkerIndex = (TesseractManager.currentWorkerIndex + 1) % TesseractManager.workers.length;
+        const worker = TesseractManager.availableWorkers.pop();
+        if (!worker) { throw new Error("No Tesseract workers available. Please initialize workers first."); }
+        let hasStopped = false;
+        TesseractManager.stopEventListeners.push(() => { hasStopped = true; });
+        let result = await TesseractManager.recognizeWorker(worker, image, language, minConfidence);
 
-        const result = await new Promise((resolve, _) => {
-            const handler = (e) => resolve(e.data.error ? new Error(e.data.error) : e.data.result);
-            worker.addEventListener('message', handler, { once: true });
-            worker.postMessage({ msgId: undefined, image: image, language: language, minConfidence: minConfidence, init: false });
-        });
+        // CHECK: If stopped outside of this function (stopWorkers), we should ensure the worker is NOT RETURNED to the available pool
+        if (!hasStopped) { TesseractManager.availableWorkers.push(worker); } else { result = null; } // If stopped, we don't return the worker to the pool and set result to null
+        return result instanceof Error ? Promise.reject(result) : result;
+    }
 
-        TesseractManager.freeWorkers++;
+    /**
+     * Recognizes text from an image using a dedicated special Tesseract worker.
+     * @param {string|Blob|ImageData} image - The image to recognize text from.
+     * @param {string[]} language - The languages to use for recognition.
+     * @param {number} minConfidence - The minimum confidence threshold for recognized words.
+     * @returns {Promise<{text: string, fragments: Array}>} - The recognized text and fragments.
+     * @throws {Error} - Throws an error if recognition fails.
+     */
+    static async recognizeSpecial(image, language = ["eng"], minConfidence = -1) {
+        if (!TesseractManager.specialWorker) { TesseractManager.specialWorker = new Worker('tesseract.worker.js'); }
+        let result = await TesseractManager.recognizeWorker(TesseractManager.specialWorker, image, language, minConfidence);
         return result instanceof Error ? Promise.reject(result) : result;
     }
 }
