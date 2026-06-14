@@ -19,6 +19,8 @@ window.els = {
     confidenceInput: document.getElementById('confidence-input'),
     workersSlider: document.getElementById('workers-slider'),
     workersInput: document.getElementById('workers-input'),
+    offsetSlider: document.getElementById('offset-slider'),
+    offsetInput: document.getElementById('offset-input'),
 
     btnLink: document.getElementById('btn-link'),
     btnFile: document.getElementById('btn-file'),
@@ -51,10 +53,16 @@ window.isProcessing = false;
 window.defaultInterval = 1.0;
 window.defaultConfidence = 30;
 window.defaultWorkers = 1;
+window.defaultOffset = 0;
 window.maxCores = navigator.hardwareConcurrency || 1;
 window.minDrawOverlayInterval = 1; // seconds, only show bounding boxes from OCR data that is within this interval of the current video time to avoid showing irrelevant boxes when seeking
 window.ocrFormat = { image: 'jpg', quality: 0.8 }; // Image format and quality for frame extraction, quality is only used for jpeg
 window.frameOcrData = {}; // Stores OCR results for each frame, keyed by timestamp
+
+window.ghostVideo = document.createElement('video');
+window.ghostVideo.muted = true;
+window.ghostVideo.preload = 'auto';
+window.ghostVideo.style.display = 'none';
 
 // Latvian set as first item to act as fallback default if no match
 window.supportedLanguages = [
@@ -256,11 +264,14 @@ window.els.confidenceSlider.value = localStorage.getItem('ocr_confidence') || wi
 window.els.confidenceInput.value = localStorage.getItem('ocr_confidence') || window.defaultConfidence;
 window.els.workersSlider.value = localStorage.getItem('ocr_workers') || window.defaultWorkers;
 window.els.workersInput.value = localStorage.getItem('ocr_workers') || window.defaultWorkers;
+window.els.offsetSlider.value = localStorage.getItem('ocr_offset') || window.defaultOffset;
+window.els.offsetInput.value = localStorage.getItem('ocr_offset') || window.defaultOffset;
 
 // Initialize sliders and inputs with saved values or defaults, and set up synchronization between them
 window.syncSliderAndInput(window.els.intervalSlider, window.els.intervalInput, 0.1, 5.0, 'ocr_interval');
 window.syncSliderAndInput(window.els.confidenceSlider, window.els.confidenceInput, 0, 100, 'ocr_confidence');
 window.syncSliderAndInput(window.els.workersSlider, window.els.workersInput, 1, window.maxCores, 'ocr_workers');
+window.syncSliderAndInput(window.els.offsetSlider, window.els.offsetInput, -60, 60, 'ocr_offset');
 
 /**
  * Load supported languages into the language select dropdown and set the selected language based on saved preference or default.
@@ -304,7 +315,10 @@ window.els.themeToggle.addEventListener('click', () => window.applyTheme(localSt
 */
 window.setupVideoPlayer = (src) => {
     window.clearOcrData();
+    window.els.videoPlayer.crossOrigin = "anonymous";
+    window.ghostVideo.crossOrigin = "anonymous";
     if (src) { window.els.videoPlayer.src = src; }
+    if (src) { window.ghostVideo.src = src; }
     window.els.videoContainer.classList.remove('hidden');
     window.els.videoContainer.classList.add('flex');
     window.setUILocked(false);
@@ -572,6 +586,7 @@ window.renderOcrResultElement = (time, text, isCustom) => {
 
     if (isCustom) {
         window.els.customExtractsContainer.prepend(container);
+        // This prevents the UI from yanking the user's scroll position if they are manually extracting frames while a background process is running.
         if (!window.isProcessing || window.els.videoPlayer.paused) { container.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     } else {
         window.insertSorted(window.els.timelineExtractsContainer, container, time);
@@ -598,6 +613,30 @@ window.getFrameDataUrl = () => {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL(`image/${window.ocrFormat.image}`, (window.ocrFormat.image === 'jpeg' || window.ocrFormat.image === 'jpg') ? window.ocrFormat.quality : undefined);
+};
+
+/**
+ * Seeks the ghost player to a specific time and captures that frame.
+ */
+window.getOffsetFrameDataUrl = (targetTime) => {
+    return new Promise((resolve) => {
+        // Clamp time within video duration
+        const time = Math.max(0, Math.min(targetTime, window.els.videoPlayer.duration || 0));
+
+        const onSeeked = () => {
+            window.ghostVideo.removeEventListener('seeked', onSeeked);
+            const canvas = document.createElement('canvas');
+            canvas.width = window.ghostVideo.videoWidth;
+            canvas.height = window.ghostVideo.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(window.ghostVideo, 0, 0, canvas.width, canvas.height);
+            const image = canvas.toDataURL(`image/${window.ocrFormat.image}`, (window.ocrFormat.image === 'jpeg' || window.ocrFormat.image === 'jpg') ? window.ocrFormat.quality : undefined);
+            resolve(image);
+        };
+
+        window.ghostVideo.addEventListener('seeked', onSeeked);
+        window.ghostVideo.currentTime = time;
+    });
 };
 
 // Extract current frame OCR logic
@@ -649,17 +688,19 @@ window.els.btnProcess.addEventListener('click', async () => {
         while (window.isProcessing && !window.els.videoPlayer.ended) {
             const loopStart = performance.now();
             const currentTime = window.els.videoPlayer.currentTime;
+            const offset = parseFloat(window.els.offsetInput.value);
             const duration = window.els.videoPlayer.duration || 1;
+            const targetOcrTime = currentTime + offset;
 
             window.setProgress((currentTime / duration) * 100, `Processing: ${currentTime.toFixed(1)}s / ${duration.toFixed(1)}s`);
-            const dataUrl = window.getFrameDataUrl();
+            const dataUrl = (offset == 0) ? window.getFrameDataUrl() : await window.getOffsetFrameDataUrl(targetOcrTime);
             const confThresh = parseFloat(window.els.confidenceInput.value);
 
             // We are only awaiting our position in the queue here
             await TesseractManager.recognizeCallback(dataUrl, langArr, confThresh, (err, result) => {
                 if (!(window.isProcessing && result.text && result.text.trim().length > 0)) { return; }
-                window.frameOcrData[currentTime] = { text: result.text, fragments: result.fragments, isCustom: false };
-                window.renderOcrResultElement(currentTime, result.text, false);
+                window.frameOcrData[targetOcrTime] = { text: result.text, fragments: result.fragments, isCustom: false };
+                window.renderOcrResultElement(targetOcrTime, result.text, false);
                 window.drawOverlay();
             });
 
