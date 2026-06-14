@@ -112,18 +112,15 @@ export class TesseractManager {
 
     /**
      * Recognizes text from an image using Tesseract workers with a callback.
+     * NOTE: YOU ARE AWAITING YOUR POSITION IN THE QUEUE, NOT THE RESULT.
      * @param {string|Blob|ImageData} image - The image to recognize text from.
      * @param {string[]} language - The languages to use for recognition.
      * @param {number} minConfidence - The minimum confidence threshold for recognized words.
      * @param {Function} callback - A callback function to handle the result or error.
      */
     static async recognizeCallback(image, language = ["eng"], minConfidence = -1, callback = (err, result) => {}) {
-        try {
-            const result = await TesseractManager.recognize(image, language, minConfidence);
-            callback(null, result);
-        } catch (err) {
-            callback(err, null);
-        }
+        await TesseractManager.waitInQueue();
+        TesseractManager.recognize(image, language, minConfidence).then(result => callback(null, result)).catch(err => callback(err, null));
     }
 
     /**

@@ -649,8 +649,8 @@ window.els.btnProcess.addEventListener('click', async () => {
             const dataUrl = window.getFrameDataUrl();
             const confThresh = parseFloat(window.els.confidenceInput.value);
 
-            await TesseractManager.waitInQueue();
-            TesseractManager.recognizeCallback(dataUrl, langArr, confThresh, (err, result) => {
+            // We are only awaiting our position in the queue here
+            await TesseractManager.recognizeCallback(dataUrl, langArr, confThresh, (err, result) => {
                 if (!(window.isProcessing && result.text && result.text.trim().length > 0)) { return; }
                 window.frameOcrData[currentTime] = { text: result.text, fragments: result.fragments, isCustom: false };
                 window.renderOcrResultElement(currentTime, result.text, false);

@@ -4,7 +4,7 @@ let currentLangStr = null;
 let workerInstance = null;
 
 self.onmessage = async (e) => {
-    const { msgId, image, language, minConfidence, init } = e.data; // msgId not used anymore, but kept just in case
+    const { msgId, image, language, minConfidence, init } = e.data; // msgId not used anymore, but I kept it just in case
     const confThreshold = minConfidence ?? -1; // Default to -1 if not provided, meaning no filtering based on confidence
     const langStr = language.join('+');
 
