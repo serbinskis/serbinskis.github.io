@@ -4,15 +4,15 @@ var navigationItems = [
         href: "/home",
         icon: "fas fa-home",
     },
-    /*
-        name: "Audio/Video Transcriber",
-        href: "/transcriber",
-        icon: "fa-solid fa-microphone-alt",
-    },*/
     {
         name: "Video OCR",
         href: "/video-ocr",
         icon: "fa-solid fa-video",
+    },
+    {
+        name: "Audio/Video Transcriber",
+        href: "/transcriber",
+        icon: "fa-solid fa-microphone-alt",
     },
     {
         name: "Text Playground",
