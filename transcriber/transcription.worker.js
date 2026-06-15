@@ -3,12 +3,16 @@ import { FfmpegAdapter } from './transcription.ffmpeg.js';
 import { WhisperAdapter } from './transcription.whisper.js';
 env.allowLocalModels = false;
 
+const FFMPEG_CHUNK_DURATION = 60;
+const VAD_HARD_CUT_DURATION = 60;
+const VAD_MIN_SILENCE_DURATION = 5;
+
 self.onmessage = async (e) => {
     let { audioData, modelName, language } = e.data;
     console.log(`Worker -> audioData: ${audioData}, language: ${language}, modelName: ${modelName}`);
 
     try {
-        const whisper = new WhisperAdapter(audioData, language, modelName);
+        const whisper = new WhisperAdapter(audioData, language, modelName, FFMPEG_CHUNK_DURATION, VAD_HARD_CUT_DURATION, VAD_MIN_SILENCE_DURATION);
         await whisper.initWhisper((p) => self.postMessage({ type: 'bar', msg: 'Loading Whisper model...', progress: p, }));
         whisper.on("time", t => self.postMessage({ type: 'bar', msg: `Transcribing: ${WhisperAdapter.formatTime(0)} / ${WhisperAdapter.formatTime(t)}`, progress: 0 }))
 
