@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Transcriber (UNDER CONSTRUCTION)</title>
+    <title>Audio Transcriber</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/home/js/navigation.js"></script>
     <script>
@@ -694,24 +694,24 @@
                     setupAudioPlayer(url);
                     stream.getTracks().forEach(track => track.stop());
 
-                    // 1. Reference the player
+                    // Reference the player
                     const player = window.els.hiddenAudioPlayer;
 
-                    // 2. The Hack: Seek to a massive number to force the browser to find the end
+                    // The Hack: Seek to a massive number to force the browser to find the end
                     player.currentTime = 1e101; 
 
-                    // 3. Listen for the moment the player realizes where the end is
+                    // Listen for the moment the player realizes where the end is
                     player.ontimeupdate = function() {
                         // Once the player finds the end, it will update the duration
                         if (player.duration && isFinite(player.duration)) {
                             // Remove this listener immediately so it doesn't loop
                             player.ontimeupdate = null;
-                            
-                            // 4. Update your UI with the newly found duration
+
+                            // Update your UI with the newly found duration
                             window.els.audioSeek.max = Math.floor(player.duration);
                             window.els.audioTimeTotal.innerText = window.formatTime(player.duration);
-                            
-                            // 5. Reset the player to the beginning for the user
+
+                            // Reset the player to the beginning for the user
                             player.currentTime = 0;
                         }
                     };
@@ -775,19 +775,7 @@
             window.transcriberWorker.onmessage = (e) => {
                 const { type, data, msg, progress } = e.data;
 
-                if (type === 'progress') {
-                    if (data.progress) { window.modelProgress[data.file] = data.progress; }
-
-                    // Calculate average progress across all files currently downloading
-                    const keys = Object.keys(window.modelProgress);
-                    const sum = keys.reduce((a, b) => a + window.modelProgress[b], 0);
-                    const avg = sum / Math.max(keys.length, 8);
-
-                    if (avg > window.maxProgress) {
-                        window.maxProgress = avg;
-                        window.setProgress(avg, `Loading Model: ${keys.length} file(s) in progress...`);
-                    }
-                } else if (type === 'partial') {
+                if (type === 'partial') {
                     // Real-time update: we only add it if it's new/meaningful
                     window.addTranscript(data.start, data.end, data.text);
                 } else if (type === 'bar') {
