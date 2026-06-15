@@ -795,6 +795,8 @@
                 } else if (type === 'error') {
                     window.showNotification(msg, "error");
                     window.els.btnTranscribe.click(); // Cancel the transcription process
+                } else if (type === 'done') {
+                    window.els.btnTranscribe.click();
                 }
             };
 
@@ -808,12 +810,10 @@
 
         /** Stops the transcription process by terminating the Web Worker. */
         window.stopTranscription = () => {
-            if (transcriberWorker) {
-                // This kills the thread instantly
-                transcriberWorker.terminate();
-                transcriberWorker = null;
-                console.log("Worker terminated and CPU usage stopped.");
-            }
+            if (!transcriberWorker) { return; }
+            transcriberWorker.terminate(); // This kills the thread instantly
+            transcriberWorker = null;
+            console.log("Worker terminated.");
         }
 
         /**
