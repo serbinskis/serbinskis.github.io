@@ -768,7 +768,6 @@
                 const { type, data, msg, progress } = e.data;
 
                 if (type === 'partial') {
-                    // Real-time update: we only add it if it's new/meaningful
                     window.addTranscript(data.start, data.end, data.text);
                 } else if (type === 'bar') {
                     window.setProgress(progress, msg);
