@@ -2,7 +2,7 @@ import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transfo
 import { EventEmitter } from './transcription.emitter.js';
 import { FfmpegAdapter } from './transcription.ffmpeg.js';
 
-env.allowLocalModels = false;
+env.allowLocalModels = true;
 env.backends.onnx.wasm.numThreads = navigator.hardwareConcurrency || 1 // Require some stupid headers to work
 console.log("SharedArrayBuffer supported:", typeof SharedArrayBuffer !== 'undefined');
 console.log("Cross-Origin Isolated:", self.crossOriginIsolated);
