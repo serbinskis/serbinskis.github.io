@@ -36,6 +36,10 @@ export class FfmpegAdapter extends EventEmitter {
         return this.totalSeconds;
     }
 
+    getChunkDurationSeconds() {
+        return this.chunkDurationSeconds;
+    }
+
     async initFfmpeg() {
         // If audioData is blob convert to file
         if (!this.audioData.name) { this.audioData = new File([this.audioData], "massive_input.media"); }

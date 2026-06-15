@@ -1,6 +1,6 @@
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.1.0';
 import { EventEmitter } from './transcription.emitter.js';
-import { FfmpegAdapter } from './transcription.ffmpeg.js';
+import { VADAdapter } from './transcription.vad.js';
 
 env.allowLocalModels = true;
 env.useBrowserCache = true;
@@ -10,8 +10,8 @@ console.log("Cross-Origin Isolated:", self.crossOriginIsolated);
 console.log("Cores available:", env.backends.onnx.wasm.numThreads);
 
 export class WhisperAdapter extends EventEmitter {
-    /** @type {FfmpegAdapter} */
-    ffmpeg = null;
+    /** @type {VADAdapter} */
+    vadAdapter = null;
     transcriber = null;
     /** @type {string} */
     language = null;
@@ -23,8 +23,8 @@ export class WhisperAdapter extends EventEmitter {
 
     constructor(audioData, language, modelName) {
         super();
-        this.ffmpeg = new FfmpegAdapter(audioData, 60);
-        this.ffmpeg.on("time", (t) => this.emit("time", t));
+        this.vadAdapter = new VADAdapter(audioData, 60, 60, 5);
+        this.vadAdapter.on("time", (t) => this.emit("time", t));
         this.language = language;
         this.modelName = modelName;
     }
@@ -32,8 +32,8 @@ export class WhisperAdapter extends EventEmitter {
     async initWhisper(callback = () => {}) {
         if (this.transcriber) { return; }
 
-        await callback(0); // 0-10% is loading ffmpeg
-        await this.ffmpeg.initFfmpeg();
+        await callback(0); // 0-10% is loading vad & ffmpeg
+        await this.vadAdapter.initVad();
         await callback(10);
 
         this.transcriber = await pipeline('automatic-speech-recognition', this.modelName, {
@@ -58,7 +58,7 @@ export class WhisperAdapter extends EventEmitter {
     async startWhisper(callback = () => {}) {
         await this.initWhisper();
 
-        await this.ffmpeg.startFfmpeg(async (float32Data, currentTime) => {
+        await this.vadAdapter.startVad(async (float32Data, currentTime) => {
             const result = await this.transcriber(float32Data, {
                 language: this.language === 'auto' ? null : this.language,
                 chunk_length_s: 30, // Internal stride logic
@@ -75,7 +75,7 @@ export class WhisperAdapter extends EventEmitter {
                 const end = currentTime + (chunk.timestamp[1] || chunk.timestamp[0] + 1);
                 const totalSeconds = this.getTotalSeconds();
                 const percent = (end / totalSeconds * 100);
-                const format = (t) => FfmpegAdapter.formatTime(t);
+                const format = (t) => VADAdapter.formatTime(t);
 
                 await callback({
                     text: chunk.text, start: start, end: end, totalSeconds: totalSeconds, percent: percent,
@@ -86,10 +86,10 @@ export class WhisperAdapter extends EventEmitter {
     }
 
     getTotalSeconds() {
-        return this.ffmpeg.getTotalSeconds();
+        return this.vadAdapter.getTotalSeconds();
     }
 
     static formatTime(t) {
-        return FfmpegAdapter.formatTime(t);
+        return VADAdapter.formatTime(t);
     }
 }
