@@ -1,7 +1,8 @@
 import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
 import { toBlobURL } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js';
+import { EventEmitter } from './transcription.emitter.js';
 
-export class FfmpegAdapter {
+export class FfmpegAdapter extends EventEmitter {
     static FFMPEG_BASE = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm';
     static CORE_BASE = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm';
     ffmpeg = new FFmpeg();
@@ -12,6 +13,7 @@ export class FfmpegAdapter {
     currentTime = 0;
 
     constructor(audioData, chunkDurationSeconds = 300) {
+        super();
         this.audioData = audioData;
         this.chunkDurationSeconds = chunkDurationSeconds;
 
@@ -23,8 +25,10 @@ export class FfmpegAdapter {
             const h = parseInt(match[1]);
             const m = parseInt(match[2]);
             const s = parseInt(match[3]);
-            this.totalSeconds = (h * 3600) + (m * 60) + s;
-            console.log("Total file duration (seconds):", this.totalSeconds);
+            const totalSeconds = (h * 3600) + (m * 60) + s;
+            if (this.totalSeconds != totalSeconds) { this.emit("time", totalSeconds); }
+            if (this.totalSeconds != totalSeconds) { console.log("Total file duration (seconds):", totalSeconds); }
+            this.totalSeconds = totalSeconds;
         });
     }
 
@@ -76,19 +80,19 @@ export class FfmpegAdapter {
             try {
                 // Read the output chunk into memory
                 const rawData = await this.ffmpeg.readFile(outName);
-                
+
                 // If the byte length is 0, we've successfully reached the end of the 5GB file
-                if (rawData.byteLength === 0) { keepProcessing = false; break; }
+                if (rawData.byteLength === 0) { this.keepProcessing = false; break; }
 
                 // Safely cast the Uint8 raw data into a Float32 array for Whisper
                 const float32Data = new Float32Array(rawData.buffer, rawData.byteOffset, rawData.length / 4);
 
                 // Callback with extarcted data
-                await callback(float32Data);
+                await callback(float32Data, this.currentTime);
 
                 // Delete the chunk from memory so RAM stays flat
                 await this.ffmpeg.deleteFile(outName);
-                this.currentTime += chunkDurationSeconds;
+                this.currentTime += this.chunkDurationSeconds;
             } catch (err) {
                 // readFile throws an error when FFmpeg generates no output (End of media reached)
                 console.error(err);
@@ -107,5 +111,11 @@ export class FfmpegAdapter {
         let code = await res.text();
         code = code.replace(/from\s+["']\.\/(.*?)["']/g, `from "${FfmpegAdapter.FFMPEG_BASE}/$1"`);
         return URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+    }
+
+    static formatTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${s.toString().padStart(2, '0')}`;
     }
 }

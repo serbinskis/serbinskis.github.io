@@ -1,111 +1,89 @@
-import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
-import { toBlobURL } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js';
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.1.0';
+import { EventEmitter } from './transcription.emitter.js';
+import { FfmpegAdapter } from './transcription.ffmpeg.js';
+env.allowLocalModels = false;
 
-export class FfmpegAdapter {
-    static FFMPEG_BASE = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm';
-    static CORE_BASE = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm';
-    ffmpeg = new FFmpeg();
-    audioData = null;
-    keepProcessing = true;
-    chunkDurationSeconds = 0;
-    totalSeconds = 0;
-    currentTime = 0;
+export class WhisperAdapter extends EventEmitter {
+    /** @type {FfmpegAdapter} */
+    ffmpeg = null;
+    transcriber = null;
+    /** @type {string} */
+    language = null;
+    /** @type {string} */
+    modelName = null;
+    modelProgress = {};
+    /** @type {number} */
+    maxProgress = 0;
 
-    constructor(audioData, chunkDurationSeconds = 300) {
-        this.audioData = audioData;
-        this.chunkDurationSeconds = chunkDurationSeconds;
+    constructor(audioData, language, modelName) {
+        super();
+        this.ffmpeg = new FfmpegAdapter(audioData, 60);
+        this.ffmpeg.on("time", (t) => this.emit("time", t));
+        this.language = language;
+        this.modelName = modelName;
+    }
 
-        // Listen to FFmpeg logs to extract the total duration of the media file
-        this.ffmpeg.on('log', ({ message }) => {
-            if (!message.includes('Duration:')) { return; }
-            const match = message.match(/Duration: (\d{2}):(\d{2}):(\d{2})/);
-            if (!match) { return; }
-            const h = parseInt(match[1]);
-            const m = parseInt(match[2]);
-            const s = parseInt(match[3]);
-            this.totalSeconds = (h * 3600) + (m * 60) + s;
-            console.log("Total file duration (seconds):", this.totalSeconds);
+    async initWhisper(callback = () => {}) {
+        if (this.transcriber) { return; }
+
+        await callback(0); // 0-10% is loading ffmpeg
+        await this.ffmpeg.initFfmpeg();
+        await callback(10);
+
+        this.transcriber = await pipeline('automatic-speech-recognition', this.modelName, {
+            device: 'webgpu',
+            dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' },
+            progress_callback: async (data) => {
+                if (data.progress) { this.modelProgress[data.file] = data.progress; }
+
+                // Calculate average progress across all files currently downloading
+                const keys = Object.keys(this.modelProgress);
+                const sum = keys.reduce((a, b) => a + this.modelProgress[b], 0);
+                const avg = sum / Math.max(keys.length, 8);
+
+                // Update current max progress and send callback
+                if (avg > this.maxProgress) { await callback(10 + ((this.maxProgress = avg) * 0.9)) }
+            },
+        });
+
+        await callback(100);
+    }
+
+    async startWhisper(callback = () => {}) {
+        await this.initWhisper();
+
+        await this.ffmpeg.startFfmpeg(async (float32Data, currentTime) => {
+            const result = await this.transcriber(float32Data, {
+                language: this.language === 'auto' ? null : this.language,
+                chunk_length_s: 30, // Internal stride logic
+                stride_length_s: 5,
+                return_timestamps: true,
+                force_full_sequences: false
+            });
+
+            // Send data back to the callback
+            if (!result?.chunks) { return; }
+
+            for (let chunk of result.chunks) {
+                const start = currentTime + chunk.timestamp[0];
+                const end = currentTime + (chunk.timestamp[1] || chunk.timestamp[0] + 1);
+                const totalSeconds = this.getTotalSeconds();
+                const percent = (end / totalSeconds * 100);
+                const format = (t) => FfmpegAdapter.formatTime(t);
+
+                await callback({
+                    text: chunk.text, start: start, end: end, totalSeconds: totalSeconds, percent: percent,
+                    startFormatted: format(start), endFormatted: format(end), totalSecondsFormatted: format(totalSeconds)
+                })
+            }
         });
     }
 
     getTotalSeconds() {
-        return this.totalSeconds;
+        return this.ffmpeg.getTotalSeconds();
     }
 
-    async initFfmpeg() {
-        // If audioData is blob convert to file
-        if (!this.audioData.name) { this.audioData = new File([audioData], "massive_input.media"); }
-
-        // If ffmpeg not loaded yet, load it
-        if (!this.ffmpeg.loaded) {
-            try {
-                await this.ffmpeg.load({
-                    coreURL: await toBlobURL(`${FfmpegAdapter.CORE_BASE}/ffmpeg-core.js`, 'text/javascript'),
-                    wasmURL: await toBlobURL(`${FfmpegAdapter.CORE_BASE}/ffmpeg-core.wasm`, 'application/wasm'),
-                    classWorkerURL: await FfmpegAdapter.getFFmpegWorkerBlob()
-                });
-            } catch (err) {
-                console.error(err);
-            }
-        }
-    }
-
-    async startFfmpeg(callback = () => {}) {
-        console.log("FfmpegAdapter.audioData: " + this.audioData);
-        if (!this.ffmpeg.loaded) { await this.initFfmpeg(); }
-
-        // Mount the file via WORKERFS (Consumes no RAM because it streams directly from the disk)
-        await this.ffmpeg.createDir('/mnt');
-        await this.ffmpeg.mount('WORKERFS', { files: [this.audioData] }, '/mnt');
-        const inputPath = `/mnt/${this.audioData.name}`;
-
-        while (this.keepProcessing) {
-            const outName = `chunk_${this.currentTime}.raw`;
-
-            // Instruct FFmpeg to extract exactly 5 minutes of audio as raw PCM
-            await this.ffmpeg.exec([
-                '-ss', this.currentTime.toString(),
-                '-t', this.chunkDurationSeconds.toString(),
-                '-i', inputPath,
-                '-ar', '16000', // 16kHz
-                '-ac', '1',     // Mono
-                '-f', 'f32le',  // Float32 Little Endian
-                outName
-            ]);
-
-            try {
-                // Read the output chunk into memory
-                const rawData = await this.ffmpeg.readFile(outName);
-                
-                // If the byte length is 0, we've successfully reached the end of the 5GB file
-                if (rawData.byteLength === 0) { keepProcessing = false; break; }
-
-                // Safely cast the Uint8 raw data into a Float32 array for Whisper
-                const float32Data = new Float32Array(rawData.buffer, rawData.byteOffset, rawData.length / 4);
-
-                // Callback with extarcted data
-                await callback(float32Data);
-
-                // Delete the chunk from memory so RAM stays flat
-                await this.ffmpeg.deleteFile(outName);
-                this.currentTime += chunkDurationSeconds;
-            } catch (err) {
-                // readFile throws an error when FFmpeg generates no output (End of media reached)
-                console.error(err);
-                this.keepProcessing = false;
-            }
-        }
-
-        // Cleanup
-        await this.ffmpeg.unmount('/mnt');
-    }
-
-    // Fetches the FFmpeg worker, rewrites its relative imports to absolute CDN URLs, 
-    // and creates a safe local Blob to bypass strict Browser CORS rules.
-    static async getFFmpegWorkerBlob() {
-        const res = await fetch(`${FfmpegAdapter.FFMPEG_BASE}/worker.js`);
-        let code = await res.text();
-        code = code.replace(/from\s+["']\.\/(.*?)["']/g, `from "${FfmpegAdapter.FFMPEG_BASE}/$1"`);
-        return URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+    static formatTime(t) {
+        return FfmpegAdapter.formatTime(t);
     }
 }
