@@ -38,7 +38,7 @@ export class FfmpegAdapter extends EventEmitter {
 
     async initFfmpeg() {
         // If audioData is blob convert to file
-        if (!this.audioData.name) { this.audioData = new File([audioData], "massive_input.media"); }
+        if (!this.audioData.name) { this.audioData = new File([this.audioData], "massive_input.media"); }
 
         // If ffmpeg not loaded yet, load it
         if (!this.ffmpeg.loaded) {
