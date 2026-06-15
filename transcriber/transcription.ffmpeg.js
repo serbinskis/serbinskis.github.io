@@ -70,7 +70,7 @@ export class FfmpegAdapter extends EventEmitter {
         while (this.keepProcessing) {
             const outName = `chunk_${this.currentTime}.raw`;
 
-            // Instruct FFmpeg to extract exactly 5 minutes of audio as raw PCM
+            // Instruct FFmpeg to extract exactly n-amount minutes of audio as raw PCM
             await this.ffmpeg.exec([
                 '-ss', this.currentTime.toString(),
                 '-t', this.chunkDurationSeconds.toString(),
