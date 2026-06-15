@@ -1,7 +1,12 @@
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.1.0';
 import { EventEmitter } from './transcription.emitter.js';
 import { FfmpegAdapter } from './transcription.ffmpeg.js';
+
 env.allowLocalModels = false;
+env.backends.onnx.wasm.numThreads = navigator.hardwareConcurrency || 1 // Require some stupid headers to work
+console.log("SharedArrayBuffer supported:", typeof SharedArrayBuffer !== 'undefined');
+console.log("Cross-Origin Isolated:", self.crossOriginIsolated);
+console.log("Cores available:", env.backends.onnx.wasm.numThreads);
 
 export class WhisperAdapter extends EventEmitter {
     /** @type {FfmpegAdapter} */
