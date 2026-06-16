@@ -37,7 +37,6 @@ export class VADAdapter extends EventEmitter {
         this.silenceThreshold = silenceThreshold;
     }
 
-    /** Helper for UI and Worker to format time strings */
     static formatTime(seconds) {
         return FfmpegAdapter.formatTime(seconds);
     }
