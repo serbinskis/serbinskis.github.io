@@ -72,7 +72,8 @@
     width: 100%;
     display: flex;
     text-decoration: none;
-    color: rgb(37 99 235 / var(--tw-bg-opacity, 1));
+    color: #6b7280; /* text-gray-500 */
+    transition: color 0.2s;
     font-weight: 500;
 }
 
@@ -81,12 +82,21 @@
     display: block;
     min-width: 80px;
     height: var(--li-height);
+    color: #2563eb; /* blue-600 */
     text-align: center;
 }
 
 .navigationContainer .navigation ul li a .icon i {
     line-height: var(--li-height);
     font-size: 24px;
+}
+
+.navigationContainer .navigation ul li:hover a {
+    color: #1e40af; /* blue-800 */
+}
+
+.navigationContainer .navigation ul li:hover {
+    background: #f1f5f9; /* slate-100 */
 }
 
 .navigationContainer .navigation ul li a .title {
@@ -181,7 +191,20 @@
 
 /* Link Colors (Optional: keeping your blue but ensuring it pops) */
 .navigationContainer.dark .navigation ul li a {
-    color: #60a5fa; /* A lighter blue for better contrast on dark */
+    color: #cbd5e1; /* slate-300 */
+}
+
+.navigationContainer.dark .navigation ul li a .icon {
+    color: #60a5fa; /* blue-400 */
+}
+
+/* Hover State */
+.navigationContainer.dark .navigation ul li:hover a {
+    color: #ffffff; 
+}
+
+.navigationContainer.dark .navigation ul li:hover {
+    background: #1f2937; /* gray-800 */
 }
 
 /* Toggle Button Styles */
