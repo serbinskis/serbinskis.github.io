@@ -58,6 +58,9 @@ export class FfmpegAdapter extends EventEmitter {
         return this.chunkDurationSeconds;
     }
 
+    /**
+     * Initializes the FFmpeg instance and loads the necessary core files.
+     */
     async initFfmpeg() {
         // If audioData is blob convert to file
         if (!this.audioData.name) { this.audioData = new File([this.audioData], "massive_input.media"); }
