@@ -86,7 +86,7 @@ export class WhisperAdapter extends EventEmitter {
                 stride_length_s: 5,
                 return_timestamps: true,
                 force_full_sequences: false,
-                chunk_callback: (chunk) => console.log("Streamed segment:", chunk.text),
+                chunk_callback: (chunk) => console.log("Streamed segment:", chunk.text), // NOT WORKING
             });
 
             // Send data back to the callback
