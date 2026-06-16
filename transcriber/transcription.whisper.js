@@ -2,9 +2,9 @@ import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transfo
 import { EventEmitter } from './transcription.emitter.js';
 import { VADAdapter } from './transcription.vad.js';
 
-env.allowLocalModels = true;
-env.useBrowserCache = true;
-env.backends.onnx.wasm.numThreads = navigator.hardwareConcurrency || 1 // Require some stupid headers to work
+env.allowLocalModels = true; // Allow local models for testing purposes
+env.useBrowserCache = true; // Enable caching of models in the browser for faster subsequent loads
+env.backends.onnx.wasm.numThreads = navigator.hardwareConcurrency || 1 // Requires SharedArrayBuffer support and cross-origin isolation for multi-threading, aka, headers: Cross-Origin-Opener-Policy: same-origin, Cross-Origin-Embedder-Policy: require-corp
 console.log("SharedArrayBuffer supported:", typeof SharedArrayBuffer !== 'undefined');
 console.log("Cross-Origin Isolated:", self.crossOriginIsolated);
 console.log("Cores available:", env.backends.onnx.wasm.numThreads);
@@ -12,6 +12,7 @@ console.log("Cores available:", env.backends.onnx.wasm.numThreads);
 export class WhisperAdapter extends EventEmitter {
     /** @type {VADAdapter} */
     vadAdapter = null;
+    /** @type {any} */
     transcriber = null;
     /** @type {string} */
     language = null;
@@ -106,10 +107,19 @@ export class WhisperAdapter extends EventEmitter {
         });
     }
 
+    /**
+     * Returns the total duration of the audio in seconds.
+     * @return {number} The total duration of the audio in seconds.
+     */
     getTotalSeconds() {
         return this.vadAdapter.getTotalSeconds();
     }
 
+    /**
+     * Formats a given time in seconds to a string in the format HH:MM:SS.
+     * @param {number} t - The time in seconds to format.
+     * @return {string} The formatted time string.
+     */
     static formatTime(t) {
         return VADAdapter.formatTime(t);
     }

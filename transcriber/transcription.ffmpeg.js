@@ -76,6 +76,10 @@ export class FfmpegAdapter extends EventEmitter {
         }
     }
 
+    /**
+     * Starts processing the audio file in chunks using FFmpeg.
+     * @param {Function} callback - A callback function that receives each processed chunk as a Float32Array and the current time in seconds.
+     */
     async startFfmpeg(callback = async () => {}) {
         console.log("FfmpegAdapter.audioData: " + this.audioData);
         if (!this.ffmpeg.loaded) { await this.initFfmpeg(); }

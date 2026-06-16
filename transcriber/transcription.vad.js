@@ -75,8 +75,12 @@ export class VADAdapter extends EventEmitter {
         this.session = await ort.InferenceSession.create(modelUrl);
     }
 
+    /**
+     * Starts the VAD processing, feeding audio chunks into the VAD model and invoking the callback with processed audio.
+     * @param {function} callback - A callback function that receives each processed chunk as a Float32Array and the current time in seconds.
+     */
     async startVad(callback = async () => {}) {
-        await this.initVad();
+        await this.initVad(); // Initialize VAD and FFmpeg if not already done
 
         // Run FFmpeg and feed into processChunk
         await this.ffmpeg.startFfmpeg(async (float32Data, _) => await this.processChunk(float32Data, callback));
