@@ -21,9 +21,9 @@ export class WhisperAdapter extends EventEmitter {
     /** @type {number} */
     maxProgress = 0;
 
-    constructor(audioData, language, modelName, chunkDurationSeconds = 60, hardCutSeconds = 60, minSilenceSeconds = 5) {
+    constructor(audioData, language, modelName, chunkDurationSeconds = 60, hardCutSeconds = 60, minSilenceSeconds = 5, silenceThreshold = 0.3) {
         super();
-        this.vadAdapter = new VADAdapter(audioData, chunkDurationSeconds, hardCutSeconds, minSilenceSeconds);
+        this.vadAdapter = new VADAdapter(audioData, chunkDurationSeconds, hardCutSeconds, minSilenceSeconds, silenceThreshold);
         this.vadAdapter.on("time", (t) => this.emit("time", t));
         this.language = language;
         this.modelName = modelName;

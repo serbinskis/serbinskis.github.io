@@ -16,6 +16,8 @@ export class VADAdapter extends EventEmitter {
     /** @type {number} */
     minSilenceSeconds = 5;
     /** @type {number} */
+    silenceThreshold = 0.3
+    /** @type {number} */
     currentTime = 0;
 
     // VAD Adapter variables
@@ -26,12 +28,13 @@ export class VADAdapter extends EventEmitter {
     state = null; 
     sr = null;
 
-    constructor(audioData, chunkDurationSeconds = 30, hardCutSeconds = 60, minSilenceSeconds = 5) {
+    constructor(audioData, chunkDurationSeconds = 30, hardCutSeconds = 60, minSilenceSeconds = 5, silenceThreshold = 0.3) {
         super();
         this.ffmpeg = new FfmpegAdapter(audioData, chunkDurationSeconds);
         this.ffmpeg.on("time", (t) => this.emit("time", t));
         this.hardCutSeconds = hardCutSeconds;
         this.minSilenceSeconds = minSilenceSeconds;
+        this.silenceThreshold = silenceThreshold;
     }
 
     /** Helper for UI and Worker to format time strings */
@@ -81,7 +84,7 @@ export class VADAdapter extends EventEmitter {
         const sampleRate = 16000;
         const framesForSilence = Math.floor(this.minSilenceSeconds * sampleRate / frameSize);
         const framesForHardCut = Math.floor(this.hardCutSeconds * sampleRate / frameSize);
-        const silenceThreshold = 0.3;
+        const silenceThreshold = this.silenceThreshold;
 
         // Sliding window over audio buffer
         while (this.processedSamples + frameSize <= this.accumulatedAudio.length) {

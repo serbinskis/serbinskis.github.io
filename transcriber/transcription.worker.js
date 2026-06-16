@@ -9,11 +9,11 @@ const VAD_MIN_SILENCE_DURATION = 30;
 const REMOVE_BLANK_SEGMENTS = true;
 
 self.onmessage = async (e) => {
-    let { audioData, modelName, language } = e.data;
-    console.log(`Worker -> audioData: ${audioData}, language: ${language}, modelName: ${modelName}`);
+    let { audioData, modelName, language, silenceThreshold, hardCutSeconds } = e.data;
+    console.log(`Worker -> audioData: ${audioData}, language: ${language}, modelName: ${modelName}, silenceThreshold: ${silenceThreshold}, ${hardCutSeconds}`);
 
     try {
-        const whisper = new WhisperAdapter(audioData, language, modelName, FFMPEG_CHUNK_DURATION, VAD_HARD_CUT_DURATION, VAD_MIN_SILENCE_DURATION);
+        const whisper = new WhisperAdapter(audioData, language, modelName, FFMPEG_CHUNK_DURATION, hardCutSeconds, VAD_MIN_SILENCE_DURATION, silenceThreshold);
         await whisper.initWhisper((p) => self.postMessage({ type: 'bar', msg: 'Loading Whisper model...', progress: p, }));
         whisper.on("time", t => self.postMessage({ type: 'bar', msg: `Transcribing: ${WhisperAdapter.formatTime(0)} / ${WhisperAdapter.formatTime(t)}`, progress: 0 }))
 
