@@ -62,6 +62,10 @@ export class VADAdapter extends EventEmitter {
         return this.ffmpeg.getTotalSeconds();
     }
 
+    /**
+     * Initializes the VAD model and FFmpeg if not already done.
+     * @returns {Promise<void>}
+     */
     async initVad() {
         if (this.initalized) { return; } else { this.initalized = true; }
         await this.ffmpeg.initFfmpeg();
