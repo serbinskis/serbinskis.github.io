@@ -48,8 +48,6 @@
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-            <!-- ====== LEFT COLUMN: INPUTS ====== -->
             <div id="leftColumn" class="flex flex-col gap-6">
                 <!-- Text Input Card -->
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
@@ -72,7 +70,6 @@
                 <div id="button-placeholder-left" class="mt-2"></div>
             </div>
 
-            <!-- ====== RIGHT COLUMN: OUTPUT ====== -->
             <div id="rightColumn" class="flex flex-col">
                 <div class="bg-white dark:bg-gray-800 text-gray-800 dark:text-white p-6 rounded-lg shadow-md flex-grow">
                      <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2 border-b border-gray-300 dark:border-gray-600 pb-2">Output</h2>
@@ -89,7 +86,6 @@
     </div>
 
     <script>
-        // --- Get DOM Elements ---
         const textInput = document.getElementById('textInput');
         const outputDiv = document.getElementById('output');
         const leftColumn = document.getElementById('leftColumn');
@@ -98,18 +94,11 @@
         const buttonPlaceholderBottom = document.getElementById('button-placeholder-bottom');
         const runButton = document.getElementById('runButton');
         
-        // --- Initialize Ace Editor ---
         const editor = ace.edit("editor");
         editor.session.setMode("ace/mode/javascript");
-        editor.setOptions({
-            fontSize: "14px",
-            fontFamily: "monospace",
-            showGutter: true,
-            highlightActiveLine: true,
-        });
+        editor.setOptions({ fontSize: "14px", fontFamily: "monospace", showGutter: true, highlightActiveLine: true });
         editor.session.setUseWrapMode(true);
 
-        // --- Theme Management ---
         const themeToggleButton = document.getElementById('theme-toggle');
         const lightIcon = document.getElementById('theme-icon-light');
         const darkIcon = document.getElementById('theme-icon-dark');
@@ -138,7 +127,7 @@
         const initialTheme = localStorage.theme || 'dark';
         applyTheme(initialTheme);
 
-        // --- Set Initial Values for Demonstration ---
+        // Sample text with various edge cases for sentence splitting
         textInput.value = "First sentence! āotrais teikums? Third sentence.\n" +
                           "And this one ends.With an exclamation mark!\n" +
                           "Mums jāpērk piens, maize, olas utt. un tad jādodas mājās.\n" +
@@ -181,10 +170,9 @@
                             "const regex = new RegExp(\"(?<!\" + abbrevPattern + \"|\" + initialismPattern + \")(?<=[.?!])(?=\\\\s+|[A-Z])\", 'gi'); // Allows to split without whitespaces: \"And this one ends.With an exclamation mark!\"\n\n" +
                             "return text.split(regex).map(s => s?.trim()).filter(s => s?.length > 0); // undefined > 0 -> false";
 
-
         editor.setValue(initialCode, 1);
 
-        // --- Function to check content heights and move the button ---
+        // Function to check content heights and move the button
         function updateButtonPosition() {
             if (rightColumn.scrollHeight > leftColumn.scrollHeight) {
                 buttonPlaceholderLeft.appendChild(runButton);
@@ -193,38 +181,31 @@
             }
         }
 
-        // --- Core Logic ---
+        // Run the user code and display results
         function executeUserCode() {
             const text = textInput.value;
             const userCode = editor.getValue();
-            
             outputDiv.innerHTML = '';
 
             try {
                 const processText = new Function('text', userCode);
                 let result = processText(text);
                 if (typeof result === 'string') { result = [result]; }
-                
-                if (Array.isArray(result)) {
-                    const list = document.createElement('ol');
-                    list.className = 'space-y-2';
 
-                    if (result.length === 0) {
-                        outputDiv.innerHTML = '<p class="text-gray-500 dark:text-gray-400">Result was an empty array.</p>';
-                    } else {
-                        result.forEach((item, index) => {
-                            const li = document.createElement('li');
-                            li.className = 'p-1 bg-gray-100 dark:bg-gray-700 rounded-md flex items-start text-gray-800 dark:text-gray-200';
-                            const itemText = String(item).replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                            li.innerHTML = `<span class="mr-3 text-gray-500 dark:text-gray-400">${index + 1}.</span><span class="flex-1 break-words">${itemText}</span>`;
-                            list.appendChild(li);
-                        });
-                        outputDiv.appendChild(list);
-                    }
-                } else {
-                    outputDiv.innerHTML = `<p class="text-red-400">Error: The code did not return an array.</p>`;
-                }
+                if (!Array.isArray(result)) { return outputDiv.innerHTML = `<p class="text-red-400">Error: The code did not return an array.</p>`; }
+                const list = document.createElement('ol');
+                list.className = 'space-y-2';
+                if (result.length === 0) { return outputDiv.innerHTML = '<p class="text-gray-500 dark:text-gray-400">Result was an empty array.</p>'; }
 
+                result.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'p-1 bg-gray-100 dark:bg-gray-700 rounded-md flex items-start text-gray-800 dark:text-gray-200';
+                    const itemText = String(item).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    li.innerHTML = `<span class="mr-3 text-gray-500 dark:text-gray-400">${index + 1}.</span><span class="flex-1 break-words">${itemText}</span>`;
+                    list.appendChild(li);
+                });
+
+                outputDiv.appendChild(list);
             } catch (error) {
                 console.error("User code execution failed:", error);
                 const errorPre = document.createElement('pre');
@@ -232,16 +213,12 @@
                 errorPre.textContent = `Error: ${error.name}\n\n${error.message}`;
                 outputDiv.appendChild(errorPre);
             }
-            
+
             requestAnimationFrame(updateButtonPosition);
         }
 
-        // --- Event Listener ---
         runButton.addEventListener('click', executeUserCode);
-        
-        // --- Initial Run on Page Load ---
         document.addEventListener('DOMContentLoaded', executeUserCode);
-
     </script>
 </body>
 </html>
