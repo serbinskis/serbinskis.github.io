@@ -8,7 +8,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.9.6/ace.js"></script>
     <script src="/home/js/navigation.js"></script>
-    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+        let isDarkMode = localStorage.theme === 'light' ? false : true;
+        localStorage.theme = isDarkMode ? 'dark' : 'light';
+        document.documentElement.classList.toggle('dark', isDarkMode);
+    </script>
     <style>
         /* Set the width globally so it never changes between themes */
         ::-webkit-scrollbar {
