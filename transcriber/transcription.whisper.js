@@ -48,7 +48,7 @@ export class WhisperAdapter extends EventEmitter {
     async initWhisper(callback = async () => {}) {
         if (this.transcriber) { return; }
 
-        await callback(0); // 0-10% is loading vad & ffmpeg
+        await callback(0); // 0-10% is loading VAD & ffmpeg
         await this.vadAdapter.initVad();
         await callback(10);
 
