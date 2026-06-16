@@ -58,7 +58,7 @@ export class FfmpegAdapter extends EventEmitter {
         }
     }
 
-    async startFfmpeg(callback = () => {}) {
+    async startFfmpeg(callback = async () => {}) {
         console.log("FfmpegAdapter.audioData: " + this.audioData);
         if (!this.ffmpeg.loaded) { await this.initFfmpeg(); }
 

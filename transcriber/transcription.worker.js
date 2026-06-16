@@ -5,7 +5,8 @@ env.allowLocalModels = false;
 
 const FFMPEG_CHUNK_DURATION = 60;
 const VAD_HARD_CUT_DURATION = 60;
-const VAD_MIN_SILENCE_DURATION = 5;
+const VAD_MIN_SILENCE_DURATION = 30;
+const REMOVE_BLANK_SEGMENTS = true;
 
 self.onmessage = async (e) => {
     let { audioData, modelName, language } = e.data;
@@ -17,8 +18,9 @@ self.onmessage = async (e) => {
         whisper.on("time", t => self.postMessage({ type: 'bar', msg: `Transcribing: ${WhisperAdapter.formatTime(0)} / ${WhisperAdapter.formatTime(t)}`, progress: 0 }))
 
         await whisper.startWhisper((segment) => {
-            self.postMessage({ type: 'partial', data: { start: segment.start, end: segment.end, text: segment.text } });
             self.postMessage({ type: 'bar', msg: `Transcribing: ${segment.endFormatted} / ${segment.totalSecondsFormatted}`, progress: segment.percent });
+            if (REMOVE_BLANK_SEGMENTS && segment.text == "[BLANK_AUDIO]") { return; }
+            self.postMessage({ type: 'partial', data: { start: segment.start, end: segment.end, text: segment.text } });
         })
 
         self.postMessage({ type: 'done' });

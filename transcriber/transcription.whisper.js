@@ -29,7 +29,7 @@ export class WhisperAdapter extends EventEmitter {
         this.modelName = modelName;
     }
 
-    async initWhisper(callback = () => {}) {
+    async initWhisper(callback = async () => {}) {
         if (this.transcriber) { return; }
 
         await callback(0); // 0-10% is loading vad & ffmpeg
@@ -55,8 +55,9 @@ export class WhisperAdapter extends EventEmitter {
         await callback(100);
     }
 
-    async startWhisper(callback = () => {}) {
+    async startWhisper(callback = async () => {}) {
         await this.initWhisper();
+        this.maxProgress = 0;
 
         await this.vadAdapter.startVad(async (float32Data, currentTime) => {
             const result = await this.transcriber(float32Data, {
@@ -64,7 +65,8 @@ export class WhisperAdapter extends EventEmitter {
                 chunk_length_s: 30, // Internal stride logic
                 stride_length_s: 5,
                 return_timestamps: true,
-                force_full_sequences: false
+                force_full_sequences: false,
+                chunk_callback: (chunk) => console.log("Streamed segment:", chunk.text),
             });
 
             // Send data back to the callback
@@ -74,11 +76,11 @@ export class WhisperAdapter extends EventEmitter {
                 const start = currentTime + chunk.timestamp[0];
                 const end = currentTime + (chunk.timestamp[1] || chunk.timestamp[0] + 1);
                 const totalSeconds = this.getTotalSeconds();
-                const percent = (end / totalSeconds * 100);
                 const format = (t) => VADAdapter.formatTime(t);
+                this.maxProgress = Math.min(Math.max(this.maxProgress, (end / totalSeconds * 100)), 100);
 
                 await callback({
-                    text: chunk.text, start: start, end: end, totalSeconds: totalSeconds, percent: percent,
+                    text: chunk.text, start: start, end: end, totalSeconds: totalSeconds, percent: this.maxProgress,
                     startFormatted: format(start), endFormatted: format(end), totalSecondsFormatted: format(totalSeconds)
                 })
             }
