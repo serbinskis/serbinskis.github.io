@@ -106,6 +106,7 @@ export class VADAdapter extends EventEmitter {
             // Logic B: 5 seconds of silence detected
             if ((splitFrame <= 0) && (this.probHistory.length >= framesForSilence)) {
                 let isSilent = true;
+
                 for (let i = this.probHistory.length - framesForSilence; i < this.probHistory.length; i++) {
                     if (this.probHistory[i] >= silenceThreshold) { isSilent = false; break; }
                 }
