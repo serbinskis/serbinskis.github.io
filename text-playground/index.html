@@ -41,11 +41,6 @@
             background: #1f2937;
         }
 
-        /* Keeps layout from shifting if content length changes */
-        html {
-            scrollbar-gutter: stable;
-        }
-
         /* Dark Mode Resizer */
         .dark textarea::-webkit-resizer, .dark #editor::-webkit-resizer {
             background-color: #1f2937 !important;
@@ -64,6 +59,11 @@
         /* Ensure the scrollbar itself doesn't show text cursor */
         ::-webkit-scrollbar-thumb, ::-webkit-scrollbar-track {
             cursor: default;
+        }
+
+        /* Keeps layout from shifting if content length changes */
+        html {
+            scrollbar-gutter: stable;
         }
     </style>
 </head>
