@@ -619,7 +619,7 @@ window.startTranscription = () => {
     window.modelProgress = {}; // Reset progress tracking
 
     // Create a new instance of your separate file
-    window.transcriberWorker = new Worker('transcription.worker.js', { type: 'module' });
+    window.transcriberWorker = new Worker('js/transcription.worker.js', { type: 'module' });
     window.maxProgress = 0;
 
     // Listen for messages
