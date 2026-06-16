@@ -8,6 +8,20 @@
     <!-- Embedded Apple Icon (SVG Data URI) -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><path d=%22M50 20 C45 5 35 5 30 15 C20 15 10 25 10 40 C10 65 25 85 40 85 C45 85 48 80 50 80 C52 80 55 85 60 85 C75 85 90 65 90 40 C90 25 80 15 70 15 C65 5 55 5 50 20 Z M50 20 C52 10 58 5 62 5%22 fill=%22white%22 stroke=%22black%22 stroke-width=%223%22/></svg>">
 
+    <script>
+        // Get theme, default to 'dark' for Bad Apple
+        const theme = localStorage.getItem('theme') || 'dark';
+
+        // Apply classes to HTML immediately (prevents flicker)
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light-mode');
+        } else {
+            document.documentElement.classList.add('light-mode');
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
     <style>
         :root {
             /* Default to Dark Mode (Bad Apple Style) */
@@ -20,13 +34,17 @@
         }
 
         /* Light Mode Variables */
-        body.light-mode {
+        html.light-mode {
             --bg-color: #FFFFFF;
             --text-color: #000000;
             --code-bg: #f4f4f4;
             --border-color: #CCCCCC;
             --warning-bg: #000000;
             --warning-text: #FFFFFF;
+        }
+
+        html {
+            background-color: var(--bg-color);
         }
 
         * {
@@ -283,27 +301,20 @@ pip install -r requirements.txt
 
         </article>
     </main>
-
+    <script src="/home/js/navigation.js"></script>
     <script>
-        // Simple Logic for Dark/Light Mode
-        const toggleBtn = document.getElementById('theme-btn');
-        const body = document.body;
-
-        // Check for saved user preference
-        const currentTheme = localStorage.getItem('theme');
-        if (currentTheme) { body.classList.add(currentTheme); }
-
-        toggleBtn.addEventListener('click', () => {
-            body.classList.toggle('light-mode');
+        document.getElementById('theme-btn').addEventListener('click', () => {
+            const isLight = document.documentElement.classList.toggle('light-mode');
             
-            // Save preference
-            if (body.classList.contains('light-mode')) {
-                localStorage.setItem('theme', 'light-mode');
+            // Keep the 'dark' class in sync for navigation.js
+            if (isLight) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
             } else {
-                localStorage.removeItem('theme');
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
             }
         });
     </script>
-    <script src="/home/js/navigation.js"></script>
 </body>
 </html>
