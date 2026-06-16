@@ -24,7 +24,7 @@ export class TesseractManager {
 
         const initPromises = Array.from({ length: amount }).map((_, i) => {
             return new Promise(async (resolve) => {
-                const worker = new Worker('tesseract.worker.js');
+                const worker = new Worker('js/tesseract.worker.js');
                 worker.postMessage({ language: langauge, init: true });
                 await new Promise(r => worker.addEventListener('message', r, { once: true }));
                 
@@ -132,7 +132,7 @@ export class TesseractManager {
      * @throws {Error} - Throws an error if recognition fails.
      */
     static async recognizeSpecial(image, language = ["eng"], minConfidence = -1) {
-        if (!TesseractManager.specialWorker) { TesseractManager.specialWorker = new Worker('tesseract.worker.js'); }
+        if (!TesseractManager.specialWorker) { TesseractManager.specialWorker = new Worker('js/tesseract.worker.js'); }
         let result = await TesseractManager.recognizeWorker(TesseractManager.specialWorker, image, language, minConfidence);
         return result instanceof Error ? Promise.reject(result) : result;
     }
