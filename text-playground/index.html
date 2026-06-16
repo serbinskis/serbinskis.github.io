@@ -24,6 +24,9 @@
             border-radius: 6px;
             border: 3px solid #f1f1f1;
         }
+        ::-webkit-scrollbar-corner {
+            background: #f1f1f1;
+        }
 
         /* Dark Mode Colors */
         .dark ::-webkit-scrollbar-track {
@@ -34,20 +37,33 @@
             border-radius: 6px;
             border: 3px solid #1f2937;
         }
+        .dark ::-webkit-scrollbar-corner {
+            background: #1f2937;
+        }
 
         /* Keeps layout from shifting if content length changes */
         html {
             scrollbar-gutter: stable;
         }
 
-        /* Existing resizer logic */
+        /* Dark Mode Resizer */
         .dark textarea::-webkit-resizer, .dark #editor::-webkit-resizer {
-            background-color: #1f2937;
-            background-image: linear-gradient(135deg, #4b5563 25%, transparent 25%, transparent 50%, #4b5563 50%, #4b5563 75%, transparent 75%, transparent);
-            border: 1px solid #4b5563;
+            background-color: #1f2937 !important;
+            background-image: none !important; /* Removes the stripes */
+            border-right: 2px solid #4b5563 !important;
+            border-bottom: 2px solid #4b5563 !important;
         }
-        .dark #editor::-webkit-resizer {
-            background-color: #1d1f21 !important;
+
+        /* White Mode Resizer */
+        textarea::-webkit-resizer {
+            background-color: #f1f1f1 !important;
+            border-right: 2px solid #c1c1c1 !important;
+            border-bottom: 2px solid #c1c1c1 !important;
+        }
+
+        /* Ensure the scrollbar itself doesn't show text cursor */
+        ::-webkit-scrollbar-thumb, ::-webkit-scrollbar-track {
+            cursor: default;
         }
     </style>
 </head>
