@@ -19,7 +19,7 @@ self.onmessage = async (e) => {
 
         await whisper.startWhisper((segment) => {
             self.postMessage({ type: 'bar', msg: `Transcribing: ${segment.endFormatted} / ${segment.totalSecondsFormatted}`, progress: segment.percent });
-            if (REMOVE_BLANK_SEGMENTS && segment.text == "[BLANK_AUDIO]") { return; }
+            if (REMOVE_BLANK_SEGMENTS && segment.text.trim() == "[BLANK_AUDIO]") { return; }
             self.postMessage({ type: 'partial', data: { start: segment.start, end: segment.end, text: segment.text } });
         })
 

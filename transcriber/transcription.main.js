@@ -389,7 +389,7 @@ window.els.chunkInput.value = localStorage.getItem('vad_hard_cut') || window.vad
 
 // Initialize sliders and inputs with saved values or defaults, and set up synchronization between them
 window.syncSliderAndInput(window.els.silenceSlider, window.els.silenceInput, 0, 100, 'vad_silence_threshold');
-window.syncSliderAndInput(window.els.chunkSlider, window.els.chunkInput, 30, 300, 'vad_hard_cut');
+window.syncSliderAndInput(window.els.chunkSlider, window.els.chunkInput, 1, 300, 'vad_hard_cut');
 
 /* --- INITIALIZATION --- */
 window.loadLanguages(window.supportedLanguages);
