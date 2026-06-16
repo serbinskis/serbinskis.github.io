@@ -129,7 +129,7 @@ export class FfmpegAdapter extends EventEmitter {
             }
         }
 
-        // Cleanup
+        // Cleanup and unmount the file from FFmpeg
         await this.ffmpeg.unmount('/mnt');
     }
 
