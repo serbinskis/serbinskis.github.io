@@ -226,6 +226,15 @@ async function loadScript(url) {
         }
     });
 
+    window.applyNavigationTheme = function() {
+        const navContainer = document.querySelector(".navigationContainer");
+        if (!navContainer) { return; }
+        navContainer.classList.toggle('dark', document.documentElement.classList.contains('dark'));
+    };
+
+    setInterval(() => window.applyNavigationTheme(), 1);
+    window.applyNavigationTheme();
+
     await loadScript("https://kit.fontawesome.com/fd6213b064.js");
     await loadScript("https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js");
     await loadScript("https://cdn.jsdelivr.net/npm/jquery.marquee@1.6.0/jquery.marquee.min.js");
