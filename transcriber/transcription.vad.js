@@ -107,11 +107,9 @@ export class VADAdapter extends EventEmitter {
             if ((splitFrame <= 0) && (this.probHistory.length >= framesForSilence)) {
                 let isSilent = true;
                 for (let i = this.probHistory.length - framesForSilence; i < this.probHistory.length; i++) {
-                    if (this.probHistory[i] >= silenceThreshold) {
-                        isSilent = false;
-                        break;
-                    }
+                    if (this.probHistory[i] >= silenceThreshold) { isSilent = false; break; }
                 }
+
                 if (isSilent) {
                     // Split at the exact midpoint of the silence
                     splitFrame = this.probHistory.length - Math.floor(framesForSilence / 2);
