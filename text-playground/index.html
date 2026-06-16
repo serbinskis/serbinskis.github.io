@@ -10,27 +10,44 @@
     <script src="/home/js/navigation.js"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
     <style>
-        .dark ::-webkit-scrollbar {
+        /* Set the width globally so it never changes between themes */
+        ::-webkit-scrollbar {
             width: 12px;
         }
+
+        /* Light Mode Colors */
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #c1c1c1;
+            border-radius: 6px;
+            border: 3px solid #f1f1f1;
+        }
+
+        /* Dark Mode Colors */
         .dark ::-webkit-scrollbar-track {
-            background: #1f2937; /* A dark background matching the theme */
+            background: #1f2937;
         }
         .dark ::-webkit-scrollbar-thumb {
-            background-color: #4b5563; /* A medium gray for the handle */
+            background-color: #4b5563;
             border-radius: 6px;
-            border: 3px solid #1f2937; /* Creates padding around the handle */
+            border: 3px solid #1f2937;
         }
-        .dark ::-webkit-scrollbar-thumb:hover {
-            background-color: #6b7280; /* A lighter gray on hover */
+
+        /* Keeps layout from shifting if content length changes */
+        html {
+            scrollbar-gutter: stable;
         }
+
+        /* Existing resizer logic */
         .dark textarea::-webkit-resizer, .dark #editor::-webkit-resizer {
-            background-color: #1f2937; /* A dark color matching the card background */
-            background-image: linear-gradient(135deg, #4b5563 25%, transparent 25%, transparent 50%, #4b5563 50%, #4b5563 75%, transparent 75%, transparent); /* Subtle grip lines using a slightly lighter gray */
-            border: 1px solid #4b5563; /* A border that matches the grip lines */
+            background-color: #1f2937;
+            background-image: linear-gradient(135deg, #4b5563 25%, transparent 25%, transparent 50%, #4b5563 50%, #4b5563 75%, transparent 75%, transparent);
+            border: 1px solid #4b5563;
         }
         .dark #editor::-webkit-resizer {
-            background-color: #1d1f21 !important; /* A dark color matching the card background */
+            background-color: #1d1f21 !important;
         }
     </style>
 </head>
@@ -41,9 +58,13 @@
             <h1 class="text-4xl font-bold text-gray-800 dark:text-gray-200">Interactive Text Playground</h1>
             <p class="text-gray-600 dark:text-gray-400 mt-2">Test your JavaScript logic against custom text input.</p>
             
-            <button id="theme-toggle" class="absolute top-0 right-0 p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-900 focus:ring-blue-500">
-                <svg id="theme-icon-light" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                <svg id="theme-icon-dark" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+            <button id="theme-toggle" class="absolute top-0 right-0 w-10 h-10 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none transition-colors">
+                <svg id="theme-icon-light" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <svg id="theme-icon-dark" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
             </button>
         </header>
 
