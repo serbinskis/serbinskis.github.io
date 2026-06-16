@@ -46,7 +46,7 @@ window.els = {
     btnExportSrt: document.getElementById('btn-export-srt')
 };
 
-/* --- GLOBAL EXPOSED VARIABLES --- */
+// Global State Variables
 window.currentAudioFile = null; 
 window.transcriptData = [];     
 window.mediaRecorder = null;
@@ -270,10 +270,19 @@ window.loadModels = (modelsArray) => {
     }
 };
 
+/**
+ * Enables or disables the transcribe button based on the provided boolean value.
+ * @param {boolean} isEnabled - If true, enables the button; if false, disables it.
+ */
 window.setTranscribeState = (isEnabled) => {
     window.els.btnTranscribe.disabled = !isEnabled;
 };
 
+/**
+ * Updates the progress bar and associated text based on the provided percentage and optional text.
+ * @param {number} percent - The progress percentage (0-100).
+ * @param {string} [text=''] - Optional text to display alongside the progress.
+ */
 window.setProgress = (percent, text = '') => {
     window.els.progressContainer.classList.remove('hidden');
     let clamped = Math.max(0, Math.min(100, percent));
@@ -282,11 +291,18 @@ window.setProgress = (percent, text = '') => {
     if (text) { window.els.progressText.innerText = text; }
 };
 
+/** Clears the transcript box and resets the transcript data array. */
 window.clearTranscripts = () => {
     window.els.transcriptBox.innerHTML = '';
     window.transcriptData = [];
 };
 
+/**
+ * Adds a transcript entry to the transcript box and updates the transcript data array.
+ * @param {number} startTime - The start time of the transcript segment in seconds.
+ * @param {number} endTime - The end time of the transcript segment in seconds.
+ * @param {string} text - The transcribed text for the segment.
+ */
 window.addTranscript = (startTime, endTime, text) => {
     const box = window.els.transcriptBox;
     const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 15;
@@ -329,6 +345,10 @@ window.addTranscript = (startTime, endTime, text) => {
     }
 };
 
+/**
+ * Exports the transcript data in the specified format (JSON, TXT, or SRT) and triggers a download.
+ * @param {string} format - The desired export format ('json', 'txt', or 'srt').
+ */
 window.exportTranscripts = (format) => {
     if (window.transcriptData.length === 0) { return window.showNotification('No transcription data to export.', 'error'); }
     let content = '', mimeType = 'text/plain';
@@ -391,27 +411,29 @@ window.els.chunkInput.value = localStorage.getItem('vad_hard_cut') || window.vad
 window.syncSliderAndInput(window.els.silenceSlider, window.els.silenceInput, 0, 100, 'vad_silence_threshold');
 window.syncSliderAndInput(window.els.chunkSlider, window.els.chunkInput, 1, 300, 'vad_hard_cut');
 
-/* --- INITIALIZATION --- */
+// Load available languages and models into the respective dropdowns, and restore saved preferences if they exist
 window.loadLanguages(window.supportedLanguages);
 window.loadModels(window.availableModels);
 if (localStorage.getItem('whisper_model')) { window.els.modelSelect.value = localStorage.getItem('whisper_model'); }
 window.els.modelSelect.addEventListener('change', (e) => localStorage.setItem('whisper_model', e.target.value));
 window.els.languageSelect.addEventListener('change', (e) => localStorage.setItem('whisper_lang', e.target.value));
 
-/* --- THEME TOGGLE --- */
-function applyTheme(isDark) {
+
+/**
+ * Applies the selected theme (dark or light) to the document and updates the theme toggle icons.
+ * @param {boolean} isDark - If true, applies the dark theme; if false, applies the light theme.
+ */
+window.applyTheme = (isDark) => {
     document.documentElement.classList.toggle('dark', isDark);
     window.els.lightIcon.classList.toggle('hidden', isDark);
     window.els.darkIcon.classList.toggle('hidden', !isDark);
     localStorage.theme = isDark ? 'dark' : 'light';
 }
-applyTheme(localStorage.theme === 'dark');
-window.els.themeToggle.addEventListener('click', () => applyTheme(localStorage.theme !== 'dark'));
+window.applyTheme(localStorage.theme === 'dark');
+window.els.themeToggle.addEventListener('click', () => window.applyTheme(localStorage.theme !== 'dark'));
+window.isDraggingAudio = false;
 
-/* --- AUDIO PLAYER LOGIC --- */
-let isDraggingAudio = false;
-
-function setupAudioPlayer(src) {
+window.setupAudioPlayer = (src) => {
     if (src) { window.els.hiddenAudioPlayer.src = src; }
     window.els.customAudioContainer.classList.remove('hidden');
     window.setTranscribeState(true);
@@ -446,29 +468,29 @@ window.els.hiddenAudioPlayer.addEventListener('loadedmetadata', () => {
 });
 
 window.els.hiddenAudioPlayer.addEventListener('timeupdate', () => {
-    if (isDraggingAudio) { return; }
+    if (window.isDraggingAudio) { return; }
     const currentTime = window.els.hiddenAudioPlayer.currentTime;
     window.els.audioSeek.value = Math.floor(currentTime);
     window.els.audioTimeCurrent.innerText = window.formatTime(currentTime);
 });
 
 window.els.audioSeek.addEventListener('input', (e) => {
-    isDraggingAudio = true;
+    window.isDraggingAudio = true;
     window.els.audioTimeCurrent.innerText = window.formatTime(e.target.value);
 });
 
 window.els.audioSeek.addEventListener('change', (e) => {
     window.els.hiddenAudioPlayer.currentTime = e.target.value;
-    isDraggingAudio = false;
+    window.isDraggingAudio = false;
 });
 
-/* --- INPUT METHODS --- */
+// Handle file input and link input for audio files
 window.els.btnFile.addEventListener('click', () => window.els.fileInput.click());
 window.els.fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) { return; }
     window.currentAudioFile = file;
-    setupAudioPlayer(URL.createObjectURL(file));
+    window.setupAudioPlayer(URL.createObjectURL(file));
     e.target.value = ''; 
 });
 
@@ -516,7 +538,7 @@ window.els.btnRecord.addEventListener('click', async () => {
             const audioBlob = new Blob(window.audioChunks, { type: 'audio/webm' });
             window.currentAudioFile = audioBlob;
             const url = URL.createObjectURL(audioBlob);
-            setupAudioPlayer(url);
+            window.setupAudioPlayer(url);
             stream.getTracks().forEach(track => track.stop());
 
             // Reference the player
@@ -526,7 +548,7 @@ window.els.btnRecord.addEventListener('click', async () => {
             player.currentTime = 1e101; 
 
             // Listen for the moment the player realizes where the end is
-            player.ontimeupdate = function() {
+            player.ontimeupdate = () => {
                 // Once the player finds the end, it will update the duration
                 if (player.duration && isFinite(player.duration)) {
                     // Remove this listener immediately so it doesn't loop
@@ -582,13 +604,17 @@ window.els.toggleTimestamps.addEventListener('change', (e) => {
     window.els.transcriptBox.classList.toggle('hide-timestamps', e.target.checked);
 });
 
+/**
+ * Starts the transcription process by initializing a Web Worker and sending the necessary data for processing.
+ * It also sets up message handling for progress updates, partial transcripts, and completion notifications.
+ */
 window.startTranscription = () => {
     // This is our File/Blob handle
     const file = window.currentAudioFile;
     if (!file) { return; }
 
     // If a worker is already running, kill it first
-    if (transcriberWorker) { transcriberWorker.terminate(); }
+    if (window.transcriberWorker) { window.transcriberWorker.terminate(); }
     window.clearTranscripts();
     window.modelProgress = {}; // Reset progress tracking
 
@@ -624,9 +650,9 @@ window.startTranscription = () => {
 
 /** Stops the transcription process by terminating the Web Worker. */
 window.stopTranscription = () => {
-    if (!transcriberWorker) { return; }
-    transcriberWorker.terminate(); // This kills the thread instantly
-    transcriberWorker = null;
+    if (!window.transcriberWorker) { return; }
+    window.transcriberWorker.terminate(); // This kills the thread instantly
+    window.transcriberWorker = null;
     console.log("Worker terminated.");
 }
 

@@ -99,9 +99,7 @@
         .dark input[type=range]::-webkit-slider-thumb { background: #3b82f6; }
     </style>
 </head>
-<!-- Changed min-h-screen to h-[100dvh] to lock the app size to the exact viewport window -->
 <body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300 font-sans flex flex-col h-[100dvh] text-gray-800 dark:text-gray-200">
-
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-full max-w-md px-4 pointer-events-none"></div>
 
@@ -153,7 +151,7 @@
                 <button id="btn-record" class="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">🎙️ Record</button>
             </div>
 
-            <!-- Row 3: Sliders (Now below buttons) -->
+            <!-- Row 3: Sliders -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <!-- Silence Control -->
                 <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -233,7 +231,6 @@
                 </label>
             </div>
 
-            <!-- Removed fixed/max heights. Uses flex-grow, min-h-0, and overflow-y-auto to scroll internally -->
             <div id="transcript-box" class="flex-grow min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 font-mono text-sm break-words flex flex-col gap-1"></div>
         </div>
     </main>

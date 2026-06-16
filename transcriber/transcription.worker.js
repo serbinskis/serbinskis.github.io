@@ -3,10 +3,10 @@ import { FfmpegAdapter } from './transcription.ffmpeg.js';
 import { WhisperAdapter } from './transcription.whisper.js';
 env.allowLocalModels = false;
 
-const FFMPEG_CHUNK_DURATION = 60;
-const VAD_HARD_CUT_DURATION = 60;
-const VAD_MIN_SILENCE_DURATION = 30;
-const REMOVE_BLANK_SEGMENTS = true;
+const FFMPEG_CHUNK_DURATION = 60; // Default chunk duration for FFmpeg processing in seconds
+const VAD_HARD_CUT_DURATION = 60; // Default hard cut duration for VAD processing in seconds
+const VAD_MIN_SILENCE_DURATION = 30; // Minimum silence duration for VAD processing in seconds
+const REMOVE_BLANK_SEGMENTS = true; // Whether to remove segments that are detected as blank audio
 
 self.onmessage = async (e) => {
     let { audioData, modelName, language, silenceThreshold, hardCutSeconds } = e.data;

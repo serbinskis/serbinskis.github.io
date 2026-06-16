@@ -25,9 +25,17 @@ export class VADAdapter extends EventEmitter {
     processedSamples = 0;
     probHistory = [];
     session = null;
-    state = null; 
+    state = null;
     sr = null;
 
+    /**
+     * Initializes the VAD adapter with the provided audio data and configuration.
+     * @param {File} audioData - The audio file to process.
+     * @param {number} chunkDurationSeconds - The duration of each audio chunk in seconds.
+     * @param {number} hardCutSeconds - The duration of the hard cut for VAD processing in seconds.
+     * @param {number} minSilenceSeconds - The minimum silence duration for VAD processing in seconds.
+     * @param {number} silenceThreshold - The threshold for detecting silence in the audio.
+     */
     constructor(audioData, chunkDurationSeconds = 30, hardCutSeconds = 60, minSilenceSeconds = 5, silenceThreshold = 0.3) {
         super();
         this.ffmpeg = new FfmpegAdapter(audioData, chunkDurationSeconds);
@@ -37,10 +45,19 @@ export class VADAdapter extends EventEmitter {
         this.silenceThreshold = silenceThreshold;
     }
 
+    /**
+     * Formats a given time in seconds to a string in the format HH:MM:SS.
+     * @param {number} seconds - The time in seconds to format.
+     * @return {string} The formatted time string.
+     */
     static formatTime(seconds) {
         return FfmpegAdapter.formatTime(seconds);
     }
 
+    /**
+     * Returns the total duration of the audio in seconds.
+     * @return {number} The total duration of the audio in seconds.
+     */
     getTotalSeconds() {
         return this.ffmpeg.getTotalSeconds();
     }
@@ -72,6 +89,11 @@ export class VADAdapter extends EventEmitter {
         }
     }
 
+    /**
+     * Processes a chunk of audio data, detecting silence and hard cuts, and invokes the callback with the processed audio.
+     * @param {Float32Array} float32Data - The audio data to process.
+     * @param {function} callback - A callback function to handle the processed audio chunk.
+     */
     async processChunk(float32Data, callback = async () => {}) {
         // Accumulate new PCM data
         const newBuffer = new Float32Array(this.accumulatedAudio.length + float32Data.length);

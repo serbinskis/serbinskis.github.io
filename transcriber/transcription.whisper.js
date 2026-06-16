@@ -17,10 +17,21 @@ export class WhisperAdapter extends EventEmitter {
     language = null;
     /** @type {string} */
     modelName = null;
+    /** @type {Object.<string, number>} */
     modelProgress = {};
     /** @type {number} */
     maxProgress = 0;
 
+    /**
+     * Initializes the Whisper adapter with the provided audio data and configuration.
+     * @param {File} audioData - The audio file to transcribe.
+     * @param {string} language - The language of the audio.
+     * @param {string} modelName - The name of the Whisper model to use.
+     * @param {number} chunkDurationSeconds - The duration of each audio chunk in seconds.
+     * @param {number} hardCutSeconds - The duration of the hard cut for VAD processing in seconds.
+     * @param {number} minSilenceSeconds - The minimum silence duration for VAD processing in seconds.
+     * @param {number} silenceThreshold - The threshold for detecting silence in the audio.
+     */
     constructor(audioData, language, modelName, chunkDurationSeconds = 60, hardCutSeconds = 60, minSilenceSeconds = 5, silenceThreshold = 0.3) {
         super();
         this.vadAdapter = new VADAdapter(audioData, chunkDurationSeconds, hardCutSeconds, minSilenceSeconds, silenceThreshold);
@@ -29,6 +40,10 @@ export class WhisperAdapter extends EventEmitter {
         this.modelName = modelName;
     }
 
+    /**
+     * Initializes the Whisper model and sets up progress tracking.
+     * @param {function} callback - A callback function to report progress.
+     */
     async initWhisper(callback = async () => {}) {
         if (this.transcriber) { return; }
 
@@ -55,6 +70,10 @@ export class WhisperAdapter extends EventEmitter {
         await callback(100);
     }
 
+    /**
+     * Starts the Whisper transcription process.
+     * @param {function} callback - A callback function to report progress.
+     */
     async startWhisper(callback = async () => {}) {
         await this.initWhisper();
         this.maxProgress = 0;

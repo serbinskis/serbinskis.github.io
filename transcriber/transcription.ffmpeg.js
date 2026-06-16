@@ -6,12 +6,22 @@ export class FfmpegAdapter extends EventEmitter {
     static FFMPEG_BASE = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm';
     static CORE_BASE = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm';
     ffmpeg = new FFmpeg();
+    /** @type {File} */
     audioData = null;
+    /** @type {boolean} */
     keepProcessing = true;
+    /** @type {number} */
     chunkDurationSeconds = 0;
+    /** @type {number} */
     totalSeconds = 0;
+    /** @type {number} */
     currentTime = 0;
 
+    /**
+     * Initializes the FfmpegAdapter with the provided audio data and chunk duration.
+     * @param {File} audioData - The audio file to process.
+     * @param {number} chunkDurationSeconds - The duration of each audio chunk in seconds.
+     */
     constructor(audioData, chunkDurationSeconds = 300) {
         super();
         this.audioData = audioData;
@@ -32,10 +42,18 @@ export class FfmpegAdapter extends EventEmitter {
         });
     }
 
+    /**
+     * Returns the total duration of the audio in seconds.
+     * @return {number} The total duration of the audio in seconds.
+     */
     getTotalSeconds() {
         return this.totalSeconds;
     }
 
+    /**
+     * Returns the duration of each audio chunk in seconds.
+     * @return {number} The duration of each audio chunk in seconds.
+     */
     getChunkDurationSeconds() {
         return this.chunkDurationSeconds;
     }
@@ -117,6 +135,11 @@ export class FfmpegAdapter extends EventEmitter {
         return URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
     }
 
+    /**
+     * Formats a time in seconds into a human-readable string (MM:SS).
+     * @param {number} seconds - The time in seconds to format.
+     * @returns {string} - The formatted time string.
+     */
     static formatTime(seconds) {
         const m = Math.floor(seconds / 60);
         const s = Math.floor(seconds % 60);
