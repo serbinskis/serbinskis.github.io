@@ -226,7 +226,7 @@ async function loadScript(url) {
         }
     });
 
-    window.applyNavigationTheme = function() {
+    window.applyNavigationTheme = () => {
         const navContainer = document.querySelector(".navigationContainer");
         if (!navContainer) { return; }
         navContainer.classList.toggle('dark', document.documentElement.classList.contains('dark'));
