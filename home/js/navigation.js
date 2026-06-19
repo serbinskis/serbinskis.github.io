@@ -127,8 +127,8 @@ var navigationItems = [
 ]
 
 function isElementOverflowing(element) {
-    var overflowX = element.offsetWidth < element.scrollWidth;
-    var overflowY = element.offsetHeight < element.scrollHeight;
+    let overflowX = element.offsetWidth < element.scrollWidth;
+    let overflowY = element.offsetHeight < element.scrollHeight;
     return (overflowX || overflowY);
 }
 
@@ -141,14 +141,14 @@ function bindMarquee(element) {
 }
 
 function createNavigation() {
-    var navigationContainer = document.createElement("div");
+    let navigationContainer = document.createElement("div");
     navigationContainer.className = "navigationContainer";
 
-    var navigation = document.createElement("div");
+    let navigation = document.createElement("div");
     navigation.className = "navigation";
     navigation.appendChild(document.createElement("ul"));
 
-    var toggle = document.createElement("div");
+    let toggle = document.createElement("div");
     toggle.className = "toggle";
 
     navigationContainer.appendChild(navigation);
@@ -158,37 +158,37 @@ function createNavigation() {
 
 function createItem(item) {
     if (!document.querySelector(".navigationContainer .navigation ul")) { createNavigation(); }
-    var i = document.createElement("i");
+    let i = document.createElement("i");
     i.className = item.icon;
 
-    var icon = document.createElement("span");
+    let icon = document.createElement("span");
     icon.className = "icon";
     icon.appendChild(i);
 
-    var title = document.createElement("span");
+    let title = document.createElement("span");
     title.className = "title navigation-title";
     title.title = item.name;
     title.innerHTML = item.name;
 
-    var a = document.createElement("a");
-    var ports = (item?.ports || [0, 0]);
-    var port = ((window.location.protocol == "https:") && ports[1]) ? ports[1] : ports[0];
-    var protocol = ((window.location.protocol == "https:") && ports[1]) ? "https" : "http"
+    let a = document.createElement("a");
+    let ports = (item?.ports || [0, 0]);
+    let port = ((window.location.protocol == "https:") && ports[1]) ? ports[1] : ports[0];
+    let protocol = ((window.location.protocol == "https:") && ports[1]) ? "https" : "http"
     a.href = item.ports ? `${protocol}://${window.location.host}:${port}${item.href}` : item.href;
     a.appendChild(icon);
     a.appendChild(title);
 
-    var li = document.createElement("li");
+    let li = document.createElement("li");
     if (item.onclick) { li.addEventListener("click", item.onclick) };
     li.appendChild(a);
 
-    var navigation = document.querySelector(".navigationContainer .navigation ul");
+    let navigation = document.querySelector(".navigationContainer .navigation ul");
     navigation.appendChild(li);
 }
 
 async function loadScript(url) {
     return await new Promise(resolve => {
-        var script = document.createElement("script");
+        let script = document.createElement("script");
         script.type = "text/javascript";
         script.src = url;
         script.onload = script.onerror = resolve;
@@ -197,8 +197,8 @@ async function loadScript(url) {
 }
 
 (async () => {
-    var iframes = Array.from(document.querySelectorAll("iframe#serbinskis")).map(e => ["src", e]);
-    var links = Array.from(document.querySelectorAll("link#serbinskis")).map(e => ["href", e]);
+    let iframes = Array.from(document.querySelectorAll("iframe#serbinskis")).map(e => ["src", e]);
+    let links = Array.from(document.querySelectorAll("link#serbinskis")).map(e => ["href", e]);
 
     iframes.concat(links).forEach(([key, elm]) => {
         if (location.hostname.includes('github.io')) {
