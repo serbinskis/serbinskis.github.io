@@ -239,7 +239,7 @@ async function loadScript(url) {
     await loadScript("https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js");
     await loadScript("https://cdn.jsdelivr.net/npm/jquery.marquee@1.6.0/jquery.marquee.min.js");
 
-    var link = document.createElement("link");
+    let link = document.createElement("link");
     link.rel = "stylesheet";
     link.type = "text/css";
     link.href = "/home/css/navigation.css";
