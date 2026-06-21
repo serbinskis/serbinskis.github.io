@@ -257,11 +257,12 @@ const handleImageFile = async (file) => {
 };
 
 // Handle Click on Image Container to Trigger File Input
-/*window.els.imageContainer.addEventListener('click', (e) => {
+window.els.imageContainer.addEventListener('click', (e) => {
+    if (window.currentImageFile) { return; } // Only trigger file input if no image is currently loaded
     if (e.target === window.els.imageContainer || e.target === window.els.emptyState || e.target.parentNode === window.els.emptyState) {
         window.els.fileInput.click();
     }
-});*/
+});
 
 // File Input and Drag-and-Drop Handling
 window.els.btnFile.addEventListener('click', () => window.els.fileInput.click());
