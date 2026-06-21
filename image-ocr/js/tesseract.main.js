@@ -152,7 +152,7 @@ window.setUILocked = (locked) => {
     window.els.imageContainer.style.pointerEvents = locked ? 'none' : 'auto';
     
     const hasImage = !!window.currentImageFile;
-    window.els.btnProcess.disabled = locked ? true : !hasImage;
+    window.els.btnProcess.disabled = !hasImage;
 };
 
 window.setProgress = (percent, text = '') => {
@@ -403,12 +403,16 @@ window.getImageDataUrl = () => {
 // OCR Processing Logic or Extract Text Button
 window.els.btnProcess.addEventListener('click', async () => {
     if (!window.currentImageFile) { return; }
+    if (window.isProcessing) { return TesseractManager.stopWorkers(); } // Stop processing if already in progress
 
     window.isProcessing = true;
     window.setUILocked(true);
-    window.els.btnProcess.innerText = "Processing...";
     const callback = (progress) => window.setProgress(progress, "Extracting text from image...");
     callback(0); // Initialize progress bar to 0% at the start of processing
+
+    window.els.btnProcess.innerText = "Stop Processing";
+    window.els.btnProcess.classList.replace('bg-blue-600', 'bg-red-600');
+    window.els.btnProcess.classList.replace('hover:bg-blue-700', 'hover:bg-red-700');
 
     try {
         const langArr = JSON.parse(window.els.languageSelect.value);
@@ -432,8 +436,10 @@ window.els.btnProcess.addEventListener('click', async () => {
     } finally {
         window.isProcessing = false;
         window.setUILocked(false);
-        window.els.btnProcess.innerText = "Extract Text";
         window.setProgress(0);
+        window.els.btnProcess.innerText = "Extract Text";
+        window.els.btnProcess.classList.replace('bg-red-600', 'bg-blue-600');
+        window.els.btnProcess.classList.replace('hover:bg-red-700', 'hover:bg-blue-700');
         window.els.progressContainer.classList.add('hidden');
     }
 });
