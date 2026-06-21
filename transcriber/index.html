@@ -124,7 +124,7 @@
     <main class="container mx-auto max-w-3xl p-4 flex-grow flex flex-col gap-4 min-h-0">
 
         <!-- Controls Card is set to flex-shrink-0 so it never squishes -->
-        <div id="controls-card" class="flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-all duration-300 flex flex-col gap-4">
+        <div id="controls-card" class="select-none flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-all duration-300 flex flex-col gap-4">
             <!-- Row 1: Model and Language -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -211,7 +211,7 @@
         <!-- Transcription Card uses flex-grow and min-h-0 to perfectly fill remaining space -->
         <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-300 flex flex-col flex-grow min-h-0">
             <!-- Header section inside the card is flex-shrink-0 so it doesn't squash -->
-            <div class="flex-shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-3">
+            <div class="select-none flex-shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-3">
                 <h2 class="text-lg font-bold flex-shrink-0 w-full sm:w-auto text-left">Transcription</h2>
 
                 <div class="flex-1 flex justify-start sm:justify-center w-full sm:w-auto">

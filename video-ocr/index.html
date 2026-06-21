@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video OCR</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👁️</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%233b82f6'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z' /></svg>">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/home/js/navigation.js"></script>
@@ -94,7 +94,7 @@
             </div>
 
             <!-- Controls Card -->
-            <div id="controls-card" class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-all duration-300 flex flex-col gap-4">
+            <div id="controls-card" class="select-none bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-all duration-300 flex flex-col gap-4">
                 <div class="flex flex-col sm:flex-row gap-4">
                     <div class="flex-1">
                         <label class="block text-sm font-medium mb-1">OCR Language(s)</label>
@@ -187,7 +187,7 @@
         <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-300 flex flex-col flex-grow xl:w-1/3 min-w-0 min-h-[400px]">
             <div class="flex justify-between items-center mb-3">
                 <h2 class="text-lg font-bold">OCR Results</h2>
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 select-none">
                     <div class="flex gap-2">
                         <button id="btn-export-json" class="px-2 py-1 text-[10px] font-bold tracking-wider text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed">JSON</button>
                         <button id="btn-export-txt" class="px-2 py-1 text-[10px] font-bold tracking-wider text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed">TXT</button>

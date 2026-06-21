@@ -2,7 +2,7 @@ export class TesseractManager {
     static workers = [];
     static specialWorker = null;
     static availableWorkers = [];
-    static stopEventListeners = [];
+    static stopEventListeners = {};
     static initalizing = false;
     static hasStopped = false;
 
@@ -45,11 +45,11 @@ export class TesseractManager {
      */
     static stopWorkers() {
         TesseractManager.hasStopped = true;
-        TesseractManager.stopEventListeners.forEach(listener => listener());
+        Object.values(TesseractManager.stopEventListeners).forEach(listener => listener());
         TesseractManager.workers.forEach(worker => worker.terminate());
         TesseractManager.workers = [];
         TesseractManager.availableWorkers = [];
-        TesseractManager.stopEventListeners = [];
+        TesseractManager.stopEventListeners = {};
         TesseractManager.currentWorkerIndex = 0;
     }
 
@@ -102,8 +102,10 @@ export class TesseractManager {
         const worker = TesseractManager.availableWorkers.pop();
         if (!worker) { throw new Error("No Tesseract workers available. Please initialize workers first."); }
         let hasStopped = false;
-        TesseractManager.stopEventListeners.push(() => { hasStopped = true; });
+        const listenerId = Date.now();
+        TesseractManager.stopEventListeners[listenerId] = () => { hasStopped = true; }; // Add a stop listener for this task
         let result = await TesseractManager.recognizeWorker(worker, image, language, minConfidence);
+        delete TesseractManager.stopEventListeners[listenerId]; // Remove the stop listener for this task
 
         // CHECK: If stopped outside of this function (stopWorkers), we should ensure the worker is NOT RETURNED to the available pool
         if (!hasStopped) { TesseractManager.availableWorkers.push(worker); } else { result = null; } // If stopped, we don't return the worker to the pool and set result to null

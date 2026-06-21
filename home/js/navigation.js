@@ -5,6 +5,11 @@ var navigationItems = [
         icon: "fas fa-home",
     },
     {
+        name: "Image OCR",
+        href: "/image-ocr",
+        icon: "fa-solid fa-image",
+    },
+    {
         name: "Video OCR",
         href: "/video-ocr",
         icon: "fa-solid fa-video",
