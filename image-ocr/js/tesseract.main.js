@@ -323,7 +323,7 @@ window.els.btnSubmitLink.addEventListener('click', async () => {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
         const blob = await response.blob();
-        handleImageFile(blob);
+        await handleImageFile(blob);
     } catch (err) {
         window.showNotification(`Failed to load URL: ${err.message}`, 'error');
         window.setUILocked(false);
@@ -415,6 +415,7 @@ window.els.btnProcess.addEventListener('click', async () => {
         const confThresh = parseFloat(window.els.confidenceInput.value);
         const dataUrl = window.getImageDataUrl();
         const result = await TesseractManager.recognizeSpecial(dataUrl, langArr, confThresh, callback);
+        if (result === undefined) { return window.showNotification("OCR process was stopped.", "error"); }
 
         if (result.text && result.text.trim().length > 0) {
             window.imageOcrData = { text: result.text, fragments: result.fragments };

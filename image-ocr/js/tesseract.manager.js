@@ -48,6 +48,7 @@ export class TesseractManager {
         Object.values(TesseractManager.stopEventListeners).forEach(listener => listener());
         TesseractManager.workers.forEach(worker => worker.terminate());
         TesseractManager.specialWorker?.terminate();
+        TesseractManager.specialWorker = null;
         TesseractManager.workers = [];
         TesseractManager.availableWorkers = [];
         TesseractManager.stopEventListeners = {};
@@ -79,8 +80,10 @@ export class TesseractManager {
      */
     static async recognizeWorker(worker, image, language = ["eng"], minConfidence = -1, callback = (progress) => {}) {
         const handlers = []; // Sneaky little workaround
+        const listenerId = Date.now() + Math.random(); // Unique ID for this recognition task
 
         const result = await new Promise((resolve, _) => {
+            TesseractManager.stopEventListeners[listenerId] = resolve; // Add a stop listener for this task
             handlers.push((e) => { if (e.data.progress === undefined) { resolve(e.data.error ? new Error(e.data.error) : e.data.result) } });
             handlers.push((e) => { if (e.data.progress !== undefined) { callback(e.data.progress); } });
             handlers.forEach(h => worker.addEventListener('message', h));
@@ -88,6 +91,7 @@ export class TesseractManager {
         });
 
         handlers.forEach(h => worker.removeEventListener('message', h));
+        delete TesseractManager.stopEventListeners[listenerId]; // Remove the stop listener for this task
         return result;
     }
 
@@ -108,7 +112,7 @@ export class TesseractManager {
         const worker = TesseractManager.availableWorkers.pop();
         if (!worker) { throw new Error("No Tesseract workers available. Please initialize workers first."); }
         let hasStopped = false;
-        const listenerId = Date.now();
+        const listenerId = Date.now() + Math.random(); // Unique ID for this recognition task
         TesseractManager.stopEventListeners[listenerId] = () => { hasStopped = true; }; // Add a stop listener for this task
         let result = await TesseractManager.recognizeWorker(worker, image, language, minConfidence);
         delete TesseractManager.stopEventListeners[listenerId]; // Remove the stop listener for this task
