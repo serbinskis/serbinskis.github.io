@@ -112,7 +112,6 @@ window.supportedLanguages = [
     { code: ['khm'], name: 'Central Khmer' },
     { code: ['kir'], name: 'Kirghiz; Kyrgyz' },
     { code: ['kor'], name: 'Korean' },
-    { code: ['kur'], name: 'Kurdish' },
     { code: ['lao'], name: 'Lao' },
     { code: ['lat'], name: 'Latin' },
     { code: ['lav'], name: 'Latvian' },
