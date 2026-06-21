@@ -230,28 +230,32 @@ window.applyTheme = (isDark) => {
 window.applyTheme(localStorage.theme === 'dark');
 window.els.themeToggle.addEventListener('click', () => window.applyTheme(localStorage.theme !== 'dark'));
 
-window.setupImagePlayer = (src) => {
-    window.clearOcrData();
-    window.els.imagePlayer.crossOrigin = "anonymous";
-    window.els.imagePlayer.onload = () => {
-        window.els.imagePlayer.classList.remove('hidden');
-        window.els.emptyState.classList.add('hidden');
-        window.els.imageContainer.classList.remove('border-dashed', 'border-gray-300', 'dark:border-gray-600');
-        window.els.imageContainer.classList.add('border-solid', 'border-transparent');
-        window.setUILocked(false);
-    };
-    window.els.imagePlayer.onerror = () => {
-        window.showNotification("Failed to load image.", "error");
-        window.resetImage();
-    };
-    window.els.imagePlayer.src = src;
+window.setupImagePlayer = async (src) => {
+    return new Promise((resolve) => {
+        window.clearOcrData();
+        window.els.imagePlayer.crossOrigin = "anonymous";
+        window.els.imagePlayer.onload = () => {
+            window.els.imagePlayer.classList.remove('hidden');
+            window.els.emptyState.classList.add('hidden');
+            window.els.imageContainer.classList.remove('border-dashed', 'border-gray-300', 'dark:border-gray-600');
+            window.els.imageContainer.classList.add('border-solid', 'border-transparent');
+            window.setUILocked(false);
+            resolve();
+        };
+        window.els.imagePlayer.onerror = () => {
+            window.showNotification("Failed to load image.", "error");
+            window.resetImage();
+            resolve();
+        };
+        window.els.imagePlayer.src = src;
+    });
 };
 
 // Function to handle image file selection
-const handleImageFile = (file) => {
+const handleImageFile = async (file) => {
     if (!file || !file.type.startsWith('image/')) { return window.showNotification("Please select a valid image file.", "error"); }
     window.currentImageFile = file;
-    window.setupImagePlayer(URL.createObjectURL(file));
+    await window.setupImagePlayer(URL.createObjectURL(file));
 };
 
 // Handle Click on Image Container to Trigger File Input
@@ -284,12 +288,13 @@ window.els.imageContainer.addEventListener('dragleave', (e) => {
 window.els.imageContainer.addEventListener('drop', (e) => {
     e.preventDefault();
     window.els.imageContainer.classList.remove('bg-blue-50', 'dark:bg-blue-900/20', 'border-blue-400');
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) handleImageFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) { handleImageFile(e.dataTransfer.files[0]); }
 });
 
-// Handle paste event for images
-window.addEventListener('paste', (e) => {
-    if (e.clipboardData && e.clipboardData.files.length > 0) handleImageFile(e.clipboardData.files[0]);
+// Handle paste event for images (CTRL+V)
+window.addEventListener('paste', async (e) => {
+    if (e.clipboardData && e.clipboardData.files.length > 0) { await handleImageFile(e.clipboardData.files[0]); }
+    window.els.btnProcess.click(); // Automatically trigger processing after pasting an image
 });
 
 // Handle Link Button Click to Open Modal
