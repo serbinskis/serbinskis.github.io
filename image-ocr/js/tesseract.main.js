@@ -40,7 +40,7 @@ window.els = {
 
 window.currentImageFile = null; 
 window.isProcessing = false;
-window.defaultConfidence = 30;
+window.defaultConfidence = 0;
 window.imageOcrData = null; 
 
 window.supportedLanguages = [
@@ -390,6 +390,8 @@ window.getImageDataUrl = () => {
     canvas.height = img.naturalHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    ctx.filter = 'grayscale(1) contrast(200%)'; // Apply filters to enhance OCR accuracy
+    ctx.drawImage(canvas, 0, 0); 
     return canvas.toDataURL(`image/png`);
 };
 
