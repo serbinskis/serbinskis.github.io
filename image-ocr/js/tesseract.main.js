@@ -150,9 +150,7 @@ window.setUILocked = (locked) => {
     window.els.btnLink.disabled = locked;
     window.els.btnFile.disabled = locked;
     window.els.imageContainer.style.pointerEvents = locked ? 'none' : 'auto';
-    
-    const hasImage = !!window.currentImageFile;
-    window.els.btnProcess.disabled = !hasImage;
+    window.els.btnProcess.disabled = !window.currentImageFile;
 };
 
 window.setProgress = (percent, text = '') => {
@@ -259,11 +257,11 @@ const handleImageFile = async (file) => {
 };
 
 // Handle Click on Image Container to Trigger File Input
-window.els.imageContainer.addEventListener('click', (e) => {
+/*window.els.imageContainer.addEventListener('click', (e) => {
     if (e.target === window.els.imageContainer || e.target === window.els.emptyState || e.target.parentNode === window.els.emptyState) {
         window.els.fileInput.click();
     }
-});
+});*/
 
 // File Input and Drag-and-Drop Handling
 window.els.btnFile.addEventListener('click', () => window.els.fileInput.click());

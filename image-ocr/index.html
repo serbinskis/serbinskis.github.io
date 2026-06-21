@@ -43,7 +43,7 @@
 <body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300 font-sans flex flex-col h-[100dvh] text-gray-800 dark:text-gray-200">
     <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-full max-w-md px-4 pointer-events-none"></div>
 
-    <header class="flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm transition-colors duration-300">
+    <header class="select-none flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm transition-colors duration-300">
         <div class="container mx-auto max-w-[1600px] px-4 py-3 flex justify-between items-center">
             <h1 class="text-xl font-bold flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -63,12 +63,12 @@
         <div class="flex flex-col gap-4 w-full xl:w-2/3 h-fit"> 
             
             <!-- Image Drop/Click Zone -->
-            <div id="image-container" class="select-none relative w-full bg-gray-50 dark:bg-gray-800/50 rounded-lg shadow-md flex items-center justify-center overflow-hidden min-h-[40vh] xl:min-h-[55vh] border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer group">
+            <div id="image-container" class="select-none relative w-full bg-gray-50 dark:bg-gray-800/50 rounded-lg shadow-md flex items-center justify-center overflow-hidden min-h-[40vh] xl:min-h-[55vh] border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-arrow group">
                 
                 <!-- Empty State -->
                 <div id="empty-state" class="absolute flex flex-col items-center justify-center pointer-events-none text-gray-400 dark:text-gray-500 group-hover:text-blue-500 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                    <p class="font-medium text-lg">Click, Paste (Ctrl+V), or Drag Image Here</p>
+                    <p class="font-medium text-lg">Paste (Ctrl+V), or Drag Image Here</p>
                 </div>
 
                 <img id="image-player" class="hidden max-w-full max-h-[70vh] object-contain pointer-events-none z-10" />
