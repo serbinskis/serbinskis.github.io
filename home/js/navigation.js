@@ -25,6 +25,11 @@ var navigationItems = [
         icon: "fa-solid fa-flask",
     },
     {
+        name: "Intersection Right-of-Way Game",
+        href: "/intersection-right-of-way-game",
+        icon: "fa-solid fa-road",
+    },
+    {
         name: "UNO Game",
         href: "/uno-game",
         icon: "fa-solid fa-dice-six",

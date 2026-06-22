@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intersection Right-of-Way Game</title>
+    <script src="/home/js/navigation.js"></script>
+    
+    <!-- Dark Mode Init Script (Prevents Flashing) -->
+    <script>
+        let isDarkMode = localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (isDarkMode) { document.documentElement.classList.add('dark'); }
+    </script>
+
+    <style>
+        /* Theme Variables */
+        :root {
+            --bg-color: #f3f4f6;
+            --text-color: #1f2937;
+            --desc-color: #4b5563;
+            --controls-bg: #ffffff;
+            --shadow-color: rgba(0, 0, 0, 0.15);
+            --highlight-text: #d97706; /* Darker orange/yellow for light mode readability */
+        }
+
+        .dark {
+            --bg-color: #2c3e50;
+            --text-color: #ecf0f1;
+            --desc-color: #bdc3c7;
+            --controls-bg: #34495e;
+            --shadow-color: rgba(0, 0, 0, 0.5);
+            --highlight-text: #f1c40f; /* Bright yellow for dark mode */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Theme Toggle Button */
+        #theme-toggle {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: var(--text-color);
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #theme-toggle:hover { background: rgba(128, 128, 128, 0.2); }
+        #theme-toggle svg { width: 24px; height: 24px; }
+        .hidden { display: none !important; }
+
+        h1 { margin-top: 15px; text-align: center; font-size: 28px; }
+        p.desc { max-width: 650px; text-align: center; margin-bottom: 5px; color: var(--desc-color); line-height: 1.4; transition: color 0.3s;}
+        p.tip { font-size: 14px; color: var(--highlight-text); margin-bottom: 20px; font-weight: bold; transition: color 0.3s;}
+
+        #game-board {
+            position: relative;
+            width: 500px;
+            height: 500px;
+            background-color: #7f8c8d; /* Road color stays constant */
+            border-radius: 10px;
+            overflow: visible;
+            box-shadow: 0 10px 20px var(--shadow-color);
+        }
+
+        /* Grass Corners */
+        .grass { position: absolute; background-color: #27ae60; width: 180px; height: 180px; z-index: 1; }
+        .grass.tl { top: 0; left: 0; }
+        .grass.tr { top: 0; right: 0; }
+        .grass.bl { bottom: 0; left: 0; }
+        .grass.br { bottom: 0; right: 0; }
+
+        /* Road Center Lines */
+        .line { position: absolute; background-color: white; z-index: 2;}
+        .line-v { width: 4px; height: 180px; left: 248px; background: repeating-linear-gradient(to bottom, white, white 20px, transparent 20px, transparent 40px); }
+        .line-v.top { top: 0; }
+        .line-v.bottom { bottom: 0; }
+        .line-h { height: 4px; width: 180px; top: 248px; background: repeating-linear-gradient(to right, white, white 20px, transparent 20px, transparent 40px); }
+        .line-h.left { left: 0; }
+        .line-h.right { right: 0; }
+
+        /* Yield Lines (Shark Teeth on Road) */
+        .yield-line { position: absolute; z-index: 2; background-image: repeating-linear-gradient(45deg, white 0, white 5px, transparent 5px, transparent 10px); }
+        .yield-line-h { width: 70px; height: 6px; }
+        .yield-line-v { width: 6px; height: 70px; }
+
+        /* SVG Paths Layer */
+        #path-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+
+        /* Cars */
+        .car {
+            position: absolute; width: 40px; height: 70px;
+            border-radius: 8px 8px 3px 3px; cursor: pointer;
+            transition: filter 0.2s, opacity 0.3s; z-index: 10;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+        }
+        .car:hover { filter: brightness(1.3) drop-shadow(0 0 8px rgba(255,255,255,0.8)); }
+        .car.selected { opacity: 0.3; pointer-events: none; filter: grayscale(1); }
+        
+        /* Our Car Styling */
+        .car.our-car { box-shadow: 0 0 0 4px #f1c40f, 0 4px 10px rgba(0,0,0,0.6); z-index: 11; }
+        .car.our-car::after {
+            content: 'YOUR CAR'; position: absolute;
+            bottom: -22px; width: 120px; left: -40px; text-align: center;
+            font-size: 14px; font-weight: bold; color: #f1c40f; text-shadow: 1px 1px 2px black;
+        }
+
+        /* Accurate Car Center Positions */
+        .pos-S { left: 265px; top: 410px; transform: rotate(0deg); }
+        .pos-N { left: 195px; top: 20px; transform: rotate(180deg); }
+        .pos-W { left: 20px; top: 250px; transform: rotate(90deg); }
+        .pos-E { left: 440px; top: 180px; transform: rotate(-90deg); }
+
+        /* Order Badge */
+        .badge {
+            position: absolute; top: 15px; left: 5px;
+            background: white; color: black; border-radius: 50%; width: 30px; height: 30px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 20px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Traffic Signs */
+        .sign-container { position: absolute; z-index: 8; }
+        .sign-diamond {
+            width: 26px; height: 26px; background-color: #f1c40f;
+            border: 4px solid white; outline: 2px solid black; transform: rotate(45deg);
+        }
+
+        .sign-triangle {
+            width: 0; height: 0; border-left: 18px solid transparent; border-right: 18px solid transparent; border-top: 30px solid #e74c3c; position: relative;
+        }
+
+        .sign-triangle::after {
+            content: ''; position: absolute; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 15px solid white; top: -27px; left: -9px;
+        }
+        
+        .sign-pos-S { top: 335px; left: 335px; } 
+        .sign-pos-N { top: 140px; left: 140px; } 
+        .sign-pos-W { top: 335px; left: 140px; } 
+        .sign-pos-E { top: 140px; left: 335px; } 
+
+        /* Controls */
+        #controls { margin-top: 20px; background: var(--controls-bg); padding: 20px; border-radius: 10px; text-align: center; width: 460px; box-shadow: 0 4px 6px var(--shadow-color); transition: background-color 0.3s; }
+        #intersection-label { color: var(--highlight-text); transition: color 0.3s; }
+        button.btn { background-color: #3498db; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 5px; cursor: pointer; font-weight: bold; margin: 10px; transition: background 0.2s;}
+        button.btn:hover { background-color: #2980b9; }
+        
+        #message { font-size: 18px; font-weight: bold; margin-top: 10px; min-height: 24px; }
+        .success { color: #2ecc71; }
+        .error { color: #e74c3c; }
+    </style>
+</head>
+<body>
+
+    <!-- Dark/Light Theme Toggle Button -->
+    <button id="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">
+        <!-- Sun Icon (Hidden in Light Mode) -->
+        <svg id="theme-icon-light" class="hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        <!-- Moon Icon (Hidden in Dark Mode) -->
+        <svg id="theme-icon-dark" class="hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+    </button>
+
+    <h1>Intersection Rules Game</h1>
+    <p class="desc">You are the highlighted car at the <b>BOTTOM</b>. Click the other cars in order to let them pass. When it is your turn, <b>click YOUR CAR</b> to go!</p>
+    <p class="tip">Rule: If your path does NOT cross/merge with a car, you do not need to wait for them.</p>
+
+    <div id="game-board">
+        <div class="grass tl"></div>
+        <div class="grass tr"></div>
+        <div class="grass bl"></div>
+        <div class="grass br"></div>
+        <div class="line line-v top"></div>
+        <div class="line line-v bottom"></div>
+        <div class="line line-h left"></div>
+        <div class="line line-h right"></div>
+
+        <!-- Static SVG Definitions for arrows -->
+        <svg id="path-layer">
+            <defs id="svg-defs">
+                <marker id="arrow-e74c3c" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0,0 L 10,5 L 0,10 Z" fill="#e74c3c" /></marker>
+                <marker id="arrow-3498db" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0,0 L 10,5 L 0,10 Z" fill="#3498db" /></marker>
+                <marker id="arrow-9b59b6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0,0 L 10,5 L 0,10 Z" fill="#9b59b6" /></marker>
+                <marker id="arrow-e67e22" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0,0 L 10,5 L 0,10 Z" fill="#e67e22" /></marker>
+                <marker id="arrow-1abc9c" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0,0 L 10,5 L 0,10 Z" fill="#1abc9c" /></marker>
+                <marker id="arrow-f1c40f" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0,0 L 10,5 L 0,10 Z" fill="#f1c40f" /></marker>
+            </defs>
+            <g id="paths-container"></g>
+        </svg>
+
+        <div id="dynamic-elements"></div>
+    </div>
+
+    <div id="controls">
+        <p>Intersection Type: <strong id="intersection-label">Equal Roads</strong></p>
+        <p id="message">Select the 1st car to go!</p>
+        <button id="next-btn" class="btn" style="display: none;" onclick="initGame()">Next Scenario</button>
+    </div>
+
+    <script>
+        // Theme Toggle Logic
+        function updateThemeIcons() {
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('theme-icon-light').classList.toggle('hidden', !isDark);
+            document.getElementById('theme-icon-dark').classList.toggle('hidden', isDark);
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.theme = isDark ? 'dark' : 'light';
+            updateThemeIcons();
+        }
+        
+        // Initialize icons on load
+        updateThemeIcons();
+
+        // Game Logic
+        const CAR_COLORS = ['#e74c3c', '#3498db', '#9b59b6', '#e67e22', '#1abc9c'];
+        const OUR_CAR_COLOR = '#ecf0f1'; 
+        const DIRECTIONS = ['S', 'L', 'R']; 
+        const POSITIONS = ['N', 'E', 'W']; 
+        const POS_MAP = { 'N': 0, 'E': 1, 'S': 2, 'W': 3 };
+
+        const SVG_PATHS = {
+            'S_S': 'M 285,410 L 285,70',
+            'S_R': 'M 285,410 L 285,320 Q 285,285 320,285 L 430,285',
+            'S_L': 'M 285,410 L 285,285 Q 285,215 180,215 L 70,215',
+            'N_S': 'M 215,90 L 215,430',
+            'N_R': 'M 215,90 L 215,180 Q 215,215 180,215 L 70,215',
+            'N_L': 'M 215,90 L 215,215 Q 215,285 320,285 L 430,285',
+            'W_S': 'M 60,285 L 430,285',
+            'W_R': 'M 60,285 L 180,285 Q 215,285 215,320 L 215,430',
+            'W_L': 'M 60,285 L 215,285 Q 285,285 285,180 L 285,70',
+            'E_S': 'M 440,215 L 70,215',
+            'E_R': 'M 440,215 L 320,215 Q 285,215 285,180 L 285,70',
+            'E_L': 'M 440,215 L 285,215 Q 215,215 215,320 L 215,430'
+        };
+
+        let state = { type: '', cars: [], selectedOrder: [], gameOver: false };
+
+        function getRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+        function initGame() {
+            state.selectedOrder = [];
+            state.gameOver = false;
+            document.getElementById('next-btn').style.display = "none";
+            document.getElementById('message').innerText = "Select the 1st car to go!";
+            document.getElementById('message').className = "";
+            state.type = getRandom(['EQUAL', 'PRIORITY_NS', 'PRIORITY_EW']);
+            
+            let label = "Equal Roads (Yield to Right)";
+            if(state.type === 'PRIORITY_NS') label = "Your road is the Priority Road";
+            if(state.type === 'PRIORITY_EW') label = "You have a Yield Sign";
+            document.getElementById('intersection-label').innerText = label;
+
+            do { generateCars(); } while (hasDeadlock(state.cars));
+            render();
+        }
+
+        function generateCars() {
+            state.cars = [{
+                id: 'car-us', pos: 'S', dir: getRandom(DIRECTIONS), 
+                color: OUR_CAR_COLOR, isOurCar: true
+            }];
+
+            let numOtherCars = Math.floor(Math.random() * 3) + 1; 
+            let availPos = [...POSITIONS].sort(() => 0.5 - Math.random());
+            let availColor = [...CAR_COLORS].sort(() => 0.5 - Math.random());
+
+            for (let i = 0; i < numOtherCars; i++) {
+                state.cars.push({
+                    id: `car-${availPos[i]}`, pos: availPos[i], dir: getRandom(DIRECTIONS), 
+                    color: availColor[i], isOurCar: false
+                });
+            }
+        }
+
+        function getPriority(pos) {
+            if (state.type === 'EQUAL') { return 1; }
+            if (state.type === 'PRIORITY_NS') { return (pos === 'S' || pos === 'N') ? 2 : 0; }
+            if (state.type === 'PRIORITY_EW') { return (pos === 'E' || pos === 'W') ? 2 : 0; }
+        }
+
+        function checkConflict(A, B) {
+            let relB = (POS_MAP[B.pos] - POS_MAP[A.pos] + 4) % 4;
+            if (relB === 1) {return checkConflict(B, A); }
+            if (relB === 2) { 
+                if (A.dir === 'S') { return B.dir === 'L'; }
+                if (A.dir === 'L') { return B.dir === 'S' || B.dir === 'R'; }
+                if (A.dir === 'R') { return B.dir === 'L'; }
+            }
+            if (relB === 3) { 
+                if (A.dir === 'S') { return B.dir === 'S' || B.dir === 'L' || B.dir === 'R'; }
+                if (A.dir === 'L') { return B.dir === 'S' || B.dir === 'L'; }
+                if (A.dir === 'R') { return false; }
+            }
+            return false;
+        }
+
+        function yieldsTo(A, B) {
+            if (!checkConflict(A, B)) { return false; }
+
+            let prioA = getPriority(A.pos);
+            let prioB = getPriority(B.pos);
+            
+            if (prioA < prioB) { return true; }
+            if (prioA > prioB) { return false; }
+            
+            let relB = (POS_MAP[B.pos] - POS_MAP[A.pos] + 4) % 4;
+            if (relB === 3) { return true; }
+            if (relB === 1) { return false; }
+            if (relB === 2 && A.dir === 'L' && (B.dir === 'S' || B.dir === 'R')) { return true; }
+            return false;
+        }
+
+        function getValidNextCars(remaining) {
+            return remaining.filter(car => {
+                for (let other of remaining) {
+                    if (car.id !== other.id && yieldsTo(car, other)) { return false; }
+                }
+                return true;
+            }).map(c => c.id);
+        }
+
+        function hasDeadlock(cars) {
+            let rem = [...cars];
+            while (rem.length > 0) {
+                let valid = getValidNextCars(rem);
+                if (valid.length === 0) { return true; }
+                rem = rem.filter(c => c.id !== valid[0]);
+            }
+            return false;
+        }
+
+        function carClicked(id) {
+            if (state.gameOver || state.selectedOrder.includes(id)) { return; }
+
+            let remaining = state.cars.filter(c => !state.selectedOrder.includes(c.id));
+            let validNext = getValidNextCars(remaining);
+            let msgEl = document.getElementById('message');
+            let clickedCar = state.cars.find(c => c.id === id);
+
+            if (validNext.includes(id)) {
+                if (clickedCar.isOurCar) {
+                    state.gameOver = true;
+                    document.getElementById(id).classList.add('selected');
+                    msgEl.innerText = "Correct! It is safe for you to go. You win!";
+                    msgEl.className = "success";
+                    return document.getElementById('next-btn').style.display = "inline-block";
+                }
+
+                state.selectedOrder.push(id);
+                let turnNum = state.selectedOrder.length;
+                let carEl = document.getElementById(id);
+                carEl.classList.add('selected');
+
+                let rot = { 'N': 180, 'E': 90, 'W': -90 }[carEl.dataset.pos];
+                carEl.innerHTML += `<div class="badge" style="transform: rotate(${rot}deg)">${turnNum}</div>`;
+
+                msgEl.innerText = "Good! Who goes next? (Click your car if it's your turn)";
+                msgEl.className = "";
+            } else {
+                msgEl.innerText = "CRASH/VIOLATION! That car must yield. Try again.";
+                msgEl.className = "error";
+                state.gameOver = true;
+                setTimeout(resetCurrentScenario, 2000);
+            }
+        }
+
+        function resetCurrentScenario() {
+            state.selectedOrder = [];
+            state.gameOver = false;
+            document.querySelectorAll('.car').forEach(c => {
+                c.classList.remove('selected');
+                let badge = c.querySelector('.badge');
+                if (badge) { badge.remove(); }
+            });
+            let msgEl = document.getElementById('message');
+            msgEl.innerText = "Try again! Select the 1st car to go.";
+            msgEl.className = "";
+        }
+
+        function render() {
+            let container = document.getElementById('dynamic-elements');
+            let pathContainer = document.getElementById('paths-container');
+            container.innerHTML = '';
+            pathContainer.innerHTML = '';
+
+            const renderSigns = () => {
+                if (state.type === 'EQUAL') { return; }
+
+                ['N', 'E', 'S', 'W'].forEach(pos => {
+                    let prio = getPriority(pos);
+                    if (prio === 2) {
+                        container.innerHTML += `<div class="sign-container sign-pos-${pos}"><div class="sign-diamond"></div></div>`;
+                    } 
+                    else if (prio === 0) {
+                        container.innerHTML += `<div class="sign-container sign-pos-${pos}"><div class="sign-triangle"></div></div>`;
+                        if (pos === 'S') { container.innerHTML += `<div class="yield-line yield-line-h" style="top: 320px; left: 250px;"></div>`; }
+                        if (pos === 'N') { container.innerHTML += `<div class="yield-line yield-line-h" style="top: 174px; left: 180px;"></div>`; }
+                        if (pos === 'W') { container.innerHTML += `<div class="yield-line yield-line-v" style="left: 174px; top: 250px;"></div>`; }
+                        if (pos === 'E') { container.innerHTML += `<div class="yield-line yield-line-v" style="left: 320px; top: 180px;"></div>`; }
+                    }
+                });
+            };
+ 
+            renderSigns();
+
+            state.cars.forEach(car => {
+                let colorHexCode = car.isOurCar ? 'f1c40f' : car.color.replace('#', '');
+                let drawColor = car.isOurCar ? '#f1c40f' : car.color;
+
+                let pathStr = SVG_PATHS[`${car.pos}_${car.dir}`];
+                pathContainer.innerHTML += `<path d="${pathStr}" stroke="${drawColor}" stroke-width="${car.isOurCar ? 6 : 4}" fill="none" stroke-dasharray="8,8" marker-end="url(#arrow-${colorHexCode})" />`;
+
+                let extraClass = car.isOurCar ? 'our-car' : '';
+                container.innerHTML += `<div id="${car.id}" data-pos="${car.pos}" class="car pos-${car.pos} ${extraClass}" style="background-color: ${car.color};" onclick="carClicked('${car.id}')"></div>`;
+            });
+        }
+
+        window.onload = initGame;
+    </script>
+</body>
+</html>
