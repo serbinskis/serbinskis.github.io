@@ -83,7 +83,7 @@ function generateAmount(size) {
 	for (let i = 1; i <= size; i++) {
 		const html = `
 			<label class="relative cursor-pointer group sign-option">
-				<input type="radio" name="sign_choice" value="${i}" class="peer sr-only" onchange="autoSubmit()">
+				<input type="radio" name="sign_choice" value="${i}" class="peer sr-only" onchange="submitAnswer()">
 				<div id="wrapper-${i}" class="p-3 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 peer-checked:border-blue-500 peer-checked:ring-2 peer-checked:ring-blue-300 dark:peer-checked:ring-blue-800 transition-all hover:shadow-md rounded-xl">
 					<img id="img-${i}" src="" class="w-16 h-16 object-contain pointer-events-none">
 				</div>
@@ -107,7 +107,9 @@ function prepareSelect(size) {
 	document.getElementById('description').innerText = selectedSign.description;
 
 	// Reset Result Message
-	document.getElementById('result-message').style.opacity = '0';
+	document.getElementById('result-message').style.opacity = '1';
+	document.getElementById('result-message').innerText = 'Select the correct sign.';
+	document.getElementById('result-message').className = "text-lg font-bold transition-opacity duration-300 text-yellow-600 dark:text-yellow-400";
 
 	// Reset selection styles & re-enable inputs
 	document.querySelectorAll('input[name="sign_choice"]').forEach(radio => {
@@ -146,7 +148,7 @@ function prepareSelect(size) {
 }
 
 // Submission Logic
-document.getElementById('submit').addEventListener('click', () => {
+function submitAnswer() {
 	const selectedRadio = document.querySelector('input[name="sign_choice"]:checked');
 	if (!selectedRadio) { return showToast('Please select a sign first!', 'error'); }
 
@@ -181,11 +183,7 @@ document.getElementById('submit').addEventListener('click', () => {
 		selectedWrapper.classList.remove('border-gray-200', 'dark:border-gray-600', 'bg-white', 'dark:bg-gray-800');
 		selectedWrapper.classList.add('border-red-500', 'dark:border-red-500', 'ring-2', 'ring-red-400', 'dark:ring-red-600', 'bg-red-50', 'dark:bg-red-900/30');
 	}
-});
-
-function autoSubmit() {
-	document.getElementById('submit').focus();
-}
+};
 
 // Settings Listeners
 document.getElementById('selected').addEventListener('keypress', (e) => {
@@ -218,7 +216,6 @@ document.getElementById('amount-button').addEventListener('click', () => {
 	chooseCount = val;
 	generateAmount(chooseCount);
 	prepareSelect(chooseCount);
-	showToast(`Amount changed to ${chooseCount}.`, 'success');
 });
 
 // Initialize the game on page load
