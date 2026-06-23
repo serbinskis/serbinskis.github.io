@@ -109,7 +109,7 @@ function prepareSelect(size) {
 	// Reset Result Message
 	document.getElementById('result-message').style.opacity = '1';
 	document.getElementById('result-message').innerText = 'Select the correct sign.';
-	document.getElementById('result-message').className = "text-lg font-bold transition-opacity duration-300 text-yellow-600 dark:text-yellow-400";
+	document.getElementById('result-message').className = "select-none text-lg font-bold transition-opacity duration-300 text-yellow-600 dark:text-yellow-400";
 
 	// Reset selection styles & re-enable inputs
 	document.querySelectorAll('input[name="sign_choice"]').forEach(radio => {
@@ -162,10 +162,10 @@ function submitAnswer() {
 	resultMsg.style.opacity = '1';
 	if (selectedValue === correct) {
 		resultMsg.innerText = "Correct!";
-		resultMsg.className = "text-lg font-bold transition-opacity duration-300 text-green-600 dark:text-green-400";
+		resultMsg.className = "select-none text-lg font-bold transition-opacity duration-300 text-green-600 dark:text-green-400";
 	} else {
 		resultMsg.innerText = "Incorrect! The correct answer is highlighted in green.";
-		resultMsg.className = "text-lg font-bold transition-opacity duration-300 text-red-600 dark:text-red-400";
+		resultMsg.className = "select-none text-lg font-bold transition-opacity duration-300 text-red-600 dark:text-red-400";
 	}
 
 	// Highlight Correct Answer (Green)
