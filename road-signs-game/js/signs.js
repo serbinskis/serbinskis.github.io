@@ -1,6 +1,6 @@
 signs = [
 
-    //BRIDINAJUMA ZIMES
+    // BRIDINAJUMA ZIMES
     {
         "name": "Vienadas nozimes celu krustojums",
         "type": "BRIDINAJUMA ZIMES",
@@ -260,7 +260,7 @@ signs = [
         "image": "img/143-200x200.jpg"
     },
 
-    //PRIEKSROCIBAS ZIMES
+    // PRIEKSROCIBAS ZIMES
     {
         "name": "Galvenais cels",
         "type": "PRIEKSROCIBAS ZIMES",
@@ -316,7 +316,7 @@ signs = [
         "image": "img/209-200x200.jpg"
     },
 
-    //AIZLIEGUMA ZIMES
+    // AIZLIEGUMA ZIMES
     {
         "name": "Iebraukt aizliegts",
         "type": "AIZLIEGUMA ZIMES",
@@ -522,7 +522,7 @@ signs = [
         "image": "img/334-200x200.jpg"
     },
 
-    //RIKOJUMA ZIMES
+    // RIKOJUMA ZIMES
     {
         "name": "Braukt taisni",
         "type": "RIKOJUMA ZIMES",
@@ -686,7 +686,7 @@ signs = [
         "image": "img/427-200x200.jpg"
     },
 
-    //NORADIJUMA ZIMES
+    // NORADIJUMA ZIMES
     {
         "name": "Vienvirziena cels",
         "type": "NORADIJUMA ZIMES",
@@ -1060,7 +1060,7 @@ signs = [
         "image": "img/534A-200x200.jpg"
     },
 
-    //SERVISA ZIMES
+    // SERVISA ZIMES
     {
         "name": "Mediciniskas palidzibas punkts",
         "type": "SERVISA ZIMES",
@@ -1266,7 +1266,7 @@ signs = [
         "image": "img/634-200x200.jpg"
     },
 
-    //VIRZIENU RADITAJI UN INFORMACIJAS ZIMES
+    // VIRZIENU RADITAJI UN INFORMACIJAS ZIMES
     {
         "name": "Ieprieksejs virzienu raditajs",
         "type": "VIRZIENU RADITAJI UN INFORMACIJAS ZIMES",
@@ -1586,7 +1586,7 @@ signs = [
         "image": "img/753-200x200.jpg"
     },
 
-    //PAPILDZIMES
+    // PAPILDZIMES
     {
         "name": "Attalums lidz objektam",
         "type": "PAPILDZIMES",
@@ -1930,7 +1930,7 @@ signs = [
         "image": "img/857-200x200.jpg"
     },
     {
-        "name": "“EuroVelo” marsruts",
+        "name": "ï¿½EuroVeloï¿½ marsruts",
         "type": "PAPILDZIMES",
         "description": "",
         "image": "img/858-200x200.jpg"

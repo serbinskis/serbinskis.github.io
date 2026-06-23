@@ -30,6 +30,11 @@ var navigationItems = [
         icon: "fa-solid fa-road",
     },
     {
+        name: "Road Signs Game",
+        href: "/road-signs-game",
+        icon: "fa-solid fa-triangle-exclamation",
+    },
+    {
         name: "UNO Game",
         href: "/uno-game",
         icon: "fa-solid fa-dice-six",
@@ -53,11 +58,6 @@ var navigationItems = [
         name: "Lofi Hip Hop",
         href: "/lofi-hip-hop",
         icon: "fas fa-music",
-    },
-    {
-        name: "Road Signs",
-        href: "/road-signs",
-        icon: "fa-solid fa-traffic-light",
     },
     {
         name: "MSI Control",
