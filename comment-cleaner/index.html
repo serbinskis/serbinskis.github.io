@@ -112,6 +112,7 @@
             document.getElementById('cleaner-select').appendChild(opt);
         });
 
+        const logContainer = document.getElementById('log-container');
         const editorIn = ace.edit("editor-in");
         const editorOut = ace.edit("editor-out");
 
@@ -123,11 +124,15 @@
                 ed.setOptions({ fontSize: "13px", useWorker: false, wrap: true });
             });
         }
+
         updateEditorThemes();
+        const savedInput = localStorage.getItem('lastCommentInput');
+        const dummyCode = "// Sample\nconst x = 10; // Inline comment\n/* Block\n   Comment */\nfunction test() { return true; }";
+        if (savedInput === null) { editorIn.setValue(dummyCode, -1); }
+        if (savedInput === null) { editorOut.setValue(performClean(editorIn.getValue(), null, false), -1); }
         editorOut.setReadOnly(true);
 
-        const logContainer = document.getElementById('log-container');
-        const addLog = (msg) => {
+        function addLog(msg) {
             const div = document.createElement('div');
             div.className = 'log-entry';
             div.textContent = `[${new Date().toLocaleTimeString('lv-LV', { hour12: false })}] ${msg}`;
@@ -160,6 +165,7 @@
             clearTimeout(typingTimer);
             typingTimer = setTimeout(() => {
                 const val = editorIn.getValue();
+                localStorage.setItem('lastCommentInput', val);
                 if (!val.trim()) { return editorOut.setValue('', -1); }
                 editorOut.setValue(performClean(val, null, false), -1); // Pass silent=true so it doesn't spam logs every keystroke
             }, 300); // 300ms delay prevents lag
