@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comment Cleaner</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5'/><path d='M19 13l-4 4-2-2' stroke='%233b82f6'/></svg>">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.9.6/ace.js"></script>
+    <script src="/home/js/navigation.js"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+        let isDarkMode = localStorage.theme === 'light' ? false : true;
+        localStorage.theme = isDarkMode ? 'dark' : 'light';
+        document.documentElement.classList.toggle('dark', isDarkMode);
+    </script>
+
+    <style>
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 5px; }
+        .dark ::-webkit-scrollbar-track { background: #1f2937; }
+        .dark ::-webkit-scrollbar-thumb { background: #4b5563; border: 2px solid #1f2937; }
+
+        .ace_editor { border: 1px solid #e5e7eb; border-radius: 0.5rem; }
+        .dark .ace_editor { border: 1px solid #374151; }
+
+        #log-container { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+        .log-entry { font-size: 0.75rem; border-left: 2px solid #3b82f6; padding-left: 0.5rem; margin-bottom: 0.25rem; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300 font-sans flex flex-col h-[100dvh] text-gray-800 dark:text-gray-200 overflow-hidden">
+
+    <header class="select-none flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm z-10">
+        <div class="container mx-auto max-w-[1600px] px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Comment Cleaner
+            </h1>
+            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                <svg id="theme-icon-light" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" stroke-width="2"/></svg>
+                <svg id="theme-icon-dark" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" stroke-width="2"/></svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="container mx-auto max-w-[1600px] p-4 flex-grow flex flex-col gap-4 min-h-0">
+
+        <!-- Top Toolbar -->
+        <div class="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm flex flex-wrap items-center gap-3">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-grow">
+                <label class="text-xs font-bold uppercase text-gray-400 whitespace-nowrap">Cleaner:</label>
+                <select id="cleaner-select" class="bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-48">
+                    <option value="auto">✨ Auto-Detect</option>
+                </select>
+            </div>
+
+            <div class="flex gap-2">
+                <button id="btn-file" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 px-4 py-1.5 rounded text-xs font-bold transition-colors">📄 FILE</button>
+                <button id="btn-folder" class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 px-4 py-1.5 rounded text-xs font-bold transition-colors">📁 FOLDER</button>
+                <button id="btn-process" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-1.5 rounded text-xs font-bold shadow-md transition-all active:scale-95">CLEAN COMMENTS</button>
+                <input type="file" id="file-input" class="hidden">
+            </div>
+        </div>
+
+        <!-- Editors Row -->
+        <div class="flex flex-col lg:flex-row gap-4 flex-grow min-h-0">
+            <div class="flex flex-col flex-1 min-h-[200px]">
+                <div class="flex justify-between items-center mb-1 px-1">
+                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Input Source</span>
+                </div>
+                <div id="editor-in" class="flex-grow"></div>
+            </div>
+            <div class="flex flex-col flex-1 min-h-[200px]">
+                <div class="flex justify-between items-center mb-1 px-1">
+                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Cleaned Result</span>
+                    <button id="btn-copy" class="text-blue-500 hover:text-blue-400 text-[10px] font-bold">COPY RESULT</button>
+                </div>
+                <div id="editor-out" class="flex-grow"></div>
+            </div>
+        </div>
+
+        <!-- Logs Row -->
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md flex flex-col h-48 flex-shrink-0">
+            <div class="flex justify-between items-center mb-2">
+                <label class="text-xs font-bold uppercase text-gray-400">Logs</label>
+                <button id="btn-clear-logs" class="text-[10px] font-bold text-red-500 hover:text-red-400">CLEAR LOGS</button>
+            </div>
+            <div id="log-container" class="flex-grow overflow-y-auto bg-gray-50 dark:bg-gray-900/50 rounded p-3 text-gray-600 dark:text-gray-400">
+                <div class="italic text-[11px]">System ready. Waiting for input...</div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { TextCleaner } from './js/text_cleaner.js';
+        import { CStyleCleaner } from './js/cstyle_cleaner.js';
+        import { HtmlCleaner } from './js/html_cleaner.js';
+        import { PythonCleaner } from './js/python_cleaner.js';
+
+        TextCleaner.registerAll([ new CStyleCleaner(), new HtmlCleaner(), new PythonCleaner() ]);
+        const allCleaners = TextCleaner.getAllCleaners();
+
+        // Populate manual selection list
+        allCleaners.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.title;
+            document.getElementById('cleaner-select').appendChild(opt);
+        });
+
+        const editorIn = ace.edit("editor-in");
+        const editorOut = ace.edit("editor-out");
+
+        function updateEditorThemes() {
+            const theme = document.documentElement.classList.contains('dark') ? "ace/theme/tomorrow_night" : "ace/theme/tomorrow";
+            [editorIn, editorOut].forEach(ed => {
+                ed.setTheme(theme);
+                ed.session.setMode("ace/mode/javascript");
+                ed.setOptions({ fontSize: "13px", useWorker: false, wrap: true });
+            });
+        }
+        updateEditorThemes();
+        editorOut.setReadOnly(true);
+
+        const logContainer = document.getElementById('log-container');
+        const addLog = (msg) => {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.textContent = `[${new Date().toLocaleTimeString('lv-LV', { hour12: false })}] ${msg}`;
+            logContainer.prepend(div);
+        };
+
+        // Cleaning Core (Added 'silent' flag to prevent log spam while typing)
+        function performClean(text, filename = null, silent = false) {
+            const selectedId = document.getElementById('cleaner-select').value;
+            let cleaner;
+
+            if (selectedId === 'auto') {
+                cleaner = TextCleaner.findCleaner(filename, text);
+                if (!cleaner) {
+                    if (!silent) { addLog(`Auto-detect failed. Using C-Style fallback.`); }
+                    cleaner = allCleaners.find(c => c.id === 'cstyle');
+                } else if (!silent) {
+                    addLog(`Detected ${cleaner.title}${filename ? ` for ${filename}` : ''}`);
+                }
+            } else {
+                cleaner = allCleaners.find(c => c.id === selectedId);
+            }
+
+            return cleaner ? cleaner.processText(text) : text;
+        }
+
+        // Live Typing with Debounce
+        let typingTimer;
+        editorIn.session.on('change', () => {
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+                const val = editorIn.getValue();
+                if (!val.trim()) { return editorOut.setValue('', -1); }
+                editorOut.setValue(performClean(val, null, false), -1); // Pass silent=true so it doesn't spam logs every keystroke
+            }, 300); // 300ms delay prevents lag
+        });
+
+        document.getElementById('btn-process').onclick = () => {
+            const val = editorIn.getValue();
+            if (!val.trim()) { return addLog("Input is empty."); }
+            editorOut.setValue(performClean(val), -1, false);
+        };
+
+        // FILE PROCESSING
+        document.getElementById('btn-file').onclick = () => document.getElementById('file-input').click();
+
+        document.getElementById('file-input').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) { return; }
+            const text = await file.text();
+            editorIn.setValue(text, -1);
+            editorOut.setValue(performClean(text, file.name), -1, false);
+        };
+
+        // Recursive Folder Overwrite (File System Access API)
+        document.getElementById('btn-folder').onclick = async () => {
+            if (!window.showDirectoryPicker) {
+                return addLog("Error: Your browser doesn't support folder saving. Use Chrome/Edge/Opera.");
+            }
+
+            try {
+                // Prompt user to select folder and grant Read/Write permission
+                const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                addLog(`Scanning folder... Granting permissions...`);
+
+                const validExts = allCleaners.flatMap(c => c.extensions);
+                let processedCount = 0;
+
+                async function processDirectory(directoryHandle, path = "") {
+                    for await (const entry of directoryHandle.values()) {
+                        if (entry.kind === 'directory') {
+                            await processDirectory(entry, path + entry.name + "/");
+                            continue;
+                        }
+
+                        if (entry.kind !== 'file') { continue; }
+                        const ext = entry.name.substring(entry.name.lastIndexOf('.')).toLowerCase();
+
+                        // Check if file extension matches our cleaners
+                        if (!validExts.includes(ext)) { continue; }
+
+                        try {
+                            const file = await entry.getFile();
+                            const text = await file.text();
+
+                            const cleaner = TextCleaner.findCleaner(entry.name, text) || allCleaners.find(c => c.id === 'cstyle');
+                            if (!cleaner) { continue; }
+                            const cleanedText = cleaner.processText(text);
+
+                            // Only overwrite if comments were actually removed
+                            if (text === cleanedText) { continue; }
+                            const writable = await entry.createWritable();
+                            await writable.write(cleanedText);
+                            await writable.close();
+                            addLog(`[Saved] ${path}${entry.name}`);
+                            processedCount++;
+                        } catch (e) {
+                            addLog(`[Error] ${path}${entry.name}: ${e.message}`);
+                        }
+                    }
+                }
+
+                await processDirectory(dirHandle);
+                addLog(`Folder complete. Cleaned & saved ${processedCount} files.`);
+            } catch (err) {
+                if (err.name !== 'AbortError') addLog(`Folder error: ${err.message}`);
+            }
+        };
+
+        // Utils
+        document.getElementById('btn-clear-logs').onclick = () => {
+            logContainer.innerHTML = '<div class="italic text-[11px]">Logs cleared.</div>';
+        };
+
+        document.getElementById('btn-copy').onclick = () => {
+            navigator.clipboard.writeText(editorOut.getValue());
+            addLog("Result copied to clipboard.");
+        };
+
+        document.getElementById('theme-toggle').onclick = () => {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.theme = isDark ? 'dark' : 'light';
+            updateEditorThemes();
+            document.getElementById('theme-icon-light').classList.toggle('hidden', !isDark);
+            document.getElementById('theme-icon-dark').classList.toggle('hidden', isDark);
+        };
+    </script>
+</body>
+</html>

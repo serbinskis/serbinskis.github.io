@@ -25,6 +25,11 @@ var navigationItems = [
         icon: "fa-solid fa-flask",
     },
     {
+        name: "Comment Cleaner",
+        href: "/comment-cleaner",
+        icon: "fa-solid fa-broom",
+    },
+    {
         name: "Intersection Right-of-Way Game",
         href: "/intersection-right-of-way-game",
         icon: "fa-solid fa-road",
