@@ -168,7 +168,7 @@
         document.getElementById('btn-process').onclick = () => {
             const val = editorIn.getValue();
             if (!val.trim()) { return addLog("Input is empty."); }
-            editorOut.setValue(performClean(val), -1, false);
+            editorOut.setValue(performClean(val), -1);
         };
 
         // FILE PROCESSING
@@ -179,7 +179,7 @@
             if (!file) { return; }
             const text = await file.text();
             editorIn.setValue(text, -1);
-            editorOut.setValue(performClean(text, file.name), -1, true);
+            editorOut.setValue(performClean(text, file.name, true), -1);
         };
 
         // Recursive Folder Overwrite (File System Access API)
