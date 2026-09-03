@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Intersection Right-of-Way Game</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 1 1 22h22L12 1z' fill='%233b82f6'/><rect x='10' y='8' width='4' height='7' fill='white'/><rect x='10' y='16' width='4' height='4' fill='white'/></svg>">
     <script src="/home/js/navigation.js"></script>
     
     <!-- Dark Mode Init Script (Prevents Flashing) -->
@@ -43,25 +44,30 @@
             transition: background-color 0.3s, color 0.3s;
         }
 
-        /* Theme Toggle Button */
         #theme-toggle {
             position: absolute;
             top: 15px;
             right: 20px;
-            background: transparent;
-            border: none;
+            background-color: var(--bg-color); /* Matches theme background */
+            border: 0px solid rgba(128, 128, 128, 0.2);
             cursor: pointer;
             color: var(--text-color);
-            padding: 8px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
-            transition: background 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: background-color 0.3s, transform 0.2s;
+            z-index: 100; /* Ensure it stays above game board and cars */
         }
 
-        #theme-toggle:hover { background: rgba(128, 128, 128, 0.2); }
-        #theme-toggle svg { width: 24px; height: 24px; }
+        #theme-toggle:hover { 
+            background-color: var(--controls-bg); 
+            transform: scale(1.05);
+        }
+
+        #theme-toggle svg { width: 24px; height: 24px; pointer-events: none; }
         .hidden { display: none !important; }
 
         h1 { margin-top: 15px; text-align: center; font-size: 28px; }
