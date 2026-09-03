@@ -120,10 +120,11 @@
     <script type="module">
         import { TextCleaner } from './js/text_cleaner.js';
         import { CStyleCleaner } from './js/cstyle_cleaner.js';
+        import { HtmlCssJsCleaner } from './js/html_css_js_cleaner.js';
         import { HtmlCleaner } from './js/html_cleaner.js';
         import { PythonCleaner } from './js/python_cleaner.js';
 
-        TextCleaner.registerAll([ new CStyleCleaner(), new HtmlCleaner(), new PythonCleaner() ]);
+        TextCleaner.registerAll([ new CStyleCleaner(), new HtmlCssJsCleaner(), new HtmlCleaner(), new PythonCleaner() ]);
         const allCleaners = TextCleaner.getAllCleaners();
 
         // Populate manual selection list
