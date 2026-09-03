@@ -77,6 +77,10 @@
     font-weight: 500;
 }
 
+.navigationContainer .navigation ul li a:focus {
+    outline: none !important;
+}
+
 .navigationContainer .navigation ul li a .icon {
     position: relative;
     display: block;
