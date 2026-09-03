@@ -70,6 +70,28 @@
         html {
             scrollbar-gutter: stable;
         }
+
+        /* Match Ace Editor's Tomorrow Night background exactly to prevent loading flash */
+        #editor-in, #editor-out {
+            background-color: #1d1d1d; /* Tomorrow Night's dark grey */
+            transition: background-color 0.3s;
+        }
+
+        /* If the user is in light mode, pre-paint them white */
+        html:not(.dark) #editor-in, 
+        html:not(.dark) #editor-out {
+            background-color: #ffffff;
+        }
+
+        /* Hide the gutter/text until Ace is ready to prevent "ghost" text artifacts */
+        .ace_editor {
+            visibility: hidden;
+        }
+
+        /* Once Ace adds its internal classes, show it */
+        .ace_editor.ace_dark, .ace_editor.ace_light, .ace_editor.ace-tomorrow {
+            visibility: visible;
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
@@ -78,8 +100,8 @@
         <header class="relative text-center mb-8">
             <h1 class="text-4xl font-bold text-gray-800 dark:text-gray-200">Interactive Text Playground</h1>
             <p class="text-gray-600 dark:text-gray-400 mt-2">Test your JavaScript logic against custom text input.</p>
-            
-            <button id="theme-toggle" class="absolute top-0 right-0 w-10 h-10 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none transition-colors">
+
+            <button id="theme-toggle" class="absolute top-0 right-0 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none transition-colors z-10 shadow-sm">
                 <svg id="theme-icon-light" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
