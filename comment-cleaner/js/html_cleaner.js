@@ -12,7 +12,7 @@ export class HtmlCleaner extends TextCleaner {
      */
     _calculateDensity(text) {
         // Tokens: opening/closing tags, entities, comments
-        const tokenRegex = /<[^>]+>|&[a-z0-9]+;|<!--|-->/gi;
+        const tokenRegex = /<!DOCTYPE html>|<!--[\s\S]*?-->|<\/?(?:html|head|body|div|span|script|style|link|meta|input|button|p|a|ul|li|table|tr|td|section|nav|footer|header|h[1-6])\b|<\w+\s+[a-z-]+=(?:"[^"]*"|'[^']*')/gi;
         return this._computeMatchDensity(text, tokenRegex);
     }
 
