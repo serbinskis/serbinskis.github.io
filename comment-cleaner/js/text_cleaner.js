@@ -104,6 +104,7 @@ export class TextCleaner {
     static findCleaner(filename, text) {
         let best = null;
         let topScore = -1;
+
         for (const cleaner of this.#registry) {
             const score = cleaner.getScore(filename, text);
             if (score > topScore && score > 0) {
@@ -111,6 +112,7 @@ export class TextCleaner {
                 best = cleaner;
             }
         }
+
         return best;
     }
 
@@ -139,12 +141,12 @@ export class TextCleaner {
         for (let i = 0; i < strippedLines.length; i++) {
             const orig = originalLines[i] || "";
             const strip = strippedLines[i];
-            
+
             // If the line was originally NOT empty but is NOW empty, it was 100% comments.
             if (orig.trim() !== "" && strip.trim() === "") { continue; }
             finalLines.push(strip.trimEnd());
         }
-        
+
         let output = finalLines.join('\n');
         if (original.endsWith('\n')) { output += '\n'; }
         return output;
