@@ -10,8 +10,10 @@ window.els = {
     mediaPlayer: document.getElementById('media-player'),
 
     startTimeInput: document.getElementById('start-time'),
+    btnJumpStart: document.getElementById('btn-jump-start'),
     btnSetStart: document.getElementById('btn-set-start'),
     endTimeInput: document.getElementById('end-time'),
+    btnJumpEnd: document.getElementById('btn-jump-end'),
     btnSetEnd: document.getElementById('btn-set-end'),
 
     progressContainer: document.getElementById('progress-container'),
@@ -49,6 +51,8 @@ window.setUILocked = (locked) => {
     window.els.endTimeInput.disabled = locked;
     window.els.btnSetStart.disabled = locked;
     window.els.btnSetEnd.disabled = locked;
+    window.els.btnJumpStart.disabled = locked;
+    window.els.btnJumpEnd.disabled = locked;
     if (locked) { window.els.controlsCard.classList.add('opacity-80'); }
     else { window.els.controlsCard.classList.remove('opacity-80'); }    
 };
@@ -259,6 +263,14 @@ window.els.btnSetStart.addEventListener('click', () => {
 window.els.btnSetEnd.addEventListener('click', () => {
     window.els.endTimeInput.value = window.formatTime(window.els.mediaPlayer.currentTime);
     validateTimestamps();
+});
+
+window.els.btnJumpStart.addEventListener('click', () => {
+    window.els.mediaPlayer.currentTime = window.parseTime(window.els.startTimeInput.value);
+});
+
+window.els.btnJumpEnd.addEventListener('click', () => {
+    window.els.mediaPlayer.currentTime = window.parseTime(window.els.endTimeInput.value);
 });
 
 // Extraction Process
