@@ -64,7 +64,7 @@ export class FfmpegAdapter extends EventEmitter {
             '-i', inputPath,
             '-vn',              // Drop video stream
             '-acodec', 'libmp3lame', // Encode to MP3
-            '-q:a', '2',        // High quality VBR
+            '-q:a', '1',        // High quality VBR
             outName
         ]);
 
