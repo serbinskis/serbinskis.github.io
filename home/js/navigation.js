@@ -20,6 +20,11 @@ var navigationItems = [
         icon: "fa-solid fa-microphone-alt",
     },
     {
+        name: "Audio Extractor",
+        href: "/audio-extractor",
+        icon: "fa-solid fa-file-audio",
+    },
+    {
         name: "Text Playground",
         href: "/text-playground",
         icon: "fa-solid fa-flask",

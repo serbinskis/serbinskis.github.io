@@ -126,6 +126,8 @@
     border: 3px solid rgb(37 99 235 / var(--tw-bg-opacity, 0.4));
     border-radius: 50%;
     transition: 0.5s;
+    user-select: none !important;
+    -webkit-user-select: none !important;
     -webkit-box-sizing: initial !important;
     box-sizing: initial !important;
     -moz-box-sizing: initial !important;

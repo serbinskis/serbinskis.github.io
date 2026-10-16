@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Extractor</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3'/%3E%3C/svg%3E">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+        let isDarkMode = localStorage.theme === 'light' ? false : true;
+        localStorage.theme = isDarkMode ? 'dark' : 'light';
+        document.documentElement.classList.toggle('dark', isDarkMode);
+    </script>
+
+    <style>
+        .dark ::-webkit-scrollbar { width: 10px; }
+        .dark ::-webkit-scrollbar-track { background: #1f2937; border-radius: 5px;}
+        .dark ::-webkit-scrollbar-thumb { background-color: #4b5563; border-radius: 5px; border: 2px solid #1f2937; }
+        .dark ::-webkit-scrollbar-thumb:hover { background-color: #6b7280; }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .toast { animation: slideDown 0.3s ease-out forwards; pointer-events: auto; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300 font-sans flex flex-col h-[100dvh] text-gray-800 dark:text-gray-200">
+    <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-full max-w-md px-4 pointer-events-none"></div>
+
+    <header class="select-none flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm transition-colors duration-300">
+        <div class="container mx-auto max-w-3xl px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
+                Audio Extractor
+            </h1>
+            <div class="flex items-center gap-2">
+                <button id="theme-toggle" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <svg id="theme-icon-light" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                    <svg id="theme-icon-dark" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto max-w-3xl p-4 flex-grow flex flex-col gap-4 min-h-0">
+
+        <!-- Controls Card -->
+        <div id="controls-card" class="flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-all duration-300 flex flex-col gap-4">
+
+            <button id="btn-file" class="w-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-3 font-medium transition-colors disabled:opacity-50">
+                📁 Select Media File (Audio / Video)
+            </button>
+            <input type="file" id="file-input" accept="audio/*,video/*" class="hidden">
+
+            <!-- Native Media Player for Previewing File -->
+            <video id="media-player" controls class="w-full max-h-64 rounded-lg bg-black hidden shadow-inner"></video>
+
+            <!-- Start / End Configuration -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Start Time (Seconds)</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="start-time" value="00:00:00.000" class="flex-grow bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50 font-mono">
+                        <button id="btn-set-start" class="px-3 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 border border-blue-300 dark:border-blue-700 rounded text-xs font-bold transition-colors disabled:opacity-50">SET NOW</button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <label class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">End Time (Seconds)</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="end-time" value="00:00:00.000" class="flex-grow bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50 font-mono">
+                        <button id="btn-set-end" class="px-3 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 border border-blue-300 dark:border-blue-700 rounded text-xs font-bold transition-colors disabled:opacity-50">SET NOW</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div id="progress-container" class="hidden flex flex-col gap-1">
+                <div class="flex justify-between text-sm items-end">
+                    <span id="progress-text" class="text-blue-600 dark:text-blue-400 font-medium">Ready</span>
+                    <div class="flex items-center gap-3">
+                        <span id="progress-percent" class="text-gray-500 font-mono text-xs">0%</span>
+                    </div>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <button id="btn-extract" disabled class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors text-base shadow-sm mt-1">
+                Extract Audio
+            </button>
+        </div>
+
+        <!-- Extraction Output Card -->
+        <div id="output-container" class="hidden bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-300 flex flex-col gap-3">
+            <h2 class="text-lg font-bold">Extracted Audio Output</h2>
+            <audio id="output-player" controls class="w-full rounded-lg"></audio>
+            
+            <button id="btn-download" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-bold transition-colors shadow-sm">
+                💾 Download MP3
+            </button>
+        </div>
+    </main>
+
+    <script type="module" src="./js/extraction.main.js"></script>
+    <script src="/home/js/navigation.js"></script>
+</body>
+</html>
