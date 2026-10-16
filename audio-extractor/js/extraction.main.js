@@ -61,6 +61,84 @@ window.setProgress = (percent, text = '') => {
     if (text) { window.els.progressText.innerText = text; }
 };
 
+// Reusable helper to bind custom UI controls to any video/audio element
+window.bindCustomPlayer = (media, btnPlay, iconPlay, iconPause, seek, timeCur, timeTot) => {
+    if (!media || !btnPlay || !seek) { return; }
+    let isDragging = false;
+
+    const togglePlay = async () => {
+        try {
+            if (media.paused || media.ended) {
+                if (media.ended) { media.currentTime = 0; }
+                await media.play();
+            } else {
+                media.pause();
+            }
+        } catch (err) {
+            console.error("Playback error:", err);
+        }
+    };
+
+    btnPlay.addEventListener('click', () => { togglePlay(); });
+    media.addEventListener('click', () => { btnPlay.click(); });
+    media.style.cursor = 'pointer'; // Shows a hand cursor when hovering the video
+
+    let animId = null;
+
+    const syncTime = () => {
+        if (!isDragging) {timeCur.innerText = window.formatTime(seek.value = media.currentTime); }
+        if (!media.paused && !media.ended) { animId = requestAnimationFrame(syncTime); }
+    };
+
+    media.addEventListener('play', () => {
+        iconPlay.classList.add('hidden');
+        iconPause.classList.remove('hidden');
+        animId = requestAnimationFrame(syncTime);
+    });
+
+    media.addEventListener('pause', () => {
+        iconPlay.classList.remove('hidden');
+        iconPause.classList.add('hidden');
+        cancelAnimationFrame(animId);
+    });
+
+    media.addEventListener('ended', () => {
+        iconPlay.classList.remove('hidden');
+        iconPause.classList.add('hidden');
+        cancelAnimationFrame(animId);
+    });
+
+    // Still sync once on manual seek or pause
+    media.addEventListener('timeupdate', () => {
+        if (media.paused && !isDragging) {
+            seek.value = media.currentTime;
+            timeCur.innerText = window.formatTime(media.currentTime);
+        }
+    });
+
+    media.addEventListener('loadedmetadata', () => {
+        seek.max = media.duration || 0;
+        timeTot.innerText = window.formatTime(media.duration || 0);
+    });
+
+    seek.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.key === ' ') {
+            e.preventDefault();
+            togglePlay();
+        }
+    });
+
+    seek.addEventListener('input', () => {
+        isDragging = true;
+        timeCur.innerText = window.formatTime(seek.value);
+    });
+
+    seek.addEventListener('change', () => {
+        media.currentTime = seek.value;
+        isDragging = false;
+    });
+}
+
 // Formats seconds into HH:MM:SS.ms
 window.formatTime = (seconds) => {
     if (isNaN(seconds) || seconds < 0) { return "00:00:00.000"; }
@@ -101,6 +179,28 @@ window.els.endTimeInput.addEventListener('keydown', restrictTimeTyping);
 window.els.startTimeInput.addEventListener('input', cleanTimeInput);
 window.els.endTimeInput.addEventListener('input', cleanTimeInput);
 
+// Bind Media Preview Player
+window.bindCustomPlayer(
+    window.els.mediaPlayer,
+    document.getElementById('btn-media-play'),
+    document.getElementById('icon-media-play'),
+    document.getElementById('icon-media-pause'),
+    document.getElementById('media-seek'),
+    document.getElementById('media-time-cur'),
+    document.getElementById('media-time-tot')
+);
+
+// Bind Output Extracted Audio Player
+window.bindCustomPlayer(
+    window.els.outputPlayer,
+    document.getElementById('btn-out-play'),
+    document.getElementById('icon-out-play'),
+    document.getElementById('icon-out-pause'),
+    document.getElementById('out-seek'),
+    document.getElementById('out-time-cur'),
+    document.getElementById('out-time-tot')
+);
+
 window.applyTheme = (isDark) => {
     document.documentElement.classList.toggle('dark', isDark);
     window.els.lightIcon.classList.toggle('hidden', isDark);
@@ -120,7 +220,7 @@ window.els.fileInput.addEventListener('change', (e) => {
     const objectUrl = URL.createObjectURL(file);
 
     window.els.mediaPlayer.src = objectUrl;
-    window.els.mediaPlayer.classList.remove('hidden');
+    document.getElementById('media-wrapper').classList.remove('hidden');
     window.els.btnExtract.disabled = false;
     e.target.value = ''; 
 });
@@ -129,6 +229,10 @@ window.els.mediaPlayer.addEventListener('loadedmetadata', () => {
     window.mediaDuration = window.els.mediaPlayer.duration;
     window.els.startTimeInput.value = window.formatTime(0);
     window.els.endTimeInput.value = window.formatTime(window.mediaDuration);
+
+    // If it's an audio file (no video stream), hide the video box
+    const hasVideoTrack = window.els.mediaPlayer.videoWidth > 0 && window.els.mediaPlayer.videoHeight > 0;
+    window.els.mediaPlayer.classList.toggle('hidden', !hasVideoTrack);
 });
 
 // Timestamp Validation & UI Logic
