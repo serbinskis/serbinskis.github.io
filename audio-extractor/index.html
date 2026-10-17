@@ -102,6 +102,13 @@
                     <span id="media-time-cur" class="text-xs font-mono text-blue-600 dark:text-blue-400">00:00:00.000</span>
                     <input type="range" id="media-seek" value="0" min="0" max="100" step="0.001" class="audio-slider flex-grow">
                     <span id="media-time-tot" class="text-xs font-mono text-gray-500 dark:text-gray-400">00:00:00.000</span>
+                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                        <button type="button" id="btn-media-mute" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1" title="Mute / Unmute">
+                            <svg id="icon-media-vol" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+                            <svg id="icon-media-muted" class="w-4 h-4 hidden text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path stroke-linecap="round" stroke-linejoin="round" d="M17 14l4-4m0 0l-4-4m4 4H15" /></svg>
+                        </button>
+                        <input type="range" id="media-vol" min="0" max="1" step="0.05" value="1" class="audio-slider w-14 sm:w-20" title="Volume">
+                    </div>
                 </div>
             </div>
 
@@ -155,6 +162,13 @@
                 <span id="out-time-cur" class="text-xs font-mono text-blue-600 dark:text-blue-400">00:00:00.000</span>
                 <input type="range" id="out-seek" value="0" min="0" max="100" step="0.001" class="audio-slider flex-grow">
                 <span id="out-time-tot" class="text-xs font-mono text-gray-500 dark:text-gray-400">00:00:00.000</span>
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                    <button type="button" id="btn-out-mute" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1" title="Mute / Unmute">
+                        <svg id="icon-out-vol" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+                        <svg id="icon-out-muted" class="w-4 h-4 hidden text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path stroke-linecap="round" stroke-linejoin="round" d="M17 14l4-4m0 0l-4-4m4 4H15" /></svg>
+                    </button>
+                    <input type="range" id="out-vol" min="0" max="1" step="0.05" value="1" class="audio-slider w-14 sm:w-20" title="Volume">
+                </div>
                 <audio id="output-player" class="hidden"></audio>
             </div>
             

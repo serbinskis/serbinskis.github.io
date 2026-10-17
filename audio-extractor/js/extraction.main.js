@@ -84,7 +84,7 @@ window.bindCustomPlayer = (media, btnPlay, iconPlay, iconPause, seek, timeCur, t
     };
 
     btnPlay.addEventListener('click', () => { togglePlay(); });
-    media.addEventListener('click', () => { btnPlay.click(); });
+    media.addEventListener('click', () => { btnPlay.click(); seek.focus(); }); // Clicking the video toggles play/pause and focuses the seek bar
     media.style.cursor = 'pointer'; // Shows a hand cursor when hovering the video
 
     let animId = null;
@@ -205,6 +205,65 @@ window.bindCustomPlayer(
     document.getElementById('out-time-tot')
 );
 
+// Audio volume & mute setup
+window.setupVolume = (media, sliderId, btnId, iconVolId, iconMutedId) => {
+    const slider = document.getElementById(sliderId);
+    const btn = document.getElementById(btnId);
+    const iconVol = document.getElementById(iconVolId);
+    const iconMuted = document.getElementById(iconMutedId);
+
+    if (!slider || !btn || !media) { return; }
+    let savedVol = 1;
+
+    const updateIcons = () => {
+        if (media.muted || media.volume === 0) {
+            iconVol.classList.add('hidden');
+            iconMuted.classList.remove('hidden');
+            slider.value = 0;
+        } else {
+            iconVol.classList.remove('hidden');
+            iconMuted.classList.add('hidden');
+            slider.value = media.volume;
+        }
+    };
+
+    slider.addEventListener('input', () => {
+        const val = parseFloat(slider.value);
+        media.volume = val;
+        if (val === 0) {
+            media.muted = true;
+        } else {
+            media.muted = false;
+            savedVol = val;
+        }
+        updateIcons();
+    });
+
+    btn.addEventListener('click', () => {
+        if (media.muted || media.volume === 0) {
+            media.muted = false;
+            if (savedVol > 0) {
+                media.volume = savedVol;
+            } else {
+                media.volume = 1;
+            }
+        } else {
+            if (media.volume > 0) {
+                savedVol = media.volume;
+            } else {
+                savedVol = 1;
+            }
+            media.muted = true;
+        }
+        updateIcons();
+    });
+
+    updateIcons();
+}
+
+window.setupVolume(window.els.mediaPlayer, 'media-vol', 'btn-media-mute', 'icon-media-vol', 'icon-media-muted');
+window.setupVolume(window.els.outputPlayer, 'out-vol', 'btn-out-mute', 'icon-out-vol', 'icon-out-muted');
+
 window.applyTheme = (isDark) => {
     document.documentElement.classList.toggle('dark', isDark);
     window.els.lightIcon.classList.toggle('hidden', isDark);
@@ -300,29 +359,44 @@ window.els.mediaPlayer.addEventListener('loadedmetadata', () => {
 });
 
 // Timestamp Validation & UI Logic
-const validateTimestamps = () => {
+window.validateTimestamps = (changed = 'start') => {
     let start = window.parseTime(window.els.startTimeInput.value);
     let end = window.parseTime(window.els.endTimeInput.value);
 
     if (start < 0) { start = 0; }
     if (end > window.mediaDuration) { end = window.mediaDuration; }
-    if (start >= end) { start = Math.max(0, end - 0.1); }
+
+    if (start >= end) {
+        if (changed === 'start') {
+            // When setting start past end, push end forward
+            end = Math.min(window.mediaDuration, start + 1);
+            if (start >= end) { start = Math.max(0, end - 0.1); }
+        } else {
+            // When setting end before start, pull start back
+            start = Math.max(0, end - 0.1);
+        }
+    }
 
     window.els.startTimeInput.value = window.formatTime(start);
     window.els.endTimeInput.value = window.formatTime(end);
 };
 
-window.els.startTimeInput.addEventListener('change', validateTimestamps);
-window.els.endTimeInput.addEventListener('change', validateTimestamps);
+window.els.startTimeInput.addEventListener('change', () => {
+    window.validateTimestamps('start');
+});
+
+window.els.endTimeInput.addEventListener('change', () => {
+    window.validateTimestamps('end');
+});
 
 window.els.btnSetStart.addEventListener('click', () => {
     window.els.startTimeInput.value = window.formatTime(window.els.mediaPlayer.currentTime);
-    validateTimestamps();
+    window.validateTimestamps('start');
 });
 
 window.els.btnSetEnd.addEventListener('click', () => {
     window.els.endTimeInput.value = window.formatTime(window.els.mediaPlayer.currentTime);
-    validateTimestamps();
+    window.validateTimestamps('end');
 });
 
 window.els.btnJumpStart.addEventListener('click', () => {

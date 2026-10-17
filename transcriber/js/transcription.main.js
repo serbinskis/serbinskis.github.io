@@ -43,7 +43,8 @@ window.els = {
 
     btnExportJson: document.getElementById('btn-export-json'),
     btnExportTxt: document.getElementById('btn-export-txt'),
-    btnExportSrt: document.getElementById('btn-export-srt')
+    btnExportSrt: document.getElementById('btn-export-srt'),
+    btnCopyTxt: document.getElementById('btn-copy-txt')
 };
 
 // Global State Variables
@@ -348,9 +349,10 @@ window.addTranscript = (startTime, endTime, text) => {
 /**
  * Exports the transcript data in the specified format (JSON, TXT, or SRT) and triggers a download.
  * @param {string} format - The desired export format ('json', 'txt', or 'srt').
+ * @param {boolean} download - Whether to trigger a download.
  */
-window.exportTranscripts = (format) => {
-    if (window.transcriptData.length === 0) { return window.showNotification('No transcription data to export.', 'error'); }
+window.exportTranscripts = (format, download = true) => {
+    if (window.transcriptData.length === 0) { return window.showNotification(`No transcription data to ${download ? 'export' : 'copy'}.`, 'error'); }
     let content = '', mimeType = 'text/plain';
     let filename = `transcript_${Date.now()}.${format}`;
 
@@ -372,14 +374,16 @@ window.exportTranscripts = (format) => {
     a.href = URL.createObjectURL(blob);
     a.download = filename;
     document.body.appendChild(a);
-    a.click();
+    if (download) { a.click(); }
     document.body.removeChild(a);
-    window.showNotification(`Successfully exported as ${format.toUpperCase()}`, 'success');
+    window.showNotification(`Successfully ${download ? 'exported' : 'copied'} as ${format.toUpperCase()}`, 'success');
+    return content;
 };
 
 window.els.btnExportJson.addEventListener('click', () => window.exportTranscripts('json'));
 window.els.btnExportTxt.addEventListener('click', () => window.exportTranscripts('txt'));
 window.els.btnExportSrt.addEventListener('click', () => window.exportTranscripts('srt'));
+window.els.btnCopyTxt.addEventListener('click', () => navigator.clipboard.writeText(window.exportTranscripts('txt', false)));
 
 /**
  * Synchronizes a range slider and a number input field.
