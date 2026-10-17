@@ -215,18 +215,78 @@ window.applyTheme(localStorage.theme === 'dark');
 window.els.themeToggle.addEventListener('click', () => window.applyTheme(localStorage.theme !== 'dark'));
 
 // File Input Handling
-window.els.btnFile.addEventListener('click', () => window.els.fileInput.click());
-window.els.fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
+const loadMediaFile = (file) => {
     if (!file) { return; }
 
-    window.currentMediaFile = file;
-    const objectUrl = URL.createObjectURL(file);
+    if (window.isProcessing) {
+        return window.showNotification("Cannot load a new file while processing.", "error");
+    }
 
+    const isValidType = file.type.startsWith('audio/') || file.type.startsWith('video/') || 
+                        /\.(mp3|wav|ogg|aac|flac|m4a|mp4|mkv|webm|mov|avi|wmv)$/i.test(file.name);
+
+    if (!isValidType) {
+        return window.showNotification("Please select a valid audio or video file.", "error");
+    }
+
+    window.currentMediaFile = file;
+
+    if (window.els.mediaPlayer.src && window.els.mediaPlayer.src.startsWith('blob:')) {
+        URL.revokeObjectURL(window.els.mediaPlayer.src);
+    }
+
+    const objectUrl = URL.createObjectURL(file);
     window.els.mediaPlayer.src = objectUrl;
+
     document.getElementById('media-wrapper').classList.remove('hidden');
     window.els.btnExtract.disabled = false;
-    e.target.value = ''; 
+};
+
+// Click to Upload
+window.els.btnFile.addEventListener('click', () => {
+    window.els.fileInput.click();
+});
+
+window.els.fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    loadMediaFile(file);
+    e.target.value = '';
+});
+
+// Drag & Drop Handling
+const dropZone = window.els.btnFile;
+
+// Stop the browser from accidentally navigating away if dropped outside the target
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach((eventName) => {
+    window.addEventListener(eventName, (e) => e.preventDefault(), false);
+});
+
+const highlightClasses = ['border-blue-500', 'bg-blue-50', 'dark:bg-blue-900/30'];
+const addHighlight = () => dropZone.classList.add(...highlightClasses);
+const removeHighlight = () => dropZone.classList.remove(...highlightClasses);
+
+dropZone.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    if (!window.isProcessing) { addHighlight(); }
+});
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = window.isProcessing ? 'none' : 'copy';
+});
+
+dropZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    if (!dropZone.contains(e.relatedTarget)) { removeHighlight(); }
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    removeHighlight();
+
+    if (window.isProcessing) { return; }
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) { loadMediaFile(files[0]); }
 });
 
 window.els.mediaPlayer.addEventListener('loadedmetadata', () => {
