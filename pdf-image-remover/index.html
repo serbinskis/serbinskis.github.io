@@ -1026,6 +1026,14 @@
             }
         }
 
+        function getFileRemovedSignature(fileEntry) {
+            return fileEntry.images.filter(im => im.removed).map(im => im.id).sort().join(',');
+        }
+
+        function isFileDirty(fileEntry) {
+            return !fileEntry.error && getFileRemovedSignature(fileEntry) !== (fileEntry.savedSignature ?? '');
+        }
+
         async function buildModifiedFileBytes(fileEntry) {
             const removedByPage = new Map();
             for (const img of fileEntry.images) {
@@ -1314,6 +1322,7 @@
                         pageCount: pages.length,
                         images,
                         error: null,
+                        savedSignature: '',
                     });
                 } catch (err) {
                     console.error(`Failed loading ${item.name}:`, err);
@@ -1729,7 +1738,8 @@
                     badgeHtml = `<span class="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-mono text-[10px] flex-shrink-0">${total} imgs</span>`;
                 }
 
-                row.innerHTML = `<span class="truncate">${idx + 1}. ${escapeHtml(f.relativePath || f.name)}</span>${badgeHtml}`;
+                const dirtyDot = isFileDirty(f) ? `<span class="text-amber-500 font-bold mr-1" title="Unsaved changes">●</span>` : '';
+                row.innerHTML = `<span class="truncate">${dirtyDot}${idx + 1}. ${escapeHtml(f.relativePath || f.name)}</span>${badgeHtml}`;
                 row.addEventListener('click', () => selectFile(idx, { autoScroll: true }));
                 frag.appendChild(row);
             });
@@ -2003,16 +2013,17 @@
             el.btnPrevPic.disabled = state.busy || !hasPrev;
             el.btnNextPic.disabled = state.busy || !hasNext;
 
-            const totalModifiedFiles = state.files.filter(f => !f.error && f.images.some(im => im.removed)).length;
+            const totalDirtyFiles = state.files.filter(f => isFileDirty(f)).length;
             if (!hasFiles) {
                 el.btnSave.textContent = 'Save Changes';
             } else if (state.mode === 'file') {
-                el.btnSave.textContent = totalModifiedFiles > 0 ? 'Save PDF...' : 'Save PDF (No Removals)';
+                const removedCount = file ? file.images.filter(im => im.removed).length : 0;
+                el.btnSave.textContent = removedCount > 0 ? 'Save PDF...' : 'Save PDF (All Kept)';
             } else {
                 const canOverwrite = state.files.some(f => f.handle);
                 el.btnSave.textContent = canOverwrite
-                    ? `Save & Overwrite Folder (${totalModifiedFiles} modified)`
-                    : `Download Modified Files (${totalModifiedFiles})`;
+                    ? `Save & Overwrite Folder (${totalDirtyFiles} unsaved)`
+                    : `Download Modified Files (${totalDirtyFiles} unsaved)`;
             }
         }
 
@@ -2044,18 +2055,20 @@
                             const writable = await saveHandle.createWritable();
                             await writable.write(outBytes);
                             await writable.close();
+                            file.savedSignature = getFileRemovedSignature(file);
                             showToast(`Saved "${saveHandle.name}" successfully.`, 'success');
                         } catch (err) {
                             if (err.name !== 'AbortError') throw err;
                         }
                     } else {
                         triggerDownload(outBytes, file.name);
+                        file.savedSignature = getFileRemovedSignature(file);
                         showToast(`Downloaded "${file.name}".`, 'success');
                     }
                 } else {
-                    const targetFiles = state.files.filter(f => !f.error && f.images.some(im => im.removed));
+                    const targetFiles = state.files.filter(f => isFileDirty(f));
                     if (targetFiles.length === 0) {
-                        showToast('No images were marked for removal.', 'info');
+                        showToast('No unsaved changes to save.', 'info');
                         return;
                     }
 
@@ -2080,11 +2093,12 @@
                         } else {
                             triggerDownload(outBytes, f.name);
                         }
+                        f.savedSignature = getFileRemovedSignature(f);
                         savedCount++;
                     }
 
                     const verb = targetFiles.some(f => f.handle) ? 'overwritten in folder' : 'downloaded';
-                    showToast(`Saved ${savedCount} modified PDF(s) (${verb}).`, 'success', 4500);
+                    showToast(`Saved ${savedCount} PDF(s) (${verb}).`, 'success', 4500);
                 }
             } catch (err) {
                 console.error('Save error:', err);
@@ -2092,6 +2106,7 @@
             } finally {
                 setProgress(false);
                 state.busy = false;
+                renderFilesList();
                 updateControlsDisabled();
             }
         }
