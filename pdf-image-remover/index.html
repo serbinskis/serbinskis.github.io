@@ -1,0 +1,2067 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Image Remover</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='9' y1='15' x2='15' y2='15'/></svg>">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/home/js/navigation.js"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+        let isDarkMode = localStorage.theme === 'light' ? false : true;
+        localStorage.theme = isDarkMode ? 'dark' : 'light';
+        document.documentElement.classList.toggle('dark', isDarkMode);
+    </script>
+
+    <!-- I GUESS THIS IS THE FIRST ONE FULLY AI SLOP GENERATED PAGE -->
+    <!-- AND IT IS NOT EVEN THAT BAD, SO FUCK IT, IT STAYS -->
+
+    <!-- PDF modification library -->
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+    <style>
+        .dark ::-webkit-scrollbar { width: 10px; height: 10px; }
+        .dark ::-webkit-scrollbar-track { background: #1f2937; border-radius: 5px; }
+        .dark ::-webkit-scrollbar-thumb { background-color: #4b5563; border-radius: 5px; border: 2px solid #1f2937; }
+        .dark ::-webkit-scrollbar-thumb:hover { background-color: #6b7280; }
+
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #e5e7eb; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb { background-color: #9ca3af; border-radius: 5px; border: 2px solid #e5e7eb; }
+        ::-webkit-scrollbar-thumb:hover { background-color: #6b7280; }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .toast { animation: slideDown 0.3s ease-out forwards; pointer-events: auto; }
+        .empty\:hidden:empty { display: none !important; }
+
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { appearance: none; margin: 0; }
+        input[type=number] { appearance: textfield; }
+
+        input[type=range] { appearance: none; background: transparent; width: 100%; }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: #cbd5e1; border-radius: 9999px; }
+        .dark input[type=range]::-webkit-slider-runnable-track { background: #475569; }
+        input[type=range]::-webkit-slider-thumb { height: 16px; width: 16px; border-radius: 9999px; background: #2563eb; cursor: pointer; appearance: none; margin-top: -5px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .dark input[type=range]::-webkit-slider-thumb { background: #3b82f6; }
+
+        .checkerboard {
+            background-color: #f3f4f6;
+            background-image: linear-gradient(45deg, #e5e7eb 25%, transparent 25%),
+                              linear-gradient(-45deg, #e5e7eb 25%, transparent 25%),
+                              linear-gradient(45deg, transparent 75%, #e5e7eb 75%),
+                              linear-gradient(-45deg, transparent 75%, #e5e7eb 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+        }
+        .dark .checkerboard {
+            background-color: #111827;
+            background-image: linear-gradient(45deg, #1f2937 25%, transparent 25%),
+                              linear-gradient(-45deg, #1f2937 25%, transparent 25%),
+                              linear-gradient(45deg, transparent 75%, #1f2937 75%),
+                              linear-gradient(-45deg, transparent 75%, #1f2937 75%);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300 font-sans flex flex-col min-h-[100dvh] xl:h-[100dvh] xl:overflow-hidden text-gray-800 dark:text-gray-200">
+    <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-full max-w-md px-4 pointer-events-none"></div>
+
+    <header class="select-none flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm transition-colors duration-300">
+        <div class="container mx-auto max-w-[1600px] px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                PDF Image Remover
+            </h1>
+            <button id="theme-toggle" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Toggle theme">
+                <svg id="theme-icon-light" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                <svg id="theme-icon-dark" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="container mx-auto max-w-[1600px] p-4 flex-grow flex flex-col xl:flex-row gap-4 xl:min-h-0">
+        <!-- Left Side: Current PDF Page (Scrollable & Auto-Moving) -->
+        <div class="flex flex-col gap-3 w-full xl:w-2/3 h-[58vh] xl:h-auto flex-shrink-0 xl:flex-shrink xl:min-h-0 xl:flex-grow">
+            <!-- Top Info & Zoom Bar -->
+            <div class="select-none bg-white dark:bg-gray-800 px-4 py-2.5 rounded-lg shadow-md flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span id="current-file-name" class="font-bold text-sm truncate max-w-[200px] sm:max-w-[360px] text-gray-800 dark:text-gray-100">No file loaded</span>
+                    <span id="page-counter-badge" class="hidden px-2 py-0.5 text-xs font-mono font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">Page 0 / 0</span>
+                    <span id="image-counter-badge" class="hidden px-2 py-0.5 text-xs font-mono font-semibold bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded">Image 0 / 0</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-0.5">
+                        <button id="btn-page-prev" disabled class="px-2 py-1 text-xs font-bold hover:bg-white dark:hover:bg-gray-600 rounded disabled:opacity-40 transition-colors" title="Previous Page">▲</button>
+                        <button id="btn-page-next" disabled class="px-2 py-1 text-xs font-bold hover:bg-white dark:hover:bg-gray-600 rounded disabled:opacity-40 transition-colors" title="Next Page">▼</button>
+                    </div>
+
+                    <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-0.5">
+                        <button id="btn-zoom-out" disabled class="px-2 py-1 text-xs font-bold hover:bg-white dark:hover:bg-gray-600 rounded disabled:opacity-40 transition-colors" title="Zoom Out">−</button>
+                        <span id="zoom-label" class="px-2 text-xs font-mono w-12 text-center">125%</span>
+                        <button id="btn-zoom-in" disabled class="px-2 py-1 text-xs font-bold hover:bg-white dark:hover:bg-gray-600 rounded disabled:opacity-40 transition-colors" title="Zoom In">+</button>
+                        <button id="btn-zoom-fit" disabled class="px-2 py-1 text-xs font-medium hover:bg-white dark:hover:bg-gray-600 rounded disabled:opacity-40 transition-colors border-l border-gray-300 dark:border-gray-600" title="Fit Width">Fit</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scrollable PDF Page Container -->
+            <div id="pdf-scroll-container" class="select-none relative flex-grow min-h-0 bg-gray-50 dark:bg-gray-800/50 rounded-lg shadow-md overflow-auto border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors">
+                
+                <!-- Empty State -->
+                <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-gray-400 dark:text-gray-500 p-6 text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                    <p class="font-medium text-lg">Drag PDF File or Folder Here</p>
+                    <p class="text-xs mt-1 text-gray-400 dark:text-gray-500">Or use the File / Folder buttons below. Everything runs locally in memory.</p>
+                </div>
+
+                <!-- No Images in Current File State -->
+                <div id="no-images-state" class="hidden absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-gray-400 dark:text-gray-500 p-6 text-center z-10">
+                    <p class="font-medium text-base bg-white/90 dark:bg-gray-800/90 px-4 py-2 rounded-lg shadow">No embedded images found in this PDF</p>
+                </div>
+
+                <!-- Rendered Page Wrapper -->
+                <div id="pdf-viewport-inner" class="hidden min-w-full min-h-full flex items-start justify-center p-4">
+                    <div id="pdf-page-wrapper" class="relative bg-white shadow-xl flex-shrink-0">
+                        <canvas id="pdf-canvas" class="block"></canvas>
+                        <div id="canvas-overlay-container" class="absolute inset-0 z-20 pointer-events-none overflow-hidden"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Current Picture, Navigation, Files List & Save -->
+        <div class="select-none flex flex-col gap-4 w-full xl:w-1/3 min-w-0 flex-shrink-0 xl:flex-shrink xl:min-h-0">
+
+            <!-- Current Picture & Navigation Card -->
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-300 flex flex-col gap-3 flex-shrink-0">
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-lg font-bold">Current Picture</h2>
+                        <span id="picture-status-badge" class="hidden px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded"></span>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <label class="inline-flex items-center cursor-pointer flex-shrink-0" title="Automatically jump to the next picture after clicking Remove or Restore">
+                            <span class="mr-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Auto-Next</span>
+                            <span class="relative">
+                                <input type="checkbox" id="toggle-autonext" class="sr-only peer">
+                                <div class="w-7 h-4 bg-gray-300 dark:bg-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                            </span>
+                        </label>
+
+                        <label class="inline-flex items-center cursor-pointer flex-shrink-0" title="Show highlight borders and red removal crosses on the PDF page">
+                            <span class="mr-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Overlay</span>
+                            <span class="relative">
+                                <input type="checkbox" id="toggle-overlay" checked class="sr-only peer">
+                                <div class="w-7 h-4 bg-gray-300 dark:bg-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Picture Preview Box -->
+                <div id="picture-preview-box" class="relative w-full h-44 xl:h-52 checkerboard border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-center overflow-hidden transition-colors">
+                    <span id="picture-empty" class="text-xs text-gray-400 dark:text-gray-500 font-medium">No picture selected</span>
+                    <img id="current-picture-img" class="hidden max-w-full max-h-full object-contain pointer-events-none transition-all" alt="Current picture preview" />
+
+                    <!-- Removed Dim + Red Cross Overlay on Picture Preview -->
+                    <div id="picture-removed-overlay" class="hidden absolute inset-0 bg-black/45 border-2 border-red-500 rounded-lg pointer-events-none flex items-center justify-center">
+                        <svg class="w-full h-full opacity-80" viewBox="0 0 100 100" preserveAspectRatio="none">
+                            <line x1="0" y1="0" x2="100" y2="100" stroke="#ef4444" stroke-width="2" vector-effect="non-scaling-stroke" />
+                            <line x1="100" y1="0" x2="0" y2="100" stroke="#ef4444" stroke-width="2" vector-effect="non-scaling-stroke" />
+                        </svg>
+                    </div>
+
+                    <!-- Raw vs Page Crop Toggle -->
+                    <button id="btn-preview-mode" class="hidden absolute top-2 right-2 z-10 px-2 py-0.5 text-[10px] font-bold uppercase bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded shadow-sm hover:bg-white dark:hover:bg-gray-700 transition-colors" title="Switch between raw extracted image and rendered page crop">
+                        Raw
+                    </button>
+
+                    <!-- Picture Metadata Pill -->
+                    <div id="picture-meta" class="hidden absolute bottom-2 left-2 right-2 z-10 flex justify-between items-center pointer-events-none">
+                        <span id="picture-meta-text" class="px-2 py-0.5 text-[10px] font-mono bg-black/75 text-white rounded truncate max-w-full"></span>
+                    </div>
+                </div>
+
+                <!-- Navigation: Previous | Remove/Restore | Next -->
+                <div class="grid grid-cols-3 gap-2">
+                    <button id="btn-prev-pic" disabled class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2.5 px-2 font-medium text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1" title="Previous picture (Left Arrow)">
+                        <span>◀</span> <span>Previous</span>
+                    </button>
+
+                    <button id="btn-toggle-remove" disabled class="bg-red-600 hover:bg-red-700 text-white rounded-lg py-2.5 px-2 font-bold text-sm transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-1" title="Remove or Restore picture (Space / R)">
+                        Remove
+                    </button>
+
+                    <button id="btn-next-pic" disabled class="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2.5 px-2 font-medium text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1" title="Next picture (Right Arrow)">
+                        <span>Next</span> <span>▶</span>
+                    </button>
+                </div>
+
+                <div class="flex justify-between items-center text-[11px] text-gray-500 dark:text-gray-400">
+                    <span>Keys: <kbd class="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 font-mono">←</kbd> <kbd class="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 font-mono">→</kbd> nav, <kbd class="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 font-mono">Space</kbd> toggle</span>
+                    <span id="file-removed-summary" class="font-mono"></span>
+                </div>
+            </div>
+
+            <!-- Files List & Save Card -->
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-300 flex flex-col gap-3 flex-grow min-h-[240px] xl:min-h-0">
+                <div class="flex justify-between items-center gap-2">
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-lg font-bold">Files</h2>
+                        <span id="files-counter" class="px-2 py-0.5 text-xs font-mono font-bold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">0 / 0</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="btn-file" class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg font-medium transition-colors disabled:opacity-50">📄 File</button>
+                        <button id="btn-folder" class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg font-medium transition-colors disabled:opacity-50">📁 Folder</button>
+                        <input type="file" id="file-input" accept="application/pdf" class="hidden">
+                        <input type="file" id="folder-input" webkitdirectory multiple class="hidden">
+                    </div>
+                </div>
+
+                <!-- Files List -->
+                <div id="files-list" class="flex-grow min-h-[120px] xl:min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
+                    <div class="h-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 text-center p-4">
+                        Choose a PDF file or a folder of PDFs to begin.
+                    </div>
+                </div>
+
+                <!-- Progress Container -->
+                <div id="progress-container" class="hidden flex flex-col gap-1 flex-shrink-0">
+                    <div class="flex justify-between text-sm items-end">
+                        <span id="progress-text" class="text-blue-600 dark:text-blue-400 font-medium text-xs truncate">Ready</span>
+                        <span id="progress-percent" class="text-gray-500 font-mono text-xs">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-200 ease-out" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Separate Save Button -->
+                <button id="btn-save" disabled class="w-full flex-shrink-0 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors shadow-sm text-base">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.mjs';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs';
+
+        const PDFJS_COMMON_OPTS = {
+            cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/cmaps/',
+            cMapPacked: true,
+            standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/standard_fonts/',
+        };
+
+        const { PDFDocument, PDFName, PDFDict, PDFArray, PDFStream, PDFRawStream, PDFRef, decodePDFRawStream } = PDFLib;
+
+        // =========================================================================
+        // UI Elements & Theme / Toast Utilities
+        // =========================================================================
+        const el = {
+            toastContainer: document.getElementById('toast-container'),
+            themeToggle: document.getElementById('theme-toggle'),
+            themeIconLight: document.getElementById('theme-icon-light'),
+            themeIconDark: document.getElementById('theme-icon-dark'),
+
+            currentFileName: document.getElementById('current-file-name'),
+            pageCounterBadge: document.getElementById('page-counter-badge'),
+            imageCounterBadge: document.getElementById('image-counter-badge'),
+            btnPagePrev: document.getElementById('btn-page-prev'),
+            btnPageNext: document.getElementById('btn-page-next'),
+            btnZoomOut: document.getElementById('btn-zoom-out'),
+            btnZoomIn: document.getElementById('btn-zoom-in'),
+            btnZoomFit: document.getElementById('btn-zoom-fit'),
+            zoomLabel: document.getElementById('zoom-label'),
+
+            pdfScrollContainer: document.getElementById('pdf-scroll-container'),
+            emptyState: document.getElementById('empty-state'),
+            noImagesState: document.getElementById('no-images-state'),
+            pdfViewportInner: document.getElementById('pdf-viewport-inner'),
+            pdfPageWrapper: document.getElementById('pdf-page-wrapper'),
+            pdfCanvas: document.getElementById('pdf-canvas'),
+            canvasOverlayContainer: document.getElementById('canvas-overlay-container'),
+
+            pictureStatusBadge: document.getElementById('picture-status-badge'),
+            toggleAutoNext: document.getElementById('toggle-autonext'),
+            toggleOverlay: document.getElementById('toggle-overlay'),
+            pictureEmpty: document.getElementById('picture-empty'),
+            currentPictureImg: document.getElementById('current-picture-img'),
+            pictureRemovedOverlay: document.getElementById('picture-removed-overlay'),
+            btnPreviewMode: document.getElementById('btn-preview-mode'),
+            pictureMeta: document.getElementById('picture-meta'),
+            pictureMetaText: document.getElementById('picture-meta-text'),
+
+            btnPrevPic: document.getElementById('btn-prev-pic'),
+            btnToggleRemove: document.getElementById('btn-toggle-remove'),
+            btnNextPic: document.getElementById('btn-next-pic'),
+            fileRemovedSummary: document.getElementById('file-removed-summary'),
+
+            filesCounter: document.getElementById('files-counter'),
+            btnFile: document.getElementById('btn-file'),
+            btnFolder: document.getElementById('btn-folder'),
+            fileInput: document.getElementById('file-input'),
+            folderInput: document.getElementById('folder-input'),
+            filesList: document.getElementById('files-list'),
+
+            progressContainer: document.getElementById('progress-container'),
+            progressText: document.getElementById('progress-text'),
+            progressPercent: document.getElementById('progress-percent'),
+            progressBar: document.getElementById('progress-bar'),
+            btnSave: document.getElementById('btn-save'),
+        };
+
+        function syncThemeIcons() {
+            const dark = document.documentElement.classList.contains('dark');
+            el.themeIconLight.classList.toggle('hidden', !dark);
+            el.themeIconDark.classList.toggle('hidden', dark);
+        }
+        syncThemeIcons();
+
+        el.themeToggle.addEventListener('click', () => {
+            const dark = !document.documentElement.classList.contains('dark');
+            document.documentElement.classList.toggle('dark', dark);
+            localStorage.theme = dark ? 'dark' : 'light';
+            syncThemeIcons();
+        });
+
+        function showToast(message, type = 'info', duration = 3500) {
+            const colors = {
+                info: 'bg-blue-600 text-white',
+                success: 'bg-emerald-600 text-white',
+                warning: 'bg-amber-500 text-white',
+                error: 'bg-red-600 text-white',
+            };
+            const div = document.createElement('div');
+            div.className = `toast px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium flex items-center justify-between gap-3 ${colors[type] || colors.info}`;
+            div.innerHTML = `<span class="truncate">${escapeHtml(message)}</span>`;
+            el.toastContainer.appendChild(div);
+            setTimeout(() => {
+                div.style.opacity = '0';
+                div.style.transition = 'opacity 0.25s ease';
+                setTimeout(() => div.remove(), 250);
+            }, duration);
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s]));
+        }
+
+        function formatBytes(bytes) {
+            if (!bytes || bytes <= 0) return '0 B';
+            if (bytes < 1024) return `${bytes} B`;
+            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+            return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+        }
+
+        function setProgress(visible, text = '', percent = 0) {
+            el.progressContainer.classList.toggle('hidden', !visible);
+            if (visible) {
+                el.progressText.textContent = text;
+                el.progressPercent.textContent = `${Math.round(percent)}%`;
+                el.progressBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+            }
+        }
+
+        // =========================================================================
+        // Application State
+        // =========================================================================
+        const state = {
+            mode: 'none',
+            dirHandle: null,
+            files: [],
+            currentFileIndex: -1,
+            currentImageIndex: -1,
+            currentPageIndex: 0,
+            zoom: 1.25,
+            previewMode: 'raw',
+            busy: false,
+            renderGeneration: 0,
+            activeRenderTask: null,
+            lastViewport: null,
+            pageImageCache: new Map(),
+            origPdfJsDocs: new Map(),
+        };
+
+        // =========================================================================
+        // Low-Level PDF Content Stream Tokenizer & Analyzer (pdf-lib)
+        // =========================================================================
+        const DELIMITERS = new Set(['(', ')', '<', '>', '[', ']', '{', '}', '/', '%']);
+        const WHITESPACE = new Set(['\x00', '\t', '\n', '\f', '\r', ' ']);
+
+        function isWs(ch) { return WHITESPACE.has(ch); }
+        function isDelim(ch) { return DELIMITERS.has(ch); }
+
+        function decodePdfName(raw) {
+            const body = raw.slice(1);
+            return body.replace(/#([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+        }
+
+        function bytesToLatin1(uint8) {
+            const chunks = [];
+            const CHUNK = 0x8000;
+            for (let i = 0; i < uint8.length; i += CHUNK) {
+                chunks.push(String.fromCharCode.apply(null, uint8.subarray(i, i + CHUNK)));
+            }
+            return chunks.join('');
+        }
+
+        function latin1ToBytes(str) {
+            const out = new Uint8Array(str.length);
+            for (let i = 0; i < str.length; i++) {
+                out[i] = str.charCodeAt(i) & 0xff;
+            }
+            return out;
+        }
+
+        function decodeStreamBytes(pdfStream) {
+            if (!pdfStream) return new Uint8Array(0);
+            if (pdfStream instanceof PDFRawStream) {
+                return decodePDFRawStream(pdfStream).decode();
+            }
+            if (typeof pdfStream.getContents === 'function') {
+                return pdfStream.getContents();
+            }
+            return new Uint8Array(0);
+        }
+
+        function getPageDecodedContentString(pdfDoc, page) {
+            const contents = page.node.get(PDFName.of('Contents'));
+            if (!contents) return '';
+            const resolved = pdfDoc.context.lookup(contents);
+            if (resolved instanceof PDFArray) {
+                const parts = [];
+                for (let i = 0; i < resolved.size(); i++) {
+                    const streamObj = pdfDoc.context.lookup(resolved.get(i));
+                    if (streamObj) {
+                        parts.push(bytesToLatin1(decodeStreamBytes(streamObj)));
+                    }
+                }
+                return parts.join('\n');
+            }
+            if (resolved instanceof PDFStream) {
+                return bytesToLatin1(decodeStreamBytes(resolved));
+            }
+            return '';
+        }
+
+        function tokenizeContentStream(src) {
+            const tokens = [];
+            const len = src.length;
+            let i = 0;
+
+            function skipWsAndComments() {
+                while (i < len) {
+                    const ch = src[i];
+                    if (isWs(ch)) {
+                        i++;
+                    } else if (ch === '%') {
+                        while (i < len && src[i] !== '\r' && src[i] !== '\n') i++;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            while (i < len) {
+                skipWsAndComments();
+                if (i >= len) break;
+
+                const start = i;
+                const ch = src[i];
+
+                if (ch === '(') {
+                    i++;
+                    let depth = 1;
+                    while (i < len && depth > 0) {
+                        if (src[i] === '\\') {
+                            i += 2;
+                        } else if (src[i] === '(') {
+                            depth++;
+                            i++;
+                        } else if (src[i] === ')') {
+                            depth--;
+                            i++;
+                        } else {
+                            i++;
+                        }
+                    }
+                    tokens.push({ type: 'string', value: src.slice(start, i), start, end: i });
+                } else if (ch === '<') {
+                    if (src[i + 1] === '<') {
+                        i += 2;
+                        tokens.push({ type: 'dict_start', value: '<<', start, end: i });
+                    } else {
+                        i++;
+                        while (i < len && src[i] !== '>') i++;
+                        if (i < len) i++;
+                        tokens.push({ type: 'hex', value: src.slice(start, i), start, end: i });
+                    }
+                } else if (ch === '>') {
+                    if (src[i + 1] === '>') {
+                        i += 2;
+                        tokens.push({ type: 'dict_end', value: '>>', start, end: i });
+                    } else {
+                        i++;
+                        tokens.push({ type: 'punct', value: '>', start, end: i });
+                    }
+                } else if (ch === '[' || ch === ']' || ch === '{' || ch === '}') {
+                    i++;
+                    tokens.push({ type: 'punct', value: ch, start, end: i });
+                } else if (ch === '/') {
+                    i++;
+                    while (i < len && !isWs(src[i]) && !isDelim(src[i])) i++;
+                    const rawName = src.slice(start, i);
+                    tokens.push({ type: 'name', value: decodePdfName(rawName), raw: rawName, start, end: i });
+                } else {
+                    while (i < len && !isWs(src[i]) && !isDelim(src[i])) i++;
+                    const word = src.slice(start, i);
+                    const num = Number(word);
+                    if (word !== '' && !Number.isNaN(num) && /^[+-]?(\d+\.?\d*|\.\d+)$/.test(word)) {
+                        tokens.push({ type: 'number', value: num, start, end: i });
+                    } else {
+                        tokens.push({ type: 'op', value: word, start, end: i });
+
+                        if (word === 'BI') {
+                            const biToken = tokens[tokens.length - 1];
+                            const inlineMeta = parseInlineImageAfterBI();
+                            if (inlineMeta) {
+                                tokens.pop();
+                                tokens.push({
+                                    type: 'inline_image',
+                                    value: 'BI_EI',
+                                    meta: inlineMeta.meta,
+                                    byteSize: inlineMeta.byteSize,
+                                    start: biToken.start,
+                                    end: inlineMeta.end,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            function parseInlineImageAfterBI() {
+                const kvTokens = [];
+                while (i < len) {
+                    skipWsAndComments();
+                    if (i >= len) break;
+                    const s = i;
+                    const c = src[i];
+                    if (c === '/') {
+                        i++;
+                        while (i < len && !isWs(src[i]) && !isDelim(src[i])) i++;
+                        kvTokens.push({ type: 'name', value: decodePdfName(src.slice(s, i)) });
+                    } else if (c === '[' || c === ']') {
+                        i++;
+                        kvTokens.push({ type: 'punct', value: c });
+                    } else if (c === '(') {
+                        i++;
+                        let depth = 1;
+                        while (i < len && depth > 0) {
+                            if (src[i] === '\\') i += 2;
+                            else if (src[i] === '(') { depth++; i++; }
+                            else if (src[i] === ')') { depth--; i++; }
+                            else i++;
+                        }
+                        kvTokens.push({ type: 'string', value: src.slice(s, i) });
+                    } else if (c === '<') {
+                        i++;
+                        while (i < len && src[i] !== '>') i++;
+                        if (i < len) i++;
+                        kvTokens.push({ type: 'hex', value: src.slice(s, i) });
+                    } else {
+                        while (i < len && !isWs(src[i]) && !isDelim(src[i])) i++;
+                        const w = src.slice(s, i);
+                        if (w === 'ID') {
+                            if (i < len && isWs(src[i])) i++;
+                            const dataStart = i;
+                            const meta = extractInlineDict(kvTokens);
+                            const eiEnd = findInlineImageEI(dataStart);
+                            i = eiEnd;
+                            return { meta, byteSize: Math.max(0, eiEnd - dataStart - 2), end: eiEnd };
+                        }
+                        const n = Number(w);
+                        kvTokens.push(!Number.isNaN(n) && w !== '' ? { type: 'number', value: n } : { type: 'op', value: w });
+                    }
+                }
+                return null;
+            }
+
+            function extractInlineDict(kv) {
+                const meta = { width: 0, height: 0, bpc: 8, filter: 'Inline', colorSpace: '' };
+                for (let k = 0; k < kv.length - 1; k++) {
+                    if (kv[k].type === 'name') {
+                        const key = kv[k].value;
+                        const val = kv[k + 1];
+                        if ((key === 'W' || key === 'Width') && val.type === 'number') meta.width = val.value;
+                        if ((key === 'H' || key === 'Height') && val.type === 'number') meta.height = val.value;
+                        if ((key === 'BPC' || key === 'BitsPerComponent') && val.type === 'number') meta.bpc = val.value;
+                        if ((key === 'CS' || key === 'ColorSpace') && val.type === 'name') meta.colorSpace = val.value;
+                        if ((key === 'F' || key === 'Filter') && val.type === 'name') meta.filter = val.value;
+                    }
+                }
+                return meta;
+            }
+
+            function findInlineImageEI(dataStart) {
+                let pos = dataStart;
+                while (pos < len - 1) {
+                    const idx = src.indexOf('EI', pos);
+                    if (idx === -1) return len;
+                    const beforeOk = idx === dataStart || isWs(src[idx - 1]);
+                    const afterPos = idx + 2;
+                    const afterOk = afterPos >= len || isWs(src[afterPos]) || isDelim(src[afterPos]);
+                    if (beforeOk && afterOk) {
+                        let look = afterPos;
+                        while (look < len && isWs(src[look])) look++;
+                        if (look >= len) return afterPos;
+                        const sample = src.slice(look, Math.min(len, look + 24));
+                        if (/^[\x20-\x7E\r\n\t]+$/.test(sample)) {
+                            return afterPos;
+                        }
+                    }
+                    pos = idx + 2;
+                }
+                return len;
+            }
+
+            return tokens;
+        }
+
+        function identityMatrix() { return [1, 0, 0, 1, 0, 0]; }
+        function multiplyMatrices(m1, m2) {
+            return [
+                m1[0] * m2[0] + m1[1] * m2[2],
+                m1[0] * m2[1] + m1[1] * m2[3],
+                m1[2] * m2[0] + m1[3] * m2[2],
+                m1[2] * m2[1] + m1[3] * m2[3],
+                m1[4] * m2[0] + m1[5] * m2[2] + m2[4],
+                m1[4] * m2[1] + m1[5] * m2[3] + m2[5],
+            ];
+        }
+        function unitSquareBBox(ctm) {
+            const pts = [[0, 0], [1, 0], [1, 1], [0, 1]];
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const [x, y] of pts) {
+                const tx = ctm[0] * x + ctm[2] * y + ctm[4];
+                const ty = ctm[1] * x + ctm[3] * y + ctm[5];
+                if (tx < minX) minX = tx;
+                if (ty < minY) minY = ty;
+                if (tx > maxX) maxX = tx;
+                if (ty > maxY) maxY = ty;
+            }
+            return [minX, minY, maxX, maxY];
+        }
+
+        function resolveNameOrRefString(pdfDoc, obj) {
+            const r = pdfDoc.context.lookup(obj);
+            if (!r) return '';
+            if (r instanceof PDFName) return r.decodeText();
+            if (r instanceof PDFArray && r.size() > 0) {
+                const first = pdfDoc.context.lookup(r.get(0));
+                if (first instanceof PDFName) return first.decodeText();
+            }
+            return '';
+        }
+
+        function getDictMatrix(pdfDoc, dict, keyName) {
+            const mObj = dict.get(PDFName.of(keyName));
+            if (!mObj) return identityMatrix();
+            const arr = pdfDoc.context.lookup(mObj);
+            if (!(arr instanceof PDFArray) || arr.size() < 6) return identityMatrix();
+            const nums = [];
+            for (let i = 0; i < 6; i++) {
+                const item = pdfDoc.context.lookup(arr.get(i));
+                nums.push(typeof item?.asNumber === 'function' ? item.asNumber() : Number(item?.toString() || 0));
+            }
+            return nums.some(Number.isNaN) ? identityMatrix() : nums;
+        }
+
+        function scanPageImages(pdfDoc, page, pageIndex) {
+            const results = [];
+            const pageResources = page.node.Resources();
+            const rootContent = getPageDecodedContentString(pdfDoc, page);
+
+            function walkStream(streamText, resourcesDict, initialCtm, pathPrefix, activeFormStack) {
+                const tokens = tokenizeContentStream(streamText);
+                const ctmStack = [];
+                let ctm = initialCtm.slice();
+                const operands = [];
+
+                const xobjDict = resourcesDict ? pdfDoc.context.lookup(resourcesDict.get(PDFName.of('XObject'))) : null;
+
+                for (let idx = 0; idx < tokens.length; idx++) {
+                    const tok = tokens[idx];
+
+                    if (tok.type === 'inline_image') {
+                        const bbox = unitSquareBBox(ctm);
+                        const segPath = `${pathPrefix}I@${tok.start}-${tok.end}`;
+                        results.push({
+                            id: `p${pageIndex}_${results.length}`,
+                            pageIndex,
+                            pageImageIndex: results.length,
+                            name: 'Inline Image',
+                            resKey: null,
+                            isInline: true,
+                            bbox,
+                            width: tok.meta.width,
+                            height: tok.meta.height,
+                            bitsPerComponent: tok.meta.bpc,
+                            colorSpace: tok.meta.colorSpace || 'Inline',
+                            filter: tok.meta.filter || 'Inline',
+                            byteSize: tok.byteSize,
+                            path: segPath,
+                            span: { start: tok.start, end: tok.end },
+                            removed: false,
+                        });
+                        operands.length = 0;
+                        continue;
+                    }
+
+                    if (tok.type !== 'op') {
+                        operands.push(tok);
+                        continue;
+                    }
+
+                    const op = tok.value;
+                    if (op === 'q') {
+                        ctmStack.push(ctm.slice());
+                    } else if (op === 'Q') {
+                        if (ctmStack.length > 0) ctm = ctmStack.pop();
+                    } else if (op === 'cm' && operands.length >= 6) {
+                        const m = operands.slice(-6).map(t => t.type === 'number' ? t.value : 0);
+                        ctm = multiplyMatrices(m, ctm);
+                    } else if (op === 'Do' && operands.length >= 1) {
+                        const nameTok = operands[operands.length - 1];
+                        if (nameTok.type === 'name' && xobjDict instanceof PDFDict) {
+                            const resKey = nameTok.value;
+                            const xobjEntry = xobjDict.get(PDFName.of(resKey));
+                            const xobjRef = xobjEntry instanceof PDFRef ? xobjEntry : null;
+                            const xobj = pdfDoc.context.lookup(xobjEntry);
+
+                            if (xobj instanceof PDFStream) {
+                                const subtype = xobj.dict.get(PDFName.of('Subtype'));
+                                if (subtype === PDFName.of('Image')) {
+                                    const wObj = pdfDoc.context.lookup(xobj.dict.get(PDFName.of('Width')));
+                                    const hObj = pdfDoc.context.lookup(xobj.dict.get(PDFName.of('Height')));
+                                    const bpcObj = pdfDoc.context.lookup(xobj.dict.get(PDFName.of('BitsPerComponent')));
+                                    const w = typeof wObj?.asNumber === 'function' ? wObj.asNumber() : 0;
+                                    const h = typeof hObj?.asNumber === 'function' ? hObj.asNumber() : 0;
+                                    const bpc = typeof bpcObj?.asNumber === 'function' ? bpcObj.asNumber() : 8;
+                                    const filter = resolveNameOrRefString(pdfDoc, xobj.dict.get(PDFName.of('Filter'))) || 'Raw';
+                                    const colorSpace = resolveNameOrRefString(pdfDoc, xobj.dict.get(PDFName.of('ColorSpace'))) || 'Device';
+                                    const rawLen = typeof xobj.getContentsSize === 'function'
+                                        ? xobj.getContentsSize()
+                                        : (xobj.contents ? xobj.contents.length : 0);
+
+                                    const bbox = unitSquareBBox(ctm);
+                                    const segPath = `${pathPrefix}D@${nameTok.start}-${tok.end}`;
+                                    results.push({
+                                        id: `p${pageIndex}_${results.length}`,
+                                        pageIndex,
+                                        pageImageIndex: results.length,
+                                        name: `/${resKey}`,
+                                        resKey,
+                                        xobjRefTag: xobjRef ? xobjRef.toString() : null,
+                                        isInline: false,
+                                        bbox,
+                                        width: w,
+                                        height: h,
+                                        bitsPerComponent: bpc,
+                                        colorSpace,
+                                        filter,
+                                        byteSize: rawLen,
+                                        path: segPath,
+                                        span: { start: nameTok.start, end: tok.end },
+                                        removed: false,
+                                    });
+                                } else if (subtype === PDFName.of('Form')) {
+                                    const refKey = xobjRef ? xobjRef.toString() : `inlineForm_${nameTok.start}`;
+                                    if (!activeFormStack.has(refKey)) {
+                                        activeFormStack.add(refKey);
+                                        const formMatrix = getDictMatrix(pdfDoc, xobj.dict, 'Matrix');
+                                        const innerCtm = multiplyMatrices(formMatrix, ctm);
+                                        const formRes = pdfDoc.context.lookup(xobj.dict.get(PDFName.of('Resources'))) || resourcesDict;
+                                        const formText = bytesToLatin1(decodeStreamBytes(xobj));
+                                        walkStream(
+                                            formText,
+                                            formRes instanceof PDFDict ? formRes : resourcesDict,
+                                            innerCtm,
+                                            `${pathPrefix}F[${resKey}@${nameTok.start}-${tok.end}]>`,
+                                            activeFormStack
+                                        );
+                                        activeFormStack.delete(refKey);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    operands.length = 0;
+                }
+            }
+
+            walkStream(rootContent, pageResources, identityMatrix(), '', new Set());
+            return results;
+        }
+
+        // =========================================================================
+        // True Structural PDF Image Removal (pdf-lib)
+        // =========================================================================
+        function cloneDictShallow(context, dict) {
+            const copy = context.obj({});
+            if (!(dict instanceof PDFDict)) return copy;
+            for (const [k, v] of dict.entries()) {
+                copy.set(k, v);
+            }
+            return copy;
+        }
+
+        function findRemainingDoNames(streamText) {
+            const used = new Set();
+            const tokens = tokenizeContentStream(streamText);
+            for (let i = 1; i < tokens.length; i++) {
+                if (tokens[i].type === 'op' && tokens[i].value === 'Do' && tokens[i - 1].type === 'name') {
+                    used.add(tokens[i - 1].value);
+                }
+            }
+            return used;
+        }
+
+        function applyRemovalsToDocument(pdfDoc, removedPathsByPage) {
+            const context = pdfDoc.context;
+            const pages = pdfDoc.getPages();
+            const formCloneCache = new Map();
+            let uniqueResCounter = 0;
+
+            function buildPathTree(pathList) {
+                const rootSpans = [];
+                const forms = new Map();
+                for (const p of pathList) {
+                    if (p.startsWith('F[')) {
+                        const closeIdx = p.indexOf(']>');
+                        const formHeader = p.slice(2, closeIdx);
+                        const rest = p.slice(closeIdx + 2);
+                        if (!forms.has(formHeader)) forms.set(formHeader, []);
+                        forms.get(formHeader).push(rest);
+                    } else {
+                        const atIdx = p.indexOf('@');
+                        const [s, e] = p.slice(atIdx + 1).split('-').map(Number);
+                        rootSpans.push({ start: s, end: e });
+                    }
+                }
+                return { rootSpans, forms };
+            }
+
+            function hasOtherDoInvocation(streamText, resKey, thisStart, thisEnd) {
+                const tokens = tokenizeContentStream(streamText);
+                for (let i = 1; i < tokens.length; i++) {
+                    if (tokens[i].type === 'op' && tokens[i].value === 'Do' && tokens[i - 1].type === 'name') {
+                        if (tokens[i - 1].value === resKey) {
+                            const s = tokens[i - 1].start;
+                            const e = tokens[i].end;
+                            if (s !== thisStart || e !== thisEnd) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            function encodePdfName(name) {
+                return name.replace(/[^!-~]|[()<>[\]{}/%#]/g, c => '#' + c.charCodeAt(0).toString(16).padStart(2, '0').toUpperCase());
+            }
+
+            function processContainer(streamText, resourcesDict, subPaths, fallbackResources) {
+                const tree = buildPathTree(subPaths);
+                let newText = streamText;
+                const edits = [];
+
+                for (const sp of tree.rootSpans) {
+                    edits.push({ start: sp.start, end: sp.end, replacement: ' ' });
+                }
+
+                const baseRes = resourcesDict instanceof PDFDict ? resourcesDict : fallbackResources;
+                const newResDict = cloneDictShallow(context, baseRes);
+                const oldXObjRaw = baseRes instanceof PDFDict ? context.lookup(baseRes.get(PDFName.of('XObject'))) : null;
+                const newXObjDict = cloneDictShallow(context, oldXObjRaw);
+                if (oldXObjRaw instanceof PDFDict) {
+                    newResDict.set(PDFName.of('XObject'), newXObjDict);
+                }
+
+                for (const [formHeader, childPaths] of tree.forms.entries()) {
+                    const lastAt = formHeader.lastIndexOf('@');
+                    const resKey = formHeader.slice(0, lastAt);
+                    const [invStart, invEnd] = formHeader.slice(lastAt + 1).split('-').map(Number);
+
+                    const formEntry = oldXObjRaw instanceof PDFDict ? oldXObjRaw.get(PDFName.of(resKey)) : null;
+                    const formRef = formEntry instanceof PDFRef ? formEntry : null;
+                    const formObj = context.lookup(formEntry);
+                    if (!(formObj instanceof PDFStream)) continue;
+
+                    const specKey = childPaths.slice().sort().join('|');
+                    const cacheKey = `${formRef ? formRef.toString() : 'inline'}::${specKey}`;
+
+                    let modifiedFormRef = formCloneCache.get(cacheKey);
+                    if (!modifiedFormRef) {
+                        const formText = bytesToLatin1(decodeStreamBytes(formObj));
+                        const formRes = context.lookup(formObj.dict.get(PDFName.of('Resources'))) || baseRes;
+                        const processed = processContainer(formText, formRes, childPaths, baseRes);
+
+                        const newFormStream = context.flateStream(latin1ToBytes(processed.text));
+                        for (const [k, v] of formObj.dict.entries()) {
+                            if (k !== PDFName.of('Filter') && k !== PDFName.of('Length')) {
+                                newFormStream.dict.set(k, v);
+                            }
+                        }
+                        newFormStream.dict.set(PDFName.of('Resources'), processed.resourcesDict);
+                        modifiedFormRef = context.register(newFormStream);
+                        formCloneCache.set(cacheKey, modifiedFormRef);
+                    }
+
+                    const usedOtherPlace = hasOtherDoInvocation(streamText, resKey, invStart, invEnd);
+                    if (usedOtherPlace) {
+                        const newKey = `${resKey}_m${++uniqueResCounter}`;
+                        newXObjDict.set(PDFName.of(newKey), modifiedFormRef);
+                        edits.push({ start: invStart, end: invEnd, replacement: `/${encodePdfName(newKey)} Do` });
+                    } else {
+                        newXObjDict.set(PDFName.of(resKey), modifiedFormRef);
+                    }
+                }
+
+                edits.sort((a, b) => b.start - a.start);
+                for (const ed of edits) {
+                    newText = newText.slice(0, ed.start) + ed.replacement + newText.slice(ed.end);
+                }
+
+                if (oldXObjRaw instanceof PDFDict) {
+                    const stillUsed = findRemainingDoNames(newText);
+                    for (const [k] of newXObjDict.entries()) {
+                        const keyName = k.decodeText();
+                        if (!stillUsed.has(keyName)) {
+                            newXObjDict.delete(k);
+                        }
+                    }
+                }
+
+                return { text: newText, resourcesDict: newResDict };
+            }
+
+            for (const [pageIndex, pathsSet] of removedPathsByPage.entries()) {
+                if (!pathsSet || pathsSet.size === 0) continue;
+                const page = pages[pageIndex];
+                if (!page) continue;
+
+                const pageText = getPageDecodedContentString(pdfDoc, page);
+                const pageRes = page.node.Resources();
+                const processed = processContainer(pageText, pageRes, Array.from(pathsSet), pageRes);
+
+                const newStream = context.flateStream(latin1ToBytes(processed.text));
+                const newStreamRef = context.register(newStream);
+                page.node.set(PDFName.of('Contents'), newStreamRef);
+                page.node.set(PDFName.of('Resources'), processed.resourcesDict);
+            }
+
+            purgeUnreachableObjects(pdfDoc);
+        }
+
+        function purgeUnreachableObjects(pdfDoc) {
+            const context = pdfDoc.context;
+            const reachable = new Set();
+
+            function visit(obj) {
+                if (!obj) return;
+                if (obj instanceof PDFRef) {
+                    const key = obj.toString();
+                    if (reachable.has(key)) return;
+                    reachable.add(key);
+                    visit(context.lookup(obj));
+                    return;
+                }
+                if (obj instanceof PDFDict) {
+                    for (const [, v] of obj.entries()) {
+                        visit(v);
+                    }
+                } else if (obj instanceof PDFArray) {
+                    for (let i = 0; i < obj.size(); i++) {
+                        visit(obj.get(i));
+                    }
+                } else if (obj instanceof PDFStream || (obj && obj.dict instanceof PDFDict)) {
+                    visit(obj.dict);
+                }
+            }
+
+            // Start from trailer refs (Root, Info, Encrypt) so Root ref itself is marked reachable!
+            if (context.trailerInfo?.Root) visit(context.trailerInfo.Root);
+            else visit(pdfDoc.catalog);
+            if (context.trailerInfo?.Info) visit(context.trailerInfo.Info);
+            if (context.trailerInfo?.Encrypt) visit(context.trailerInfo.Encrypt);
+
+            const toDelete = [];
+            for (const [ref] of context.enumerateIndirectObjects()) {
+                if (!reachable.has(ref.toString())) {
+                    toDelete.push(ref);
+                }
+            }
+            for (const ref of toDelete) {
+                context.delete(ref);
+            }
+        }
+
+        async function buildModifiedFileBytes(fileEntry) {
+            const removedByPage = new Map();
+            for (const img of fileEntry.images) {
+                if (img.removed) {
+                    if (!removedByPage.has(img.pageIndex)) removedByPage.set(img.pageIndex, new Set());
+                    removedByPage.get(img.pageIndex).add(img.path);
+                }
+            }
+            if (removedByPage.size === 0) {
+                return fileEntry.originalBytes.slice();
+            }
+
+            const pdfDoc = await PDFDocument.load(fileEntry.originalBytes, { ignoreEncryption: true });
+            applyRemovalsToDocument(pdfDoc, removedByPage);
+            return await pdfDoc.save();
+        }
+
+        async function buildLivePagePreviewBytes(fileEntry, pageIndex) {
+            const removedSet = new Set();
+            for (const img of fileEntry.images) {
+                if (img.pageIndex === pageIndex && img.removed) {
+                    removedSet.add(img.path);
+                }
+            }
+
+            if (removedSet.size === 0) {
+                return null;
+            }
+
+            if (fileEntry.pageCount > 1) {
+                try {
+                    const srcDoc = await PDFDocument.load(fileEntry.originalBytes, { ignoreEncryption: true });
+                    const previewDoc = await PDFDocument.create();
+                    const [copiedPage] = await previewDoc.copyPages(srcDoc, [pageIndex]);
+                    previewDoc.addPage(copiedPage);
+                    applyRemovalsToDocument(previewDoc, new Map([[0, removedSet]]));
+                    return await previewDoc.save();
+                } catch (err) {
+                    console.warn('Single-page preview copy fallback:', err);
+                }
+            }
+
+            const fullDoc = await PDFDocument.load(fileEntry.originalBytes, { ignoreEncryption: true });
+            applyRemovalsToDocument(fullDoc, new Map([[pageIndex, removedSet]]));
+            return await fullDoc.save();
+        }
+
+        // =========================================================================
+        // PDF.js Image Preview Extraction & Page Rendering
+        // =========================================================================
+        async function getOriginalPdfJsDoc(fileEntry) {
+            if (state.origPdfJsDocs.has(fileEntry.id)) {
+                return state.origPdfJsDocs.get(fileEntry.id);
+            }
+            const task = pdfjsLib.getDocument({ data: fileEntry.originalBytes.slice(), ...PDFJS_COMMON_OPTS });
+            const doc = await task.promise;
+            state.origPdfJsDocs.set(fileEntry.id, doc);
+            return doc;
+        }
+
+        function imageObjToDataUrl(imgData) {
+            if (!imgData) return null;
+            const canvas = document.createElement('canvas');
+            if (imgData.bitmap) {
+                canvas.width = imgData.bitmap.width;
+                canvas.height = imgData.bitmap.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(imgData.bitmap, 0, 0);
+                return canvas.toDataURL('image/png');
+            }
+            if (!imgData.data || !imgData.width || !imgData.height) return null;
+
+            const w = imgData.width;
+            const h = imgData.height;
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            const out = ctx.createImageData(w, h);
+            const dest = out.data;
+            const src = imgData.data;
+
+            if (imgData.kind === pdfjsLib.ImageKind.RGBA_32BPP) {
+                dest.set(src.subarray(0, w * h * 4));
+            } else if (imgData.kind === pdfjsLib.ImageKind.RGB_24BPP) {
+                let s = 0, d = 0;
+                const total = w * h;
+                for (let i = 0; i < total; i++) {
+                    dest[d++] = src[s++];
+                    dest[d++] = src[s++];
+                    dest[d++] = src[s++];
+                    dest[d++] = 255;
+                }
+            } else if (imgData.kind === pdfjsLib.ImageKind.GRAYSCALE_1BPP) {
+                const rowBytes = (w + 7) >> 3;
+                for (let y = 0; y < h; y++) {
+                    for (let x = 0; x < w; x++) {
+                        const byte = src[y * rowBytes + (x >> 3)];
+                        const bit = (byte >> (7 - (x & 7))) & 1;
+                        const val = bit ? 255 : 0;
+                        const d = (y * w + x) * 4;
+                        dest[d] = val;
+                        dest[d + 1] = val;
+                        dest[d + 2] = val;
+                        dest[d + 3] = 255;
+                    }
+                }
+            } else {
+                return null;
+            }
+            ctx.putImageData(out, 0, 0);
+            return canvas.toDataURL('image/png');
+        }
+
+        function extractPdfJsOpsWithBoxes(opList) {
+            const OPS = pdfjsLib.OPS;
+            const items = [];
+            const stack = [];
+            let ctm = identityMatrix();
+
+            for (let i = 0; i < opList.fnArray.length; i++) {
+                const fn = opList.fnArray[i];
+                const args = opList.argsArray[i];
+
+                if (fn === OPS.save) {
+                    stack.push(ctm.slice());
+                } else if (fn === OPS.restore) {
+                    if (stack.length > 0) ctm = stack.pop();
+                } else if (fn === OPS.transform) {
+                    ctm = multiplyMatrices(args, ctm);
+                } else if (fn === OPS.paintFormXObjectBegin) {
+                    stack.push(ctm.slice());
+                    if (args && args[0]) ctm = multiplyMatrices(args[0], ctm);
+                } else if (fn === OPS.paintFormXObjectEnd) {
+                    if (stack.length > 0) ctm = stack.pop();
+                } else if (
+                    fn === OPS.paintImageXObject ||
+                    fn === OPS.paintJpegXObject ||
+                    fn === OPS.paintInlineImageXObject ||
+                    fn === OPS.paintImageMaskXObject
+                ) {
+                    items.push({
+                        fn,
+                        arg: args ? args[0] : null,
+                        bbox: unitSquareBBox(ctm),
+                    });
+                }
+            }
+            return items;
+        }
+
+        async function ensurePagePreviews(fileEntry, pageIndex) {
+            const cacheKey = `${fileEntry.id}:${pageIndex}`;
+            if (state.pageImageCache.has(cacheKey)) return;
+
+            const pageImgs = fileEntry.images.filter(im => im.pageIndex === pageIndex);
+            if (pageImgs.length === 0) {
+                state.pageImageCache.set(cacheKey, true);
+                return;
+            }
+
+            try {
+                const pdfJsDoc = await getOriginalPdfJsDoc(fileEntry);
+                const page = await pdfJsDoc.getPage(pageIndex + 1);
+
+                const cropScale = 2.0;
+                const vp = page.getViewport({ scale: cropScale });
+                const offCanvas = document.createElement('canvas');
+                offCanvas.width = Math.max(1, Math.floor(vp.width));
+                offCanvas.height = Math.max(1, Math.floor(vp.height));
+                const offCtx = offCanvas.getContext('2d');
+
+                await page.render({ canvasContext: offCtx, viewport: vp }).promise;
+                const opList = await page.getOperatorList();
+                const jsImageOps = extractPdfJsOpsWithBoxes(opList);
+                const OPS = pdfjsLib.OPS;
+
+                const usedOpIdx = new Set();
+
+                for (const imgEntry of pageImgs) {
+                    const rect = vp.convertToViewportRectangle(imgEntry.bbox);
+                    const rx = Math.max(0, Math.floor(Math.min(rect[0], rect[2])));
+                    const ry = Math.max(0, Math.floor(Math.min(rect[1], rect[3])));
+                    const rw = Math.max(1, Math.min(offCanvas.width - rx, Math.ceil(Math.abs(rect[2] - rect[0]))));
+                    const rh = Math.max(1, Math.min(offCanvas.height - ry, Math.ceil(Math.abs(rect[3] - rect[1]))));
+
+                    const cropCanvas = document.createElement('canvas');
+                    cropCanvas.width = rw;
+                    cropCanvas.height = rh;
+                    const cropCtx = cropCanvas.getContext('2d');
+                    cropCtx.drawImage(offCanvas, rx, ry, rw, rh, 0, 0, rw, rh);
+                    imgEntry.cropUrl = cropCanvas.toDataURL('image/png');
+
+                    let bestIdx = -1;
+                    let bestDist = Infinity;
+                    for (let j = 0; j < jsImageOps.length; j++) {
+                        if (usedOpIdx.has(j)) continue;
+                        const b = jsImageOps[j].bbox;
+                        const d = Math.abs(b[0] - imgEntry.bbox[0]) + Math.abs(b[1] - imgEntry.bbox[1]) +
+                                  Math.abs(b[2] - imgEntry.bbox[2]) + Math.abs(b[3] - imgEntry.bbox[3]);
+                        if (d < bestDist) {
+                            bestDist = d;
+                            bestIdx = j;
+                        }
+                    }
+
+                    if (bestIdx !== -1 && bestDist < 15) {
+                        usedOpIdx.add(bestIdx);
+                        const match = jsImageOps[bestIdx];
+                        try {
+                            if (match.fn === OPS.paintInlineImageXObject && match.arg && typeof match.arg === 'object') {
+                                imgEntry.rawUrl = imageObjToDataUrl(match.arg);
+                            } else if (typeof match.arg === 'string') {
+                                const objData = page.objs.has(match.arg)
+                                    ? page.objs.get(match.arg)
+                                    : (page.commonObjs.has(match.arg) ? page.commonObjs.get(match.arg) : null);
+                                imgEntry.rawUrl = imageObjToDataUrl(objData);
+                            }
+                        } catch (_) {
+                            imgEntry.rawUrl = null;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('Preview extraction warning:', err);
+            }
+
+            state.pageImageCache.set(cacheKey, true);
+        }
+
+        // =========================================================================
+        // File & Folder Loading
+        // =========================================================================
+        async function loadFileEntries(rawEntries, mode, dirHandle = null) {
+            if (!rawEntries.length) {
+                showToast('No PDF files found.', 'warning');
+                return;
+            }
+
+            state.mode = mode;
+            state.dirHandle = dirHandle;
+            state.files = [];
+            state.currentFileIndex = -1;
+            state.currentImageIndex = -1;
+            state.currentPageIndex = 0;
+            state.pageImageCache.clear();
+            for (const doc of state.origPdfJsDocs.values()) {
+                try { await doc.destroy(); } catch (_) {}
+            }
+            state.origPdfJsDocs.clear();
+
+            rawEntries.sort((a, b) => a.relativePath.localeCompare(b.relativePath, undefined, { numeric: true, sensitivity: 'base' }));
+
+            state.busy = true;
+            updateControlsDisabled();
+            setProgress(true, `Scanning 0 / ${rawEntries.length} PDFs...`, 0);
+
+            let totalImagesFound = 0;
+            for (let i = 0; i < rawEntries.length; i++) {
+                const item = rawEntries[i];
+                setProgress(true, `Scanning (${i + 1}/${rawEntries.length}): ${item.name}`, ((i + 1) / rawEntries.length) * 100);
+
+                try {
+                    const fileObj = item.handle ? await item.handle.getFile() : item.file;
+                    const buf = await fileObj.arrayBuffer();
+                    const bytes = new Uint8Array(buf);
+
+                    const pdfDoc = await PDFDocument.load(bytes);
+                    const pages = pdfDoc.getPages();
+                    const images = [];
+
+                    for (let p = 0; p < pages.length; p++) {
+                        const pageImgs = scanPageImages(pdfDoc, pages[p], p);
+                        for (const im of pageImgs) {
+                            im.globalIndex = images.length;
+                            images.push(im);
+                        }
+                    }
+
+                    totalImagesFound += images.length;
+                    state.files.push({
+                        id: `file_${i}_${Date.now()}`,
+                        name: item.name,
+                        relativePath: item.relativePath,
+                        handle: item.handle || null,
+                        originalBytes: bytes,
+                        pageCount: pages.length,
+                        images,
+                        error: null,
+                    });
+                } catch (err) {
+                    console.error(`Failed loading ${item.name}:`, err);
+                    state.files.push({
+                        id: `file_${i}_${Date.now()}`,
+                        name: item.name,
+                        relativePath: item.relativePath,
+                        handle: item.handle || null,
+                        originalBytes: null,
+                        pageCount: 0,
+                        images: [],
+                        error: err.message?.includes('encrypted') ? 'Encrypted PDF' : 'Parse error',
+                    });
+                }
+            }
+
+            setProgress(false);
+            state.busy = false;
+
+            if (state.files.length === 0) {
+                showToast('Could not load any PDF files.', 'error');
+                renderAll();
+                return;
+            }
+
+            const firstWithImg = state.files.findIndex(f => f.images.length > 0);
+            const startIdx = firstWithImg !== -1 ? firstWithImg : 0;
+            showToast(`Loaded ${state.files.length} PDF(s) with ${totalImagesFound} image(s).`, 'success');
+            await selectFile(startIdx, { autoScroll: true });
+        }
+
+        async function openSingleFilePicker() {
+            if (window.showOpenFilePicker) {
+                try {
+                    const [handle] = await window.showOpenFilePicker({
+                        types: [{ description: 'PDF Documents', accept: { 'application/pdf': ['.pdf'] } }],
+                        multiple: false,
+                    });
+                    await loadFileEntries([{ name: handle.name, relativePath: handle.name, handle }], 'file', null);
+                } catch (err) {
+                    if (err.name !== 'AbortError') showToast(err.message, 'error');
+                }
+            } else {
+                el.fileInput.value = '';
+                el.fileInput.click();
+            }
+        }
+
+        async function openFolderPicker() {
+            if (window.showDirectoryPicker) {
+                try {
+                    const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                    const collected = [];
+
+                    async function walkDir(dir, prefix) {
+                        for await (const [name, handle] of dir.entries()) {
+                            if (handle.kind === 'file' && name.toLowerCase().endsWith('.pdf')) {
+                                collected.push({ name, relativePath: prefix ? `${prefix}/${name}` : name, handle });
+                            } else if (handle.kind === 'directory') {
+                                await walkDir(handle, prefix ? `${prefix}/${name}` : name);
+                            }
+                        }
+                    }
+
+                    await walkDir(dirHandle, '');
+                    await loadFileEntries(collected, 'folder', dirHandle);
+                } catch (err) {
+                    if (err.name !== 'AbortError') showToast(err.message, 'error');
+                }
+            } else {
+                el.folderInput.value = '';
+                el.folderInput.click();
+            }
+        }
+
+        el.btnFile.addEventListener('click', openSingleFilePicker);
+        el.btnFolder.addEventListener('click', openFolderPicker);
+
+        el.fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            await loadFileEntries([{ name: file.name, relativePath: file.name, file }], 'file', null);
+        });
+
+        el.folderInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files || []).filter(f => f.name.toLowerCase().endsWith('.pdf'));
+            const entries = files.map(f => ({
+                name: f.name,
+                relativePath: f.webkitRelativePath || f.name,
+                file: f,
+            }));
+            await loadFileEntries(entries, 'folder', null);
+        });
+
+        el.pdfScrollContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            el.pdfScrollContainer.classList.add('border-blue-500', 'bg-blue-50/40', 'dark:bg-blue-900/10');
+        });
+        el.pdfScrollContainer.addEventListener('dragleave', () => {
+            el.pdfScrollContainer.classList.remove('border-blue-500', 'bg-blue-50/40', 'dark:bg-blue-900/10');
+        });
+        el.pdfScrollContainer.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            el.pdfScrollContainer.classList.remove('border-blue-500', 'bg-blue-50/40', 'dark:bg-blue-900/10');
+
+            const items = Array.from(e.dataTransfer.items || []);
+            const entries = [];
+            let droppedDir = null;
+
+            async function walkDroppedDir(dirHandle, prefix) {
+                for await (const [name, handle] of dirHandle.entries()) {
+                    if (handle.kind === 'file' && name.toLowerCase().endsWith('.pdf')) {
+                        entries.push({ name, relativePath: prefix ? `${prefix}/${name}` : name, handle });
+                    } else if (handle.kind === 'directory') {
+                        await walkDroppedDir(handle, prefix ? `${prefix}/${name}` : name);
+                    }
+                }
+            }
+
+            if (items.length && typeof items[0].getAsFileSystemHandle === 'function') {
+                for (const item of items) {
+                    try {
+                        const handle = await item.getAsFileSystemHandle();
+                        if (!handle) continue;
+                        if (handle.kind === 'directory') {
+                            droppedDir = handle;
+                            await walkDroppedDir(handle, '');
+                        } else if (handle.kind === 'file' && handle.name.toLowerCase().endsWith('.pdf')) {
+                            entries.push({ name: handle.name, relativePath: handle.name, handle });
+                        }
+                    } catch (_) {}
+                }
+            } else {
+                for (const f of Array.from(e.dataTransfer.files || [])) {
+                    if (f.name.toLowerCase().endsWith('.pdf')) {
+                        entries.push({ name: f.name, relativePath: f.name, file: f });
+                    }
+                }
+            }
+
+            if (entries.length) {
+                const mode = droppedDir || entries.length > 1 ? 'folder' : 'file';
+                await loadFileEntries(entries, mode, droppedDir);
+            } else {
+                showToast('Please drop PDF file(s) or a folder containing PDFs.', 'warning');
+            }
+        });
+
+        // =========================================================================
+        // Navigation & Selection
+        // =========================================================================
+        function getCurrentFile() {
+            return state.files[state.currentFileIndex] || null;
+        }
+
+        function getCurrentImage() {
+            const file = getCurrentFile();
+            if (!file) return null;
+            return file.images[state.currentImageIndex] || null;
+        }
+
+        async function selectFile(fileIndex, { autoScroll = true } = {}) {
+            if (fileIndex < 0 || fileIndex >= state.files.length) return;
+            state.currentFileIndex = fileIndex;
+            const file = getCurrentFile();
+
+            if (file.images.length > 0) {
+                state.currentImageIndex = 0;
+                state.currentPageIndex = file.images[0].pageIndex;
+            } else {
+                state.currentImageIndex = -1;
+                state.currentPageIndex = 0;
+            }
+
+            await renderWorkspace({ autoScroll });
+        }
+
+        async function selectImage(imgIndex, { autoScroll = true } = {}) {
+            const file = getCurrentFile();
+            if (!file || imgIndex < 0 || imgIndex >= file.images.length) return;
+            state.currentImageIndex = imgIndex;
+            state.currentPageIndex = file.images[imgIndex].pageIndex;
+            await renderWorkspace({ autoScroll });
+        }
+
+        async function goToPrevImage() {
+            const file = getCurrentFile();
+            if (!file) return;
+            if (state.currentImageIndex > 0) {
+                await selectImage(state.currentImageIndex - 1, { autoScroll: true });
+            } else {
+                for (let f = state.currentFileIndex - 1; f >= 0; f--) {
+                    if (state.files[f].images.length > 0) {
+                        state.currentFileIndex = f;
+                        state.currentImageIndex = state.files[f].images.length - 1;
+                        state.currentPageIndex = state.files[f].images[state.currentImageIndex].pageIndex;
+                        await renderWorkspace({ autoScroll: true });
+                        return;
+                    }
+                }
+            }
+        }
+
+        async function goToNextImage() {
+            const file = getCurrentFile();
+            if (!file) return;
+            if (state.currentImageIndex < file.images.length - 1) {
+                await selectImage(state.currentImageIndex + 1, { autoScroll: true });
+            } else {
+                for (let f = state.currentFileIndex + 1; f < state.files.length; f++) {
+                    if (state.files[f].images.length > 0) {
+                        state.currentFileIndex = f;
+                        state.currentImageIndex = 0;
+                        state.currentPageIndex = state.files[f].images[0].pageIndex;
+                        await renderWorkspace({ autoScroll: true });
+                        return;
+                    }
+                }
+            }
+        }
+
+        async function toggleCurrentImageRemoved() {
+            const img = getCurrentImage();
+            if (!img) return;
+            img.removed = !img.removed;
+
+            await renderWorkspace({ autoScroll: false });
+
+            if (el.toggleAutoNext.checked) {
+                setTimeout(() => {
+                    goToNextImage();
+                }, 1);
+            }
+        }
+
+        el.btnPrevPic.addEventListener('click', goToPrevImage);
+        el.btnNextPic.addEventListener('click', goToNextImage);
+        el.btnToggleRemove.addEventListener('click', toggleCurrentImageRemoved);
+
+        el.btnPagePrev.addEventListener('click', async () => {
+            const file = getCurrentFile();
+            if (!file || state.currentPageIndex <= 0) return;
+            state.currentPageIndex--;
+            const firstImgOnPage = file.images.findIndex(im => im.pageIndex === state.currentPageIndex);
+            if (firstImgOnPage !== -1) state.currentImageIndex = firstImgOnPage;
+            await renderWorkspace({ autoScroll: true });
+        });
+
+        el.btnPageNext.addEventListener('click', async () => {
+            const file = getCurrentFile();
+            if (!file || state.currentPageIndex >= file.pageCount - 1) return;
+            state.currentPageIndex++;
+            const firstImgOnPage = file.images.findIndex(im => im.pageIndex === state.currentPageIndex);
+            if (firstImgOnPage !== -1) state.currentImageIndex = firstImgOnPage;
+            await renderWorkspace({ autoScroll: true });
+        });
+
+        el.btnZoomOut.addEventListener('click', async () => {
+            state.zoom = Math.max(0.4, +(state.zoom - 0.25).toFixed(2));
+            await renderWorkspace({ autoScroll: true });
+        });
+        el.btnZoomIn.addEventListener('click', async () => {
+            state.zoom = Math.min(3.0, +(state.zoom + 0.25).toFixed(2));
+            await renderWorkspace({ autoScroll: true });
+        });
+        el.btnZoomFit.addEventListener('click', async () => {
+            const file = getCurrentFile();
+            if (!file || !file.originalBytes) return;
+            try {
+                const doc = await getOriginalPdfJsDoc(file);
+                const page = await doc.getPage(state.currentPageIndex + 1);
+                const baseVp = page.getViewport({ scale: 1.0 });
+                const availW = Math.max(200, el.pdfScrollContainer.clientWidth - 48);
+                state.zoom = Math.max(0.4, Math.min(3.0, +(availW / baseVp.width).toFixed(2)));
+                await renderWorkspace({ autoScroll: true });
+            } catch (_) {}
+        });
+
+        el.toggleOverlay.addEventListener('change', () => renderOverlayBoxes(getCurrentFile(), state.lastViewport));
+        el.btnPreviewMode.addEventListener('click', () => {
+            state.previewMode = state.previewMode === 'raw' ? 'crop' : 'raw';
+            renderCurrentPictureCard();
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (state.busy || !getCurrentFile()) return;
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                goToPrevImage();
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                goToNextImage();
+            } else if (e.key === ' ' || e.key === 'r' || e.key === 'R' || e.key === 'Delete') {
+                if (getCurrentImage()) {
+                    e.preventDefault();
+                    toggleCurrentImageRemoved();
+                }
+            }
+        });
+
+        // =========================================================================
+        // Rendering Workspace
+        // =========================================================================
+        async function renderWorkspace({ autoScroll = false } = {}) {
+            renderFilesList();
+            renderHeaderAndBadges();
+            renderCurrentPictureCard();
+            updateControlsDisabled();
+            await renderCurrentPdfPage({ autoScroll });
+        }
+
+        function renderAll() {
+            renderFilesList();
+            renderHeaderAndBadges();
+            renderCurrentPictureCard();
+            updateControlsDisabled();
+        }
+
+        function renderHeaderAndBadges() {
+            const file = getCurrentFile();
+            if (!file) {
+                el.currentFileName.textContent = 'No file loaded';
+                el.pageCounterBadge.classList.add('hidden');
+                el.imageCounterBadge.classList.add('hidden');
+                el.filesCounter.textContent = '0 / 0';
+                el.fileRemovedSummary.textContent = '';
+                el.zoomLabel.textContent = `${Math.round(state.zoom * 100)}%`;
+                return;
+            }
+
+            el.currentFileName.textContent = file.relativePath || file.name;
+            el.filesCounter.textContent = `${state.currentFileIndex + 1} / ${state.files.length}`;
+            el.zoomLabel.textContent = `${Math.round(state.zoom * 100)}%`;
+
+            if (file.pageCount > 0) {
+                el.pageCounterBadge.textContent = `Page ${state.currentPageIndex + 1} / ${file.pageCount}`;
+                el.pageCounterBadge.classList.remove('hidden');
+            } else {
+                el.pageCounterBadge.classList.add('hidden');
+            }
+
+            if (file.images.length > 0 && state.currentImageIndex >= 0) {
+                el.imageCounterBadge.textContent = `Picture ${state.currentImageIndex + 1} / ${file.images.length}`;
+                el.imageCounterBadge.classList.remove('hidden');
+            } else {
+                el.imageCounterBadge.textContent = '0 / 0';
+                el.imageCounterBadge.classList.toggle('hidden', file.images.length === 0);
+            }
+
+            const removedCount = file.images.filter(im => im.removed).length;
+            const removedBytes = file.images.filter(im => im.removed).reduce((sum, im) => sum + (im.byteSize || 0), 0);
+            el.fileRemovedSummary.textContent = file.images.length
+                ? `${removedCount}/${file.images.length} removed (${formatBytes(removedBytes)})`
+                : '';
+        }
+
+        function renderFilesList() {
+            if (state.files.length === 0) {
+                el.filesList.innerHTML = `<div class="h-full flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 text-center p-4">Choose a PDF file or a folder of PDFs to begin.</div>`;
+                return;
+            }
+
+            const frag = document.createDocumentFragment();
+            state.files.forEach((f, idx) => {
+                const active = idx === state.currentFileIndex;
+                const total = f.images.length;
+                const removed = f.images.filter(im => im.removed).length;
+
+                const row = document.createElement('button');
+                row.type = 'button';
+                row.className = `w-full text-left px-2.5 py-1.5 rounded border text-xs flex items-center justify-between gap-2 transition-colors ${
+                    active
+                        ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-800 dark:text-blue-200 font-semibold'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700/70 text-gray-700 dark:text-gray-300'
+                }`;
+
+                let badgeHtml = '';
+                if (f.error) {
+                    badgeHtml = `<span class="px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[10px] flex-shrink-0">${escapeHtml(f.error)}</span>`;
+                } else if (total === 0) {
+                    badgeHtml = `<span class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[10px] flex-shrink-0">0 imgs</span>`;
+                } else if (removed > 0) {
+                    badgeHtml = `<span class="px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 font-mono text-[10px] flex-shrink-0">-${removed} / ${total}</span>`;
+                } else {
+                    badgeHtml = `<span class="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-mono text-[10px] flex-shrink-0">${total} imgs</span>`;
+                }
+
+                row.innerHTML = `<span class="truncate">${idx + 1}. ${escapeHtml(f.relativePath || f.name)}</span>${badgeHtml}`;
+                row.addEventListener('click', () => selectFile(idx, { autoScroll: true }));
+                frag.appendChild(row);
+            });
+
+            el.filesList.innerHTML = '';
+            el.filesList.appendChild(frag);
+        }
+
+        function renderCurrentPictureCard() {
+            const img = getCurrentImage();
+            if (!img) {
+                el.pictureEmpty.classList.remove('hidden');
+                el.currentPictureImg.classList.add('hidden');
+                el.currentPictureImg.removeAttribute('src');
+                el.pictureRemovedOverlay.classList.add('hidden');
+                el.pictureStatusBadge.classList.add('hidden');
+                el.pictureMeta.classList.add('hidden');
+                el.btnPreviewMode.classList.add('hidden');
+                el.btnToggleRemove.textContent = 'Remove';
+                el.btnToggleRemove.className = 'bg-red-600 hover:bg-red-700 text-white rounded-lg py-2.5 px-2 font-bold text-sm transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-1';
+                return;
+            }
+
+            el.pictureEmpty.classList.add('hidden');
+
+            const hasBoth = Boolean(img.rawUrl && img.cropUrl);
+            el.btnPreviewMode.classList.toggle('hidden', !hasBoth);
+            const activeMode = hasBoth ? state.previewMode : (img.rawUrl ? 'raw' : 'crop');
+            el.btnPreviewMode.textContent = activeMode === 'raw' ? 'Raw' : 'Crop';
+
+            const url = activeMode === 'raw' ? (img.rawUrl || img.cropUrl) : (img.cropUrl || img.rawUrl);
+            if (url) {
+                el.currentPictureImg.src = url;
+                el.currentPictureImg.classList.remove('hidden');
+            } else {
+                el.currentPictureImg.classList.add('hidden');
+            }
+
+            el.pictureStatusBadge.classList.remove('hidden');
+            if (img.removed) {
+                el.pictureRemovedOverlay.classList.remove('hidden');
+                el.currentPictureImg.classList.add('opacity-40');
+                el.pictureStatusBadge.textContent = 'REMOVED';
+                el.pictureStatusBadge.className = 'px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300';
+                el.btnToggleRemove.textContent = 'Restore';
+                el.btnToggleRemove.className = 'bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg py-2.5 px-2 font-bold text-sm transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-1';
+            } else {
+                el.pictureRemovedOverlay.classList.add('hidden');
+                el.currentPictureImg.classList.remove('opacity-40');
+                el.pictureStatusBadge.textContent = 'KEPT';
+                el.pictureStatusBadge.className = 'px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300';
+                el.btnToggleRemove.textContent = 'Remove';
+                el.btnToggleRemove.className = 'bg-red-600 hover:bg-red-700 text-white rounded-lg py-2.5 px-2 font-bold text-sm transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-1';
+            }
+
+            const dims = img.width && img.height ? `${img.width}×${img.height}` : 'Unknown size';
+            el.pictureMetaText.textContent = `${img.name} • ${dims} • ${img.filter} • ${formatBytes(img.byteSize)}`;
+            el.pictureMeta.classList.remove('hidden');
+        }
+
+        async function renderCurrentPdfPage({ autoScroll = false } = {}) {
+            const file = getCurrentFile();
+            if (!file || !file.originalBytes || file.pageCount === 0) {
+                el.emptyState.classList.toggle('hidden', Boolean(file));
+                el.noImagesState.classList.toggle('hidden', !file || file.images.length > 0);
+                el.pdfViewportInner.classList.add('hidden');
+                return;
+            }
+
+            el.emptyState.classList.add('hidden');
+            el.noImagesState.classList.toggle('hidden', file.images.length > 0);
+            el.pdfViewportInner.classList.remove('hidden');
+
+            const myGen = ++state.renderGeneration;
+
+            if (state.activeRenderTask) {
+                try { state.activeRenderTask.cancel(); } catch (_) {}
+                state.activeRenderTask = null;
+            }
+
+            let tempDoc = null;
+            try {
+                await ensurePagePreviews(file, state.currentPageIndex);
+                if (myGen !== state.renderGeneration) return;
+
+                // Update picture card again in case previews just finished extracting
+                renderCurrentPictureCard();
+
+                const modifiedBytes = await buildLivePagePreviewBytes(file, state.currentPageIndex);
+                if (myGen !== state.renderGeneration) return;
+
+                let pageToRender;
+                if (modifiedBytes) {
+                    tempDoc = await pdfjsLib.getDocument({ data: modifiedBytes, ...PDFJS_COMMON_OPTS }).promise;
+                    if (myGen !== state.renderGeneration) { await tempDoc.destroy(); return; }
+                    const targetNum = tempDoc.numPages === 1 ? 1 : state.currentPageIndex + 1;
+                    pageToRender = await tempDoc.getPage(targetNum);
+                } else {
+                    const origDoc = await getOriginalPdfJsDoc(file);
+                    if (myGen !== state.renderGeneration) return;
+                    pageToRender = await origDoc.getPage(state.currentPageIndex + 1);
+                }
+
+                const dpr = window.devicePixelRatio || 1;
+                const cssViewport = pageToRender.getViewport({ scale: state.zoom });
+                const renderViewport = pageToRender.getViewport({ scale: state.zoom * dpr });
+
+                const offCanvas = document.createElement('canvas');
+                offCanvas.width = Math.max(1, Math.floor(renderViewport.width));
+                offCanvas.height = Math.max(1, Math.floor(renderViewport.height));
+                const offCtx = offCanvas.getContext('2d');
+
+                const renderTask = pageToRender.render({ canvasContext: offCtx, viewport: renderViewport });
+                state.activeRenderTask = renderTask;
+                await renderTask.promise;
+                state.activeRenderTask = null;
+
+                if (myGen !== state.renderGeneration) return;
+
+                el.pdfCanvas.width = offCanvas.width;
+                el.pdfCanvas.height = offCanvas.height;
+                el.pdfCanvas.style.width = `${cssViewport.width}px`;
+                el.pdfCanvas.style.height = `${cssViewport.height}px`;
+                el.pdfPageWrapper.style.width = `${cssViewport.width}px`;
+                el.pdfPageWrapper.style.height = `${cssViewport.height}px`;
+
+                const visCtx = el.pdfCanvas.getContext('2d');
+                visCtx.drawImage(offCanvas, 0, 0);
+
+                state.lastViewport = cssViewport;
+                renderOverlayBoxes(file, cssViewport);
+
+                if (autoScroll) {
+                    scrollToCurrentImage(cssViewport);
+                }
+            } catch (err) {
+                if (err?.name !== 'RenderingCancelledException') {
+                    console.error('Page render error:', err);
+                    showToast(`Preview render error: ${err.message || err}`, 'error', 4000);
+                }
+            } finally {
+                if (tempDoc) {
+                    try { await tempDoc.destroy(); } catch (_) {}
+                }
+            }
+        }
+
+        function renderOverlayBoxes(file, viewport) {
+            el.canvasOverlayContainer.innerHTML = '';
+            if (!file || !viewport) return;
+
+            const showOverlay = el.toggleOverlay.checked;
+            if (!showOverlay) return;
+            const currentImg = getCurrentImage();
+            const pageImgs = file.images.filter(im => im.pageIndex === state.currentPageIndex);
+
+            for (const im of pageImgs) {
+                const rect = viewport.convertToViewportRectangle(im.bbox);
+                const left = Math.min(rect[0], rect[2]);
+                const top = Math.min(rect[1], rect[3]);
+                const width = Math.max(8, Math.abs(rect[2] - rect[0]));
+                const height = Math.max(8, Math.abs(rect[3] - rect[1]));
+
+                const isActive = currentImg && currentImg.id === im.id;
+                if (!showOverlay && !isActive) continue;
+
+                const box = document.createElement('div');
+                box.style.left = `${left}px`;
+                box.style.top = `${top}px`;
+                box.style.width = `${width}px`;
+                box.style.height = `${height}px`;
+                box.style.pointerEvents = 'auto';
+                box.title = `Picture ${im.globalIndex + 1} (${im.name}) — ${im.removed ? 'REMOVED (click to select)' : 'KEPT (click to select)'}`;
+
+                if (im.removed) {
+                    // Darkened translucent red tint + red border + red diagonal cross
+                    box.className = isActive
+                        ? 'absolute cursor-pointer border-2 border-red-600 bg-black/25 ring-2 ring-red-400/70 transition-all'
+                        : 'absolute cursor-pointer border border-red-500/80 bg-black/20 hover:bg-black/30 transition-all';
+
+                    box.innerHTML = `
+                        <svg class="w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+                            <line x1="0" y1="0" x2="100" y2="100" stroke="#ef4444" stroke-width="2" vector-effect="non-scaling-stroke" />
+                            <line x1="100" y1="0" x2="0" y2="100" stroke="#ef4444" stroke-width="2" vector-effect="non-scaling-stroke" />
+                        </svg>
+                    `;
+                } else if (isActive) {
+                    box.className = 'absolute cursor-pointer border-2 border-blue-500 bg-blue-500/10 ring-2 ring-blue-400/50 transition-all';
+                } else {
+                    box.className = 'absolute cursor-pointer border border-emerald-400/70 hover:bg-emerald-500/10 transition-all';
+                }
+
+                box.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectImage(im.globalIndex, { autoScroll: true });
+                });
+
+                el.canvasOverlayContainer.appendChild(box);
+            }
+        }
+
+        function scrollToCurrentImage(viewport) {
+            const img = getCurrentImage();
+            if (!img || !viewport || img.pageIndex !== state.currentPageIndex) return;
+
+            const rect = viewport.convertToViewportRectangle(img.bbox);
+            const left = Math.min(rect[0], rect[2]);
+            const top = Math.min(rect[1], rect[3]);
+            const width = Math.abs(rect[2] - rect[0]);
+            const height = Math.abs(rect[3] - rect[1]);
+
+            const container = el.pdfScrollContainer;
+            const wrapperLeft = el.pdfPageWrapper.offsetLeft;
+            const wrapperTop = el.pdfPageWrapper.offsetTop;
+
+            const centerX = wrapperLeft + left + width / 2;
+            const centerY = wrapperTop + top + height / 2;
+
+            container.scrollTo({
+                left: Math.max(0, centerX - container.clientWidth / 2),
+                top: Math.max(0, centerY - container.clientHeight / 2),
+                behavior: 'smooth',
+            });
+        }
+
+        function updateControlsDisabled() {
+            const file = getCurrentFile();
+            const hasFiles = state.files.length > 0;
+            const hasCurrentImg = Boolean(getCurrentImage());
+
+            el.btnFile.disabled = state.busy;
+            el.btnFolder.disabled = state.busy;
+            el.btnSave.disabled = state.busy || !hasFiles;
+
+            el.btnPagePrev.disabled = state.busy || !file || state.currentPageIndex <= 0;
+            el.btnPageNext.disabled = state.busy || !file || state.currentPageIndex >= file.pageCount - 1;
+            el.btnZoomOut.disabled = state.busy || !file || file.pageCount === 0;
+            el.btnZoomIn.disabled = state.busy || !file || file.pageCount === 0;
+            el.btnZoomFit.disabled = state.busy || !file || file.pageCount === 0;
+
+            el.btnToggleRemove.disabled = state.busy || !hasCurrentImg;
+
+            let hasPrev = false;
+            let hasNext = false;
+            if (file && state.currentImageIndex > 0) hasPrev = true;
+            else {
+                for (let f = state.currentFileIndex - 1; f >= 0; f--) {
+                    if (state.files[f].images.length > 0) { hasPrev = true; break; }
+                }
+            }
+            if (file && state.currentImageIndex >= 0 && state.currentImageIndex < file.images.length - 1) hasNext = true;
+            else {
+                for (let f = state.currentFileIndex + 1; f < state.files.length; f++) {
+                    if (state.files[f].images.length > 0) { hasNext = true; break; }
+                }
+            }
+
+            el.btnPrevPic.disabled = state.busy || !hasPrev;
+            el.btnNextPic.disabled = state.busy || !hasNext;
+
+            const totalModifiedFiles = state.files.filter(f => !f.error && f.images.some(im => im.removed)).length;
+            if (!hasFiles) {
+                el.btnSave.textContent = 'Save Changes';
+            } else if (state.mode === 'file') {
+                el.btnSave.textContent = totalModifiedFiles > 0 ? 'Save PDF...' : 'Save PDF (No Removals)';
+            } else {
+                const canOverwrite = state.files.some(f => f.handle);
+                el.btnSave.textContent = canOverwrite
+                    ? `Save & Overwrite Folder (${totalModifiedFiles} modified)`
+                    : `Download Modified Files (${totalModifiedFiles})`;
+            }
+        }
+
+        // =========================================================================
+        // Saving (Single File Save Dialog / Folder Bulk Overwrite)
+        // =========================================================================
+        async function saveAll() {
+            if (state.busy || state.files.length === 0) return;
+            state.busy = true;
+            updateControlsDisabled();
+
+            try {
+                if (state.mode === 'file') {
+                    const file = state.files[0];
+                    if (file.error) {
+                        showToast('Cannot save a file that failed to load.', 'error');
+                        return;
+                    }
+                    setProgress(true, `Building ${file.name}...`, 40);
+                    const outBytes = await buildModifiedFileBytes(file);
+                    setProgress(true, 'Waiting for save location...', 90);
+
+                    if (window.showSaveFilePicker) {
+                        try {
+                            const saveHandle = await window.showSaveFilePicker({
+                                suggestedName: file.name,
+                                types: [{ description: 'PDF Document', accept: { 'application/pdf': ['.pdf'] } }],
+                            });
+                            const writable = await saveHandle.createWritable();
+                            await writable.write(outBytes);
+                            await writable.close();
+                            showToast(`Saved "${saveHandle.name}" successfully.`, 'success');
+                        } catch (err) {
+                            if (err.name !== 'AbortError') throw err;
+                        }
+                    } else {
+                        triggerDownload(outBytes, file.name);
+                        showToast(`Downloaded "${file.name}".`, 'success');
+                    }
+                } else {
+                    const targetFiles = state.files.filter(f => !f.error && f.images.some(im => im.removed));
+                    if (targetFiles.length === 0) {
+                        showToast('No images were marked for removal.', 'info');
+                        return;
+                    }
+
+                    if (state.dirHandle && typeof state.dirHandle.requestPermission === 'function') {
+                        const perm = await state.dirHandle.requestPermission({ mode: 'readwrite' });
+                        if (perm !== 'granted') {
+                            showToast('Folder write permission denied.', 'error');
+                            return;
+                        }
+                    }
+
+                    let savedCount = 0;
+                    for (let i = 0; i < targetFiles.length; i++) {
+                        const f = targetFiles[i];
+                        setProgress(true, `Saving (${i + 1}/${targetFiles.length}): ${f.relativePath}`, ((i + 1) / targetFiles.length) * 100);
+                        const outBytes = await buildModifiedFileBytes(f);
+
+                        if (f.handle && typeof f.handle.createWritable === 'function') {
+                            const writable = await f.handle.createWritable();
+                            await writable.write(outBytes);
+                            await writable.close();
+                        } else {
+                            triggerDownload(outBytes, f.name);
+                        }
+                        savedCount++;
+                    }
+
+                    const verb = targetFiles.some(f => f.handle) ? 'overwritten in folder' : 'downloaded';
+                    showToast(`Saved ${savedCount} modified PDF(s) (${verb}).`, 'success', 4500);
+                }
+            } catch (err) {
+                console.error('Save error:', err);
+                showToast(`Save failed: ${err.message}`, 'error', 5000);
+            } finally {
+                setProgress(false);
+                state.busy = false;
+                updateControlsDisabled();
+            }
+        }
+
+        function triggerDownload(bytes, filename) {
+            const blob = new Blob([bytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+        }
+
+        el.btnSave.addEventListener('click', saveAll);
+    </script>
+</body>
+</html>

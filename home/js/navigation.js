@@ -35,6 +35,11 @@ var navigationItems = [
         icon: "fa-solid fa-broom",
     },
     {
+        name: "PDF Image Remover",
+        href: "/pdf-image-remover",
+        icon: "fa-solid fa-file-pdf",
+    },
+    {
         name: "Intersection Right-of-Way Game",
         href: "/intersection-right-of-way-game",
         icon: "fa-solid fa-road",
