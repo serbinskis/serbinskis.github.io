@@ -245,6 +245,11 @@
                     </div>
                 </div>
 
+                <!-- Bulk Remove/Restore All Button -->
+                <button id="btn-remove-all" disabled class="w-full flex-shrink-0 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-bold text-sm transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed shadow-sm">
+                    Remove All
+                </button>
+
                 <!-- Separate Save Button -->
                 <button id="btn-save" disabled class="w-full flex-shrink-0 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors shadow-sm text-base">
                     Save Changes
@@ -318,6 +323,7 @@
             progressText: document.getElementById('progress-text'),
             progressPercent: document.getElementById('progress-percent'),
             progressBar: document.getElementById('progress-bar'),
+            btnRemoveAll: document.getElementById('btn-remove-all'),
             btnSave: document.getElementById('btn-save'),
         };
 
@@ -1543,8 +1549,34 @@
             }
         }
 
+        async function toggleRemoveAllImages(e) {
+            e?.currentTarget?.blur();
+            const validFiles = state.files.filter(f => !f.error && f.images.length > 0);
+            const totalImages = validFiles.reduce((sum, f) => sum + f.images.length, 0);
+            if (totalImages === 0) return;
+
+            const allRemoved = validFiles.every(f => f.images.every(im => im.removed));
+            const targetRemoved = !allRemoved;
+
+            for (const f of validFiles) {
+                for (const im of f.images) {
+                    im.removed = targetRemoved;
+                }
+            }
+
+            showToast(
+                targetRemoved
+                    ? `Marked all ${totalImages} image(s) across ${validFiles.length} file(s) for removal.`
+                    : `Restored all ${totalImages} image(s) across ${validFiles.length} file(s).`,
+                targetRemoved ? 'info' : 'success'
+            );
+
+            await renderWorkspace({ autoScroll: false });
+        }
+
         el.btnPrevPic.addEventListener('click', goToPrevImage);
         el.btnNextPic.addEventListener('click', goToNextImage);
+        el.btnRemoveAll.addEventListener('click', toggleRemoveAllImages);
         el.btnToggleRemove.addEventListener('click', toggleCurrentImageRemoved);
 
         el.btnPagePrev.addEventListener('click', async () => {
@@ -1939,6 +1971,19 @@
             el.btnZoomFit.disabled = state.busy || !file || file.pageCount === 0;
 
             el.btnToggleRemove.disabled = state.busy || !hasCurrentImg;
+
+            const validFilesWithImgs = state.files.filter(f => !f.error && f.images.length > 0);
+            const totalAllImgs = validFilesWithImgs.reduce((sum, f) => sum + f.images.length, 0);
+            const allImgsRemoved = totalAllImgs > 0 && validFilesWithImgs.every(f => f.images.every(im => im.removed));
+
+            el.btnRemoveAll.disabled = state.busy || totalAllImgs === 0;
+            if (allImgsRemoved) {
+                el.btnRemoveAll.textContent = `Restore All (${totalAllImgs} imgs)`;
+                el.btnRemoveAll.className = 'w-full flex-shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold text-sm transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed shadow-sm';
+            } else {
+                el.btnRemoveAll.textContent = totalAllImgs > 0 ? `Remove All (${totalAllImgs} imgs)` : 'Remove All';
+                el.btnRemoveAll.className = 'w-full flex-shrink-0 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-bold text-sm transition-colors disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed shadow-sm';
+            }
 
             let hasPrev = false;
             let hasNext = false;
