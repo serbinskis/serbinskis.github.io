@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MBR / UEFI Image Builder</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='2' y='3' width='20' height='14' rx='2'/><path d='M8 21h8m-4-4v4'/></svg>">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/home/js/navigation.js"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+        let isDarkMode = localStorage.theme === 'light' ? false : true;
+        localStorage.theme = isDarkMode ? 'dark' : 'light';
+        document.documentElement.classList.toggle('dark', isDarkMode);
+    </script>
+
+    <!-- CDN Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.2/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/v86@latest/build/libv86.js"></script>
+
+    <style>
+        .dark ::-webkit-scrollbar { width: 10px; }
+        .dark ::-webkit-scrollbar-track { background: #1f2937; border-radius: 5px; }
+        .dark ::-webkit-scrollbar-thumb { background-color: #4b5563; border-radius: 5px; border: 2px solid #1f2937; }
+        .dark ::-webkit-scrollbar-thumb:hover { background-color: #6b7280; }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .toast { animation: slideDown 0.3s ease-out forwards; pointer-events: auto; }
+        .empty\:hidden:empty { display: none !important; }
+
+        .pixelated {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        #v86-screen-container canvas {
+            width: 100% !important;
+            height: auto !important;
+            aspect-ratio: 16 / 10;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            background-color: #000000;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300 font-sans flex flex-col min-h-[100dvh] text-gray-800 dark:text-gray-200">
+    <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-full max-w-md px-4 pointer-events-none"></div>
+
+    <header class="select-none flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm transition-colors duration-300">
+        <div class="container mx-auto max-w-[1600px] px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                MBR / UEFI Image Builder
+            </h1>
+            <div class="flex items-center gap-2">
+                <button id="btn-guide" class="px-3 py-1.5 text-sm font-medium rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/60 transition-colors flex items-center gap-1.5">
+                    <span>📖</span> Image Guide
+                </button>
+                <button id="theme-toggle" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Toggle theme">
+                    <svg id="theme-icon-light" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                    <svg id="theme-icon-dark" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto max-w-[1600px] p-4 flex-grow flex flex-col xl:flex-row gap-4 min-h-0">
+        <!-- Left Side: Image Preview & Inputs -->
+        <div class="flex flex-col gap-4 w-full xl:w-2/3 h-fit">
+            
+            <!-- Image Drop/Paste Zone -->
+            <div id="image-container" class="select-none relative w-full bg-gray-950 rounded-lg shadow-md flex items-center justify-center overflow-hidden min-h-[40vh] xl:min-h-[55vh] border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors group p-4">
+                
+                <!-- Empty State -->
+                <div id="empty-state" class="absolute flex flex-col items-center justify-center pointer-events-none text-gray-400 dark:text-gray-500 group-hover:text-blue-500 transition-colors text-center px-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                    <p class="font-medium text-lg">Paste (Ctrl+V) or Drag Image Here</p>
+                    <p class="text-xs mt-1 opacity-75">Any image format — converted to 320×200 (MBR/EXE requires ≤ 100 KB input)</p>
+                </div>
+
+                <!-- 320x200 Canvas Preview -->
+                <canvas id="preview-canvas" width="320" height="200" class="hidden w-full max-w-[720px] aspect-[16/10] object-contain pixelated rounded shadow-lg z-10 bg-black"></canvas>
+
+                <!-- Corner Resolution Badge -->
+                <div id="resolution-badge" class="hidden absolute bottom-2 right-2 z-20 px-2 py-0.5 rounded bg-black/75 text-gray-200 font-mono text-xs border border-gray-700">
+                    320 × 200
+                </div>
+            </div>
+
+            <!-- Image & EXE Controls Card -->
+            <div class="select-none bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-300 flex flex-col gap-4">
+
+                <!-- Image Input Row -->
+                <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                    <div class="flex flex-wrap gap-2 flex-1">
+                        <button id="btn-link" class="flex-1 min-w-[90px] bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 font-medium transition-colors text-sm">🔗 Link</button>
+                        <button id="btn-file" class="flex-1 min-w-[90px] bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 font-medium transition-colors text-sm">📁 Image</button>
+                        <button id="btn-default-img" class="flex-1 min-w-[90px] bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 font-medium transition-colors text-sm">🖼️ Default</button>
+                        <button id="btn-clear-img" class="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50 rounded-lg py-2 px-3 font-medium transition-colors text-sm">Clear</button>
+                        <input type="file" id="image-file-input" accept="image/*" class="hidden">
+                    </div>
+
+                    <label class="inline-flex items-center cursor-pointer flex-shrink-0 bg-gray-50 dark:bg-gray-900 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700" title="Disable smoothing when resizing to avoid extra transition colors">
+                        <input type="checkbox" id="crisp-resize" checked class="sr-only peer">
+                        <div class="relative w-7 h-4 bg-gray-300 dark:bg-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                        <span class="ml-2 text-xs font-semibold text-gray-600 dark:text-gray-300">Crisp Resize</span>
+                    </label>
+                </div>
+
+                <!-- EXE Options Row: Icon Picker & Ending -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <!-- EXE Icon Picker -->
+                    <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-900/60 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div class="w-12 h-12 flex-shrink-0 rounded border border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
+                            <img id="icon-preview" class="hidden w-8 h-8 object-contain" alt="EXE Icon">
+                            <span id="icon-placeholder" class="text-[10px] text-gray-400 font-mono">ICO</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">EXE Icon (.ico)</label>
+                            <div class="flex gap-2">
+                                <button id="btn-change-icon" class="px-2.5 py-1 text-xs font-medium bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded transition-colors">Change Icon</button>
+                                <button id="btn-clear-icon" class="px-2.5 py-1 text-xs font-medium bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border border-gray-300 dark:border-gray-600 rounded transition-colors">Clear</button>
+                                <input type="file" id="icon-file-input" accept=".ico,image/x-icon,image/vnd.microsoft.icon" class="hidden">
+                            </div>
+                            <p id="icon-filename" class="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-1 font-mono">Default EXE icon</p>
+                        </div>
+                    </div>
+
+                    <!-- EXE Ending Mode -->
+                    <div class="flex flex-col justify-center bg-gray-50 dark:bg-gray-900/60 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <label for="ending-select" class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">EXE Ending Action</label>
+                        <select id="ending-select" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="1" selected>BSOD</option>
+                            <option value="2">Reboot</option>
+                            <option value="3">Nothing</option>
+                        </select>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Applies when exporting <span class="font-mono">CustomMBR.exe</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Status, Preview & Export -->
+        <div class="select-none bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-300 flex flex-col gap-4 flex-grow xl:w-1/3 min-w-0 h-fit">
+            <div>
+                <h2 class="text-lg font-bold mb-1">Build & Export</h2>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Preview in QEMU (v86) or export bootable binaries.</p>
+            </div>
+
+            <!-- Conversion & Compression Stats -->
+            <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3.5 flex flex-col gap-2.5 text-sm font-mono">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-500 dark:text-gray-400 text-xs">Source Dimensions:</span>
+                    <span id="stat-dimensions" class="font-semibold text-xs">—</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-500 dark:text-gray-400 text-xs">Input File Size:</span>
+                    <span id="stat-filesize" class="font-semibold text-xs">—</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-500 dark:text-gray-400 text-xs">Palette Colors (max 255):</span>
+                    <span id="stat-colors" class="font-semibold text-xs">—</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-500 dark:text-gray-400 text-xs">Compressed MBR Payload:</span>
+                    <span id="stat-mbr-size" class="font-semibold text-xs">—</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-500 dark:text-gray-400 text-xs">UEFI 24-bit BMP:</span>
+                    <span id="stat-uefi-size" class="font-semibold text-xs">—</span>
+                </div>
+                <div id="mbr-status-banner" class="hidden mt-1 p-2 rounded text-xs font-sans"></div>
+            </div>
+
+            <!-- QEMU Preview Button -->
+            <button id="btn-qemu" disabled class="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-3 rounded-lg font-bold transition-colors shadow-sm flex items-center justify-center gap-2">
+                <span>🖥️</span> QEMU Preview (MBR)
+            </button>
+
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-3 flex flex-col gap-2.5">
+                <span class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Export Files</span>
+
+                <button id="btn-export-mbr" disabled class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-2.5 px-4 rounded-lg font-bold transition-colors shadow-sm flex items-center justify-between">
+                    <span>Export MBR</span>
+                    <span class="text-xs font-mono opacity-85">CustomMBR.bin</span>
+                </button>
+
+                <button id="btn-export-uefi" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-2.5 px-4 rounded-lg font-bold transition-colors shadow-sm flex items-center justify-between">
+                    <span>Export UEFI</span>
+                    <span class="text-xs font-mono opacity-85">bootx64.efi</span>
+                </button>
+
+                <button id="btn-export-exe" disabled class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white py-2.5 px-4 rounded-lg font-bold transition-colors shadow-sm flex items-center justify-between">
+                    <span>Export EXE</span>
+                    <span class="text-xs font-mono opacity-85">CustomMBR.exe</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="select-none container mx-auto max-w-[1600px] px-4 pb-4 text-center text-xs text-gray-500 dark:text-gray-400">
+        Based on the original Delphi project:
+        <a href="https://github.com/serbinskis/Delphi/tree/master/MBR%20UEFI%20-%20Image%20Builder" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+            Delphi - MBR UEFI - Image Builder
+        </a>
+    </footer>
+
+    <!-- Link Input Modal -->
+    <div id="link-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 opacity-0 pointer-events-none transition-opacity duration-300 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl transform scale-95 transition-transform duration-300" id="link-modal-content">
+            <h3 class="text-lg font-bold mb-1">Input Image URL</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4 font-medium">Provide a direct link to an image (CORS enabled).</p>
+            <input type="url" id="link-input" placeholder="https://example.com/image.png" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg p-2 mb-4 focus:ring-2 focus:ring-blue-500 outline-none">
+            <div class="flex justify-end gap-2">
+                <button id="btn-cancel-link" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors">Cancel</button>
+                <button id="btn-submit-link" class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors">Load URL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Educational Warning Modal -->
+    <div id="warning-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 opacity-0 pointer-events-none transition-opacity duration-300 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl transform scale-95 transition-transform duration-300 border border-amber-500/40" id="warning-modal-content">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold">Educational Purposes Only</h3>
+                    <p id="warning-target-file" class="text-xs font-mono text-blue-600 dark:text-blue-400"></p>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
+                This file modifies or replaces boot sectors / system bootloaders and is intended strictly for <strong>educational purposes and testing inside virtual machines</strong> (such as QEMU, VMware, or VirtualBox). Do not run or flash this on a host machine with important data.
+            </p>
+            <div id="warning-extra-info" class="hidden text-xs font-mono bg-gray-100 dark:bg-gray-900 p-2.5 rounded mb-4 text-gray-600 dark:text-gray-400"></div>
+            <div class="flex justify-end gap-2">
+                <button id="btn-cancel-warning" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors">Cancel</button>
+                <button id="btn-confirm-export" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg transition-colors">I Understand, Export</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Guide Modal -->
+    <div id="guide-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 opacity-0 pointer-events-none transition-opacity duration-300 backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-5 max-w-4xl w-full max-h-[90vh] flex flex-col shadow-xl transform scale-95 transition-transform duration-300" id="guide-modal-content">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-lg font-bold">Image Preparation Guide</h3>
+                <button id="btn-close-guide" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">✕</button>
+            </div>
+            <p class="text-xs text-gray-600 dark:text-gray-300 mb-3">
+                MBR/EXE mode only has <strong>~19.5 KB</strong> of space after compression and supports at most <strong>255 colors</strong>. Keep input files under <strong>100 KB</strong> (ideally ~20 KB), avoid anti-aliasing/gradients, and do not place too many multi-colored pixels in one area.
+            </p>
+            <div class="overflow-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-black flex items-center justify-center">
+                <img id="guide-image" src="assets/guide.png" alt="MBR Image Preparation Guide" class="max-w-full h-auto">
+            </div>
+        </div>
+    </div>
+
+    <!-- QEMU (v86) Emulator Modal (no backdrop-blur/transform to avoid Chromium canvas bleed-through) -->
+    <div id="qemu-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 opacity-0 pointer-events-none transition-opacity duration-200">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-5 max-w-3xl w-full shadow-2xl flex flex-col gap-3" id="qemu-modal-content">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-2.5">
+                    <h3 class="text-lg font-bold">QEMU Preview (v86 x86 Emulator)</h3>
+                    <span id="qemu-status" class="text-xs font-mono px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">Initializing...</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btn-qemu-restart" class="px-3 py-1 text-xs font-semibold bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors">Restart</button>
+                    <button id="btn-close-qemu" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">✕</button>
+                </div>
+            </div>
+            <div id="v86-screen-container" class="w-full bg-black rounded-lg overflow-hidden border border-gray-700 flex items-center justify-center aspect-[16/10]">
+                <div class="text-gray-300 p-4 w-full" style="white-space: pre; font: 14px monospace; line-height: 14px;"></div>
+                <canvas style="display: none;"></canvas>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                Booting generated <span class="font-mono">CustomMBR.bin</span> via Floppy (SeaBIOS + VGA Mode 13h 320×200×256).
+            </p>
+        </div>
+    </div>
+
+    <script type="module" src="./js/builder.js"></script>
+</body>
+</html>

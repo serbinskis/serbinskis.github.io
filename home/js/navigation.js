@@ -101,13 +101,13 @@ var navigationItems = [
     },
     {
         name: "MBR/UEFI - Image Builder",
-        href: "https://github.com/serbinskis/Delphi/tree/master/MBR%20UEFI%20-%20Image%20Builder",
-        icon: "fas fa-dice-d6",
+        href: "/mbr-uefi-image-builder/",
+        icon: "fas fa-microchip",
     },
     {
         name: "MBR/UEFI - Note Builder",
-        href: "https://github.com/serbinskis/Delphi/tree/master/MBR%20UEFI%20-%20Note%20Builder",
-        icon: "fas fa-dice-d6",
+        href: "/mbr-uefi-note-builder/",
+        icon: "fas fa-terminal",
     },
     {
         name: "nzip Compression",
